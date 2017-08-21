@@ -1,0 +1,29 @@
+description "KafkaStats"
+
+start on runlevel [2345]
+respawn
+respawn limit 20 5
+
+env NAME=kafkastats
+env JAVA_HOME=/usr/lib/jvm/java-8-oracle
+env STATSCOLLECTOR_HOME=/opt/kafkastats
+env LOG_DIR=/var/log/kafkastats
+env HOSTNAME=$(hostname)
+
+script
+    DAEMON=$JAVA_HOME/bin/java
+    CLASSPATH=$STATSCOLLECTOR_HOME:$STATSCOLLECTOR_HOME/*:$STATSCOLLECTOR_HOME/lib/*
+    DAEMON_OPTS="-server -Xmx800M -Xms800M -verbosegc -Xloggc:$LOG_DIR/gc.log \
+    -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=20 -XX:GCLogFileSize=20M \
+    -XX:+UseG1GC -XX:MaxGCPauseMillis=250 -XX:G1ReservePercent=10 -XX:ConcGCThreads=4 \
+    -XX:ParallelGCThreads=4 -XX:G1HeapRegionSize=8m -XX:InitiatingHeapOccupancyPercent=70 \
+    -XX:ErrorFile=$LOG_DIR/jvm_error.log \
+    -cp $CLASSPATH"
+    exec $DAEMON $DAEMON_OPTS -Dlog4j.configuration=${LOG_PROPERTIES} \
+                 com.pinterest.doctorkafka.stats.KafkaStatsMain \
+                 -jmxport 9999  -topic brokerstats  \
+                 -zookeeper datazk001:2181/data07 \
+                 -tsdhostport localhost:18126 -ostrichport 2051 \
+                 -uptimeinseconds 3600 -pollingintervalinseconds 60 \
+                 -kafka_config  /etc/kafka/server.properties
+end script

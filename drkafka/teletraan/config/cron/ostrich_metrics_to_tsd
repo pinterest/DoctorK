@@ -1,0 +1,1 @@
+* * * * * root docker run --rm --net=host 998131032990.dkr.ecr.us-east-1.amazonaws.com/ostrich-fetcher:0.9.1 ostrich-fetcher --ostrich-port 9999 &> /dev/null

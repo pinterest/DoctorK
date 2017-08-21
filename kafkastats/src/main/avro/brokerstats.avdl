@@ -1,0 +1,95 @@
+@namespace("com.pinterest.doctorkafka")
+protocol KafkaOperator {
+
+  enum BrokerError {
+    DiskFailure,
+    JmxConnectionFailure,
+    JmxQueryFailure,
+    KafkaServerProperitiesFailure,
+    MissingKafkaProcess,
+    MultipleKafkaProcesses,
+    UnknownError
+  }
+
+  record AvroTopicPartition {
+     string topic;
+     int partition;
+  }
+
+  record ReplicaStat {
+    long timestamp;
+    string topic;
+    int partition;
+
+    boolean isLeader;
+    boolean inReassignment; // involved in partition reassignment
+    boolean underReplicated;
+
+    long bytesIn1MinMeanRate;
+    long bytesIn5MinMeanRate;
+    long bytesIn15MinMeanRate;
+    long bytesOut1MinMeanRate;
+    long bytesOut5MinMeanRate;
+    long bytesOut15MinMeanRate;
+    long startOffset;
+    long endOffset;
+    double cpuUsage;
+    long logSizeInBytes;
+    int  numLogSegments;
+  }
+
+  record BrokerStats {
+    long  timestamp = 0;
+    int   id = -1;
+    union {null, string} name = null;
+    union {null, string} zkUrl = null;
+    union {null, string} kafkaVersion = null;
+    union {null, string} statsVersion = null;
+    boolean hasFailure = true;
+    union {null, BrokerError} failureReason = null;
+
+    // instance info
+    union {null, string} availabilityZone = null;
+    union {null, string} instanceType = null;
+    union {null, string} amiId = null;
+    union {null, string} rackId = null;
+    union {null, string} logFilesPath = null;
+
+    double  cpuUsage = 0.0;
+    long   freeDiskSpaceInBytes = -1;
+    long   totalDiskSpaceInBytes = -1;
+
+    long   leadersBytesIn1MinRate = 0;
+    long   leadersBytesOut1MinRate = 0;
+    long   leadersBytesIn5MinRate = 0;
+    long   leadersBytesOut5MinRate = 0;
+    long   leadersBytesIn15MinRate = 0;
+    long   leadersBytesOut15MinRate = 0;
+
+    long   sysBytesIn1MinRate = -1;
+    long   sysBytesOut1MinRate = -1;
+    int    numReplicas = 0;
+    int    numLeaders = 0;
+
+    // the traffic metrics for leader replicas. here all the rate unit is bytes per second.
+    union {null, @java-key-class("java.lang.String")map<long>} topicsBytesIn1MinRate = null;
+    union {null, @java-key-class("java.lang.String")map<long>} topicsBytesOut1MinRate = null;
+
+    union {null, @java-key-class("java.lang.String")map<long>} topicsBytesIn5MinRate = null;
+    union {null, @java-key-class("java.lang.String")map<long>} topicsBytesOut5MinRate = null;
+
+    union {null, @java-key-class("java.lang.String")map<long>} topicsBytesIn15MinRate = null;
+    union {null, @java-key-class("java.lang.String")map<long>} topicsBytesOut15MinRate = null;
+
+    union {null, array<ReplicaStat>} leaderReplicaStats = null;
+    union {null, array<AvroTopicPartition>} leaderReplicas = null;
+    union {null, array<AvroTopicPartition>} followerReplicas = null;
+    union {null, array<AvroTopicPartition>} inReassignmentReplicas = null;
+  }
+
+  record OperatorAction {
+    long   timestamp = 0;
+    string clusterName;
+    string description;
+  }
+}
