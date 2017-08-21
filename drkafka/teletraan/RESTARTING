@@ -1,0 +1,5 @@
+#!/bin/bash
+
+mkdir -p /var/log/kafkaoperator
+
+configure-serviceset -c teletraan/config/serviceset.conf -e STAGE_NAME=$STAGE_NAME
