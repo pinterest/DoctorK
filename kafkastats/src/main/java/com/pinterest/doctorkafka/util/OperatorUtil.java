@@ -4,7 +4,7 @@ package com.pinterest.doctorkafka.util;
 import com.pinterest.doctorkafka.BrokerStats;
 
 import com.google.common.net.HostAndPort;
-import javafx.util.Pair;
+import org.apache.commons.lang3.tuple.MutablePair;
 import kafka.cluster.Broker;
 import kafka.utils.ZkUtils;
 import org.I0Itec.zkclient.ZkClient;
@@ -196,7 +196,7 @@ public class OperatorUtil {
     }
   }
 
-  public static Pair<Long, Long> getProcNetDevStats() throws Exception {
+  public static MutablePair<Long, Long> getProcNetDevStats() throws Exception {
     ProcessBuilder ps = new ProcessBuilder("cat", "/proc/net/dev");
     Process pr = ps.start();
     pr.waitFor();
@@ -219,20 +219,20 @@ public class OperatorUtil {
     }
     in.close();
 
-    Pair<Long, Long> result = new Pair<>(receivedBytes, outBytes);
+    MutablePair<Long, Long> result = new MutablePair<>(receivedBytes, outBytes);
     return result;
   }
 
-  public static Pair<Double, Double> getSysNetworkTraffic(long samplingWindowInMs)
+  public static MutablePair<Double, Double> getSysNetworkTraffic(long samplingWindowInMs)
       throws Exception {
-    Pair<Long, Long> startNumbers = getProcNetDevStats();
+    MutablePair<Long, Long> startNumbers = getProcNetDevStats();
     Thread.sleep(samplingWindowInMs);
-    Pair<Long, Long> endNumbers = getProcNetDevStats();
+    MutablePair<Long, Long> endNumbers = getProcNetDevStats();
 
     double inRate = (endNumbers.getKey() - startNumbers.getKey()) * 1000.0 / samplingWindowInMs;
     double outRate =
         (endNumbers.getValue() - startNumbers.getValue()) * 1000.0 / samplingWindowInMs;
-    Pair<Double, Double> result = new Pair<>(inRate, outRate);
+    MutablePair<Double, Double> result = new MutablePair<>(inRate, outRate);
     return result;
   }
   /**

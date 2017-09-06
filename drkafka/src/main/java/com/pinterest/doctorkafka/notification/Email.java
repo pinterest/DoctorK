@@ -2,8 +2,8 @@ package com.pinterest.doctorkafka.notification;
 
 import com.pinterest.doctorkafka.KafkaBroker;
 
-import javafx.util.Pair;
 import kafka.cluster.Broker;
+import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.logging.log4j.LogManager;
@@ -93,7 +93,7 @@ public class Email {
   public static void alertOnFailureInHandlingUrps(String[] emails,
                                                   String clusterName,
                                                   List<PartitionInfo> urps,
-                                                  List<Pair<KafkaBroker, TopicPartition>>
+                                                  List<MutablePair<KafkaBroker, TopicPartition>>
                                                       reassignmentFailures) {
     if (urpFailureEmails.containsKey(clusterName) &&
         System.currentTimeMillis() - urpFailureEmails.get(clusterName) < COOLOFF_INTERVAL) {
