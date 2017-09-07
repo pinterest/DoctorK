@@ -12,10 +12,10 @@ import com.pinterest.doctorkafka.util.PreferredReplicaElectionInfo;
 import com.pinterest.doctorkafka.util.ReassignmentInfo;
 import com.pinterest.doctorkafka.util.UnderReplicatedReason;
 
-import javafx.util.Pair;
 import kafka.cluster.Broker;
 import kafka.common.TopicAndPartition;
 import kafka.utils.ZkUtils;
+import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.PartitionInfo;
@@ -75,7 +75,7 @@ public class KafkaClusterManager implements Runnable {
 
   private Map<String, scala.collection.Map<Object, Seq<Object>>> topicPartitionAssignments
       = new HashMap<>();
-  private List<Pair<KafkaBroker, TopicPartition>> reassignmentFailures = new ArrayList();
+  private List<MutablePair<KafkaBroker, TopicPartition>> reassignmentFailures = new ArrayList();
 
   /**
    * fields that are used for partition reassignments
@@ -235,7 +235,7 @@ public class KafkaClusterManager implements Runnable {
           }
         } else {
           LOG.info("Could not find an alternative broker for {}:{} ", broker.name(), tp);
-          reassignmentFailures.add(new Pair<>(broker, tp));
+          reassignmentFailures.add(new MutablePair<>(broker, tp));
         }
       }
     } catch (Exception e) {
@@ -281,7 +281,7 @@ public class KafkaClusterManager implements Runnable {
           }
         } else {
           LOG.info("Could not find an alternative broker for {}:{}", broker.name(), tp);
-          reassignmentFailures.add(new Pair<>(broker, tp));
+          reassignmentFailures.add(new MutablePair<>(broker, tp));
         }
       }
     } catch (Exception e) {
@@ -552,7 +552,7 @@ public class KafkaClusterManager implements Runnable {
         success = false;
         for (int oosBrokerId : oosReplica.outOfSyncBrokers) {
           KafkaBroker broker = kafkaCluster.getBroker(oosBrokerId);
-          reassignmentFailures.add(new Pair(broker, oosReplica.topicPartition));
+          reassignmentFailures.add(new MutablePair(broker, oosReplica.topicPartition));
         }
         break;
       } else {
@@ -595,12 +595,12 @@ public class KafkaClusterManager implements Runnable {
       return oosReplica;
     }).collect(Collectors.toList());
 
-    Map<Pair<Integer, Integer>, UnderReplicatedReason> urpReasons = new HashMap<>();
+    Map<MutablePair<Integer, Integer>, UnderReplicatedReason> urpReasons = new HashMap<>();
     for (OutOfSyncReplica oosReplica : oosReplicas) {
       int leaderId = (oosReplica.leader == null) ? -1 : oosReplica.leader.id();
       for (int oosBrokerId : oosReplica.outOfSyncBrokers) {
         KafkaBroker broker = kafkaCluster.getBroker(oosBrokerId);
-        Pair<Integer, Integer> nodePair = new Pair<>(oosBrokerId, leaderId);
+        MutablePair<Integer, Integer> nodePair = new MutablePair<>(oosBrokerId, leaderId);
         if (!urpReasons.containsKey(nodePair)) {
           UnderReplicatedReason reason;
           reason = getUnderReplicatedReason(broker.name(), oosBrokerId, leaderId);
@@ -611,7 +611,7 @@ public class KafkaClusterManager implements Runnable {
 
     boolean alertOnFailure = true;
     boolean brokerFailureOnly = true;
-    for (Map.Entry<Pair<Integer, Integer>, UnderReplicatedReason> entry : urpReasons.entrySet()) {
+    for (Map.Entry<MutablePair<Integer, Integer>, UnderReplicatedReason> entry : urpReasons.entrySet()) {
       UnderReplicatedReason reason = entry.getValue();
       brokerFailureOnly &= (reason == UnderReplicatedReason.BROKER_FAILURE);
     }
