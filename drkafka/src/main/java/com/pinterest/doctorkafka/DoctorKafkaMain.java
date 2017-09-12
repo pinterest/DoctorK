@@ -45,13 +45,13 @@ public class DoctorKafkaMain {
     Option zookeeper = new Option(ZOOKEEPER, true, "zk url for metrics topic");
     zookeeper.setRequired(false);
     Option topic = new Option(METRICS_TOPIC, true, "kafka topic for metric messages");
-    zookeeper.setRequired(false);
+    topic.setRequired(false);
     Option tsdHostPort = new Option(TSD_HOSTPORT, true, "tsd host and port, e.g. localhost:18621");
-    zookeeper.setRequired(false);
+    tsdHostPort.setRequired(false);
     Option ostrichPort = new Option(OSTRICH_PORT, true, "ostrich port");
-    zookeeper.setRequired(false);
+    ostrichPort.setRequired(false);
     Option uptimeInSeconds = new Option(UPTIME_IN_SECONDS, true, "uptime in seconds");
-    zookeeper.setRequired(false);
+    uptimeInSeconds.setRequired(false);
 
     options.addOption(configPath).addOption(zookeeper).addOption(topic)
         .addOption(tsdHostPort).addOption(ostrichPort).addOption(uptimeInSeconds);
