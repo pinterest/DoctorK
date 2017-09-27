@@ -110,6 +110,10 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
    *  and read/write ratio for topics usually does not change often. Because of this, we can
    *  use the in-bound traffic times read/write ratio to infer the required out-bound bandwidth
    *  for topic partitions.
+   *
+   * @param tp the topic partition for reserving outbound bandwidth
+   * @param outBound  the outbound bandwidth requirements in bytes/second
+   * @return whether the reservation is successful or not.
    */
   public boolean reserveOutBoundBandwidth(TopicPartition tp, double outBound) {
     if (bytesOutPerSecLimit > getMaxBytesOut() + reservedBytesOut + outBound) {
@@ -142,6 +146,8 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
 
   /**
    *  Record the stats, and update the topic partition list based on the stats
+   *
+   *  @param stats the broker stats
    */
   public void update(BrokerStats stats) {
     if (stats == null
@@ -167,6 +173,9 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
   /**
    *  This is used in partition reassignment. During the partition reassignment, we cannot
    *  put two replicas on the same broker.
+   *
+   *  @param tp the topic partition for examining
+   *  @return whether the broker has a replica for the given topic partition.
    */
   public boolean hasTopicPartition(TopicPartition tp) {
     return leaderReplicas.contains(tp) || followerReplicas.contains(tp)

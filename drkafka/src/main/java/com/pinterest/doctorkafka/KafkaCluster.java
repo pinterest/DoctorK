@@ -65,7 +65,9 @@ public class KafkaCluster {
 
   /**
    * Update the broker stats. Note that a broker may continue to send brokerStats that contains
-   * failure info after the kafka process fails. 
+   * failure info after the kafka process fails.
+   *
+   * @param brokerStats  the broker stats
    */
   public synchronized void recordBrokerStats(BrokerStats brokerStats) {
     try {
@@ -106,6 +108,9 @@ public class KafkaCluster {
 
   /**
    * Get broker by broker id.
+   *
+   * @param id  the broker id
+   * @return KafkaBroker object for the broker with id @id
    */
   public KafkaBroker getBroker(int id) {
     if (!brokers.containsKey(id)) {
@@ -115,7 +120,10 @@ public class KafkaCluster {
   }
 
   /**
-   *  Get the latest stats for a broker.
+   * Get the latest stats for a broker.
+   *
+   * @param brokerId broker id
+   * @return the latest broker stats
    */
   public BrokerStats getLatestBrokerStats(int brokerId) {
     synchronized (brokers) {
@@ -141,6 +149,8 @@ public class KafkaCluster {
   /**
    *  We consider a broker is of high traffic if either in-bound traffic or
    *  out-bound traffic exceeds the expected mean traffic.
+   *
+   *  @return the list of kafka brokers that exceeds the network traffic limit.
    */
   public List<KafkaBroker> getHighTrafficBrokers() {
     double averageBytesIn = getMaxBytesIn() / (double) brokers.size();
@@ -210,6 +220,10 @@ public class KafkaCluster {
 
   /**
    * Get the broker Id that has the resource. Here we need to apply the proper placement policy.
+   *
+   * @param brokerQueue  the list of brokers that are sorted in resource usage
+   * @param oosReplica  out of sync replicas
+   * @return a BrokerId to KafkaBroker mapping
    */
   public Map<Integer, KafkaBroker> getAlternativeBrokers(PriorityQueue<KafkaBroker> brokerQueue,
                                                           OutOfSyncReplica oosReplica) {

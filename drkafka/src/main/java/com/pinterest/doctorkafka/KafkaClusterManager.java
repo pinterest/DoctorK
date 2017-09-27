@@ -147,9 +147,12 @@ public class KafkaClusterManager implements Runnable {
   }
 
   /**
-   * Get the replica assignment for a given topic partition. This informtion should be retrieved
+   * Get the replica assignment for a given topic partition. This information should be retrieved
    * from zookeeper as topic metadata that we get from kafkaConsumer.listTopic() does not specify
    * the preferred leader for topic partitions.
+   *
+   * @param tp  topic partition
+   * @return the list of brokers that host the replica
    */
   private List<Integer> getReplicaAssignment(TopicPartition tp) {
     scala.collection.Map<Object, Seq<Object>> replicaAssignmentMap =
@@ -164,6 +167,11 @@ public class KafkaClusterManager implements Runnable {
 
   /**
    * generate the partition reassignment plan for moving high-traffic leader replicas out.
+   *
+   * @param broker that broker whose network traffic is high that the setting limits
+   * @param leaderReplicas  the leader replicas that the broker hosts
+   * @param averageBytesIn  average bytes in per second
+   * @param averageBytesOut average bytes out per second
    */
   private void generateLeadersReassignmentPlan(KafkaBroker broker,
                                                List<TopicPartition> leaderReplicas,
@@ -407,8 +415,8 @@ public class KafkaClusterManager implements Runnable {
 
   /**
    *  let  load_avg  be the average broker workload
-   *  for each broker b :  workload(b) > load_avg * (1 + max_variance):
-   *    while workload(b) > load_avg * (1 + max_variance):
+   *  for each broker b :  workload(b) \> load_avg * (1 + max_variance):
+   *    while workload(b)  load_avg * (1 + max_variance):
    *      select a batch of leader replicas on broker b
    *      for each leader replica tp in the batch:
    *        if  exists follower boker c that has capacity to host tp as leader:

@@ -131,6 +131,7 @@ public class DoctorKafkaConfig {
 
   /**
    * The emails for sending notification. The message can be for informational purpose.
+   * @return an array of email addresses for sending notification to.
    */
   public String[] getNotificationEmails() {
     String emailsStr = operatorConfiguration.getString(NOTIFICATION_EMAILS);
@@ -139,6 +140,7 @@ public class DoctorKafkaConfig {
 
   /**
    * The email addresses for sending alerts that the team needs to take actions.
+   * @return an array of email addresses for sending alerts to.
    */
   public String[] getAlertEmails() {
     String emailsStr = operatorConfiguration.getString(ALERT_EMAILS);
