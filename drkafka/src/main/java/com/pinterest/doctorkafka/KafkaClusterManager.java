@@ -528,17 +528,24 @@ public class KafkaClusterManager implements Runnable {
    */
   public UnderReplicatedReason getUnderReplicatedReason(String brokerHost,
                                                         int brokerId,
-                                                        int leaderId) {
+                                                        int leaderId,
+                                                        TopicPartition tp) {
     UnderReplicatedReason reason = UnderReplicatedReason.UNKNOWN;
-    if (brokerHost != null && isDeadBroker(brokerHost, brokerId)) {
+    if (brokerHost != null && isDeadBroker(brokerHost, brokerId, tp)) {
       reason = UnderReplicatedReason.BROKER_FAILURE;
     } else if (leaderId < 0) {
       LOG.error("No live leader {}:{}", brokerHost, brokerId);
-      reason = UnderReplicatedReason.BROKER_FAILURE;
-    } else if (isNetworkSaturated(leaderId)) {
-      reason = UnderReplicatedReason.LEADER_NETWORK_SATURATION;
-    } else if (isNetworkSaturated(leaderId)) {
-      reason = UnderReplicatedReason.FOLLOWER_NETWORK_SATURATION;
+      reason = UnderReplicatedReason.NO_LEADER_FAILURE;
+    } else {
+      KafkaBroker leaderBroker = kafkaCluster.getBroker(leaderId);
+      // Leader might be bad as well
+      if (leaderBroker != null && isDeadBroker(leaderBroker.name(), leaderId, tp)) {
+        reason = UnderReplicatedReason.LEADER_FAILURE;
+      } else if (isNetworkSaturated(leaderId)) {
+        reason = UnderReplicatedReason.LEADER_NETWORK_SATURATION;
+      } else if (isNetworkSaturated(leaderId)) {
+        reason = UnderReplicatedReason.FOLLOWER_NETWORK_SATURATION;
+      }
     }
     return reason;
   }
@@ -609,20 +616,33 @@ public class KafkaClusterManager implements Runnable {
       for (int oosBrokerId : oosReplica.outOfSyncBrokers) {
         KafkaBroker broker = kafkaCluster.getBroker(oosBrokerId);
         MutablePair<Integer, Integer> nodePair = new MutablePair<>(oosBrokerId, leaderId);
-        if (!urpReasons.containsKey(nodePair)) {
+        if (!urpReasons.containsKey(nodePair)
+            || urpReasons.get(nodePair) == UnderReplicatedReason.UNKNOWN) {
           UnderReplicatedReason reason;
-          reason = getUnderReplicatedReason(broker.name(), oosBrokerId, leaderId);
+          reason = getUnderReplicatedReason(broker.name(), oosBrokerId, leaderId,
+              oosReplica.topicPartition);
           urpReasons.put(nodePair, reason);
         }
       }
     }
+    LOG.info("URP Reasons: {}", urpReasons);
 
     boolean alertOnFailure = true;
     boolean brokerFailureOnly = true;
+    Set<String> downBrokers = new HashSet<>();
     for (Map.Entry<MutablePair<Integer, Integer>, UnderReplicatedReason> entry : urpReasons.entrySet()) {
       UnderReplicatedReason reason = entry.getValue();
       brokerFailureOnly &= (reason == UnderReplicatedReason.BROKER_FAILURE);
+      MutablePair<Integer,Integer> pair = entry.getKey();
+      if (reason == UnderReplicatedReason.BROKER_FAILURE) {
+        KafkaBroker broker = kafkaCluster.getBroker(pair.getLeft());
+        downBrokers.add(broker.name());
+      } else if (reason == UnderReplicatedReason.LEADER_FAILURE) {
+        KafkaBroker broker = kafkaCluster.getBroker(pair.getRight());
+        downBrokers.add(broker.name());
+      }
     }
+    LOG.info("Down brokers: " + downBrokers);
 
     // when a kafka broker dies, PartitionInfo.replicas only has node.id info for the dead broker.
     // node.host() returns null. Because of this, we need to find the broker id info based on
@@ -647,7 +667,7 @@ public class KafkaClusterManager implements Runnable {
 
     if (alertOnFailure) {
       Email.alertOnFailureInHandlingUrps(operatorConfig.getNotificationEmails(),
-          clusterConfig.getClusterName(), urps, reassignmentFailures);
+          clusterConfig.getClusterName(), urps, reassignmentFailures, downBrokers);
     }
   }
 
@@ -657,10 +677,35 @@ public class KafkaClusterManager implements Runnable {
    * a broker is dead or not. This method only returns true when we are sure that the broker
    * is not available.
    */
-  private boolean isDeadBroker(String host, int brokerId) {
+  private boolean isDeadBroker(String host, int brokerId, TopicPartition tp) {
     if (OperatorUtil.pingKafkaBroker(host, 9092, 5000)) {
       LOG.debug("Broker {} is alive as {}:9092 is reachable", brokerId, host);
-      return false;
+      if (tp == null) {
+        KafkaBroker broker = kafkaCluster.brokers.get(brokerId);
+        if (broker != null) {
+          // Try to fetch some data from that broker
+          List<TopicPartition> tps = broker.getLeaderTopicPartitions();
+          if (tps == null || tps.isEmpty()) {
+            tps = broker.getFollowerTopicPartitions();
+          }
+          if (tps != null && !tps.isEmpty()) {
+            tp = tps.get(0);
+          }
+        }
+      }
+      if (tp == null) {
+        LOG.warn("No topic/partitions found for broker {}", brokerId);
+        return false;
+      } else {
+        if (OperatorUtil.fetchData(host, 9092, tp.topic(), tp.partition())) {
+          LOG.debug("We are able to fetch data from broker {}", brokerId);
+          return false;
+        } else {
+          LOG.warn("We are not able to fetch data from broker {} topic {}, par {}",
+              brokerId, tp.topic(), tp.partition());
+          return true;
+        }
+      }
     }
     // invariant: cannot ping host:9092. The host may be rebooting. we need to wait
     // for some time to see if the host comes up.

@@ -124,6 +124,17 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
     return false;
   }
 
+  public List<TopicPartition> getLeaderTopicPartitions() {
+    BrokerStats brokerStats = getLatestStats();
+    if (brokerStats == null) {
+      LOG.error("Failed to get brokerstats for {}:{}", clusterConfig.getClusterName(), brokerId);
+      return null;
+    }
+    List<TopicPartition> topicPartitions = new ArrayList<>();
+    brokerStats.getLeaderReplicas().stream().forEach(atp ->
+        topicPartitions.add(new TopicPartition(atp.getTopic(), atp.getPartition())));
+    return topicPartitions;
+  }
 
   public List<TopicPartition> getFollowerTopicPartitions() {
     BrokerStats brokerStats = getLatestStats();
