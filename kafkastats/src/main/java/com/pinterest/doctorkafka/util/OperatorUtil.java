@@ -16,7 +16,7 @@ import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.network.ListenerName;
-import org.apache.kafka.common.protocol.SecurityProtocol;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import scala.Tuple2;
