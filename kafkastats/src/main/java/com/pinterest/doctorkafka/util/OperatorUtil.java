@@ -58,7 +58,8 @@ public class OperatorUtil {
   public static final String HostName = getHostname();
   private static final DecoderFactory avroDecoderFactory = DecoderFactory.get();
   private static final String FETCH_CLIENT_NAME = "DoctorKafka";
-  private static final int FETCH_BUFFER_SIZE = 1024 * 1024;
+  private static final int FETCH_SOCKET_TIMEOUT = 10 * 1000;
+  private static final int FETCH_BUFFER_SIZE = 4 * 1024 * 1024;
   private static final int FETCH_RETRIES = 3;
   private static final int FETCH_MAX_WAIT_MS = 1; // this is the same wait as simmpleConsumerShell
 
@@ -111,7 +112,7 @@ public class OperatorUtil {
   public static boolean fetchData(String host, int port, String topic, int partition) {
     LOG.info("Fetching data from host {}, topic {}, partition {}", host, topic, partition);
     SimpleConsumer consumer = new SimpleConsumer(host, port,
-        ConsumerConfig.SocketTimeout(), ConsumerConfig.SocketBufferSize(), FETCH_CLIENT_NAME);
+        FETCH_SOCKET_TIMEOUT, ConsumerConfig.SocketBufferSize(), FETCH_CLIENT_NAME);
     try {
       long earlyOffset = getOffset(consumer, topic, partition,
           kafka.api.OffsetRequest.EarliestTime());
@@ -128,21 +129,31 @@ public class OperatorUtil {
             .minBytes(ConsumerConfig.MinFetchBytes())
             .addFetch(topic, partition, readOffset, FETCH_BUFFER_SIZE)
             .build();
-        FetchResponse response = consumer.fetch(req);
+        try {
+          FetchResponse response = consumer.fetch(req);
 
-        if (response.hasError()) {
-          String errMsg = "Error fetching Data. ErrorCode: " + response.error(topic, partition);
-          LOG.warn(errMsg);
-        } else {
-          MessageSet msgSet = response.messageSet(topic, partition);
-          if (msgSet.sizeInBytes() <= 0) {
-            LOG.warn("host: " + host + " topic: " + topic + " par: " + partition +
-                " Not enough bytes: {}", msgSet.sizeInBytes());
+          if (response.hasError()) {
+            String errMsg = "Error fetching Data. ErrorCode: " + response.error(topic, partition);
+            LOG.warn(errMsg);
           } else {
-            LOG.info("Passed. Fetching data from host {}, topic {}, partition {}",
-                host, topic, partition);
-            return true;
+            MessageSet msgSet = response.messageSet(topic, partition);
+            if (msgSet.sizeInBytes() <= 0) {
+              if (earlyOffset == latestOffset) {
+                LOG.warn("Passed. No data in partition.  Fetching data from host {}, topic {}, partition {}",
+                    host, topic, partition);
+                return true;
+              } else {
+                LOG.warn("host: " + host + " topic: " + topic + " par: " + partition +
+                    " Not enough bytes: {}", msgSet.sizeInBytes());
+              }
+            } else {
+              LOG.info("Passed. Fetching data from host {}, topic {}, partition {}",
+                  host, topic, partition);
+              return true;
+            }
           }
+        } catch (Exception ex) {
+          LOG.warn("For host: " + host + " Unexpected exception", ex);
         }
         try {
           Thread.sleep((long) (Math.random() * 3000));
@@ -150,8 +161,8 @@ public class OperatorUtil {
           LOG.warn("Unexpected interruption", ex);
         }
       }
-    } catch (IOException ex) {
-      LOG.warn("For host: " + host + " Unexpected exception", ex);
+    } catch (IOException e) {
+      LOG.warn("For host: " + host + " Unexpected exception", e);
     } finally {
       consumer.close();
     }

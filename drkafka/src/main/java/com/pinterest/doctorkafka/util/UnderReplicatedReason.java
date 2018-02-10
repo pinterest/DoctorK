@@ -1,7 +1,7 @@
 package com.pinterest.doctorkafka.util;
 
 public enum UnderReplicatedReason {
-  BROKER_FAILURE,
+  FOLLOWER_FAILURE,
   LEADER_FAILURE,
   NO_LEADER_FAILURE,
   DEGRADED_HARDWARE,

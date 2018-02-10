@@ -96,7 +96,7 @@ public class Email {
                                                   List<PartitionInfo> urps,
                                                   List<MutablePair<KafkaBroker, TopicPartition>>
                                                       reassignmentFailures,
-                                                  Set<String> downBrokers) {
+                                                  Set<Integer> downBrokers) {
     if (urpFailureEmails.containsKey(clusterName) &&
         System.currentTimeMillis() - urpFailureEmails.get(clusterName) < COOLOFF_INTERVAL) {
       // return to avoid spamming users if an email has been sent within the coll-time time span
