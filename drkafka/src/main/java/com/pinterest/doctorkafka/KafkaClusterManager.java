@@ -693,7 +693,7 @@ public class KafkaClusterManager implements Runnable {
   private boolean isDeadBroker(String host, int brokerId, TopicPartition tp) {
     if (OperatorUtil.pingKafkaBroker(host, 9092, 5000)) {
       LOG.debug("Broker {} is alive as {}:9092 is reachable", brokerId, host);
-      if (OperatorUtil.fetchData(host, 9092, tp.topic(), tp.partition())) {
+      if (OperatorUtil.canFetchData(host, 9092, tp.topic(), tp.partition())) {
         LOG.debug("We are able to fetch data from broker {}", brokerId);
         return false;
       } else {

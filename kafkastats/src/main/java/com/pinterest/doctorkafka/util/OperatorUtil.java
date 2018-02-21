@@ -109,7 +109,7 @@ public class OperatorUtil {
     }
   }
 
-  public static boolean fetchData(String host, int port, String topic, int partition) {
+  public static boolean canFetchData(String host, int port, String topic, int partition) {
     LOG.info("Fetching data from host {}, topic {}, partition {}", host, topic, partition);
     SimpleConsumer consumer = new SimpleConsumer(host, port,
         FETCH_SOCKET_TIMEOUT, ConsumerConfig.SocketBufferSize(), FETCH_CLIENT_NAME);
