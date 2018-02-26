@@ -270,7 +270,7 @@ public class ReplicaStatsManager {
     kafkaConsumer.unsubscribe();
     kafkaConsumer.assign(offsets.keySet());
     Map<TopicPartition, Long> latestOffsets = kafkaConsumer.endOffsets(offsets.keySet());
-    kafkaConsumer.close();
+    KafkaUtils.closeConsumer(zkUrl);
 
     List<PastReplicaStatsProcessor> processors = new ArrayList<>();
 
