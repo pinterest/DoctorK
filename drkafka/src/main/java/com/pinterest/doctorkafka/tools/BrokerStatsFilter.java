@@ -139,7 +139,7 @@ public class BrokerStatsFilter {
     kafkaConsumer.unsubscribe();
     kafkaConsumer.assign(offsets.keySet());
     Map<TopicPartition, Long> latestOffsets = kafkaConsumer.endOffsets(offsets.keySet());
-    kafkaConsumer.close();
+    KafkaUtils.closeConsumer(brokerStatsZk);
 
     Map<Long, BrokerStats> brokerStatsMap = new TreeMap<>();
     for (TopicPartition topicPartition : offsets.keySet()) {

@@ -125,6 +125,14 @@ public class KafkaUtils {
   }
 
 
+  public static void closeConsumer(String zkUrl) {
+    if (kafkaConsumers.containsKey(zkUrl)) {
+      kafkaConsumers.get(zkUrl).close();
+      kafkaConsumers.remove(zkUrl);
+    }
+  }
+
+
   public static class TopicPartitionComparator implements Comparator<TopicPartition> {
 
     @Override
