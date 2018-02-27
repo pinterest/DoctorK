@@ -455,18 +455,22 @@ public class BrokerStatsRetriever {
       String logDirsStr = properties.containsKey("log.dirs") ? properties.getProperty("log.dirs")
                                                              : properties.getProperty("log.dir");
       brokerStats.setLogFilesPath(logDirsStr);
+      long freeSpaceInBytes = 0;
+      long totalSpaceInBytes = 0;
 
-      File logDir = new File(logDirsStr);
-      if (!logDir.exists()) {
-        brokerStats.setHasFailure(true);
-        brokerStats.setFailureReason(BrokerError.DiskFailure);
-        return;
+      for (String logDir : logDirsStr.split(",")) {
+        File tmpDir = new File(logDir);
+        if (!tmpDir.exists()) {
+          brokerStats.setHasFailure(true);
+          brokerStats.setFailureReason(BrokerError.DiskFailure);
+          return;
+        } else {
+          freeSpaceInBytes += tmpDir.getFreeSpace();
+          totalSpaceInBytes += tmpDir.getTotalSpace();
+        }
       }
 
-      long freeSpaceInBytes = logDir.getFreeSpace();
       brokerStats.setFreeDiskSpaceInBytes(freeSpaceInBytes);
-
-      long totalSpaceInBytes = logDir.getTotalSpace();
       brokerStats.setTotalDiskSpaceInBytes(totalSpaceInBytes);
     } catch (Exception e) {
       LOG.error("Failed to get broker configuration", e);
