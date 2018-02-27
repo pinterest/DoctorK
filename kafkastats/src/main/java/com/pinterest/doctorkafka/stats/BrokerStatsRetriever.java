@@ -397,7 +397,7 @@ public class BrokerStatsRetriever {
     String brokerIdStr = kafkaProperties.getProperty("broker.id");
     if (brokerIdStr == null) {
       // load from $kafka_log_dir/meta.properties
-      String logDirsStr = kafkaProperties.getProperty("log.dirs");
+      String logDirsStr = kafkaProperties.getProperty("log.dirs").split(",")[0];
       kafkaProperties.load(new FileInputStream(logDirsStr + "/meta.properties"));
       brokerIdStr = kafkaProperties.getProperty("broker.id");
     }
