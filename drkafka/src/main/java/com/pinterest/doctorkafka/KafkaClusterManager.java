@@ -528,17 +528,24 @@ public class KafkaClusterManager implements Runnable {
    */
   public UnderReplicatedReason getUnderReplicatedReason(String brokerHost,
                                                         int brokerId,
-                                                        int leaderId) {
+                                                        int leaderId,
+                                                        TopicPartition tp) {
     UnderReplicatedReason reason = UnderReplicatedReason.UNKNOWN;
-    if (brokerHost != null && isDeadBroker(brokerHost, brokerId)) {
-      reason = UnderReplicatedReason.BROKER_FAILURE;
+    if (brokerHost != null && isDeadBroker(brokerHost, brokerId, tp)) {
+      reason = UnderReplicatedReason.FOLLOWER_FAILURE;
     } else if (leaderId < 0) {
       LOG.error("No live leader {}:{}", brokerHost, brokerId);
-      reason = UnderReplicatedReason.BROKER_FAILURE;
-    } else if (isNetworkSaturated(leaderId)) {
-      reason = UnderReplicatedReason.LEADER_NETWORK_SATURATION;
-    } else if (isNetworkSaturated(leaderId)) {
-      reason = UnderReplicatedReason.FOLLOWER_NETWORK_SATURATION;
+      reason = UnderReplicatedReason.NO_LEADER_FAILURE;
+    } else {
+      KafkaBroker leaderBroker = kafkaCluster.getBroker(leaderId);
+      // Leader might be bad as well
+      if (leaderBroker != null && isDeadBroker(leaderBroker.name(), leaderId, tp)) {
+        reason = UnderReplicatedReason.LEADER_FAILURE;
+      } else if (isNetworkSaturated(leaderId)) {
+        reason = UnderReplicatedReason.LEADER_NETWORK_SATURATION;
+      } else if (isNetworkSaturated(leaderId)) {
+        reason = UnderReplicatedReason.FOLLOWER_NETWORK_SATURATION;
+      }
     }
     return reason;
   }
@@ -604,30 +611,56 @@ public class KafkaClusterManager implements Runnable {
     }).collect(Collectors.toList());
 
     Map<MutablePair<Integer, Integer>, UnderReplicatedReason> urpReasons = new HashMap<>();
+    Map<MutablePair<Integer, Integer>, Integer> triedTimes = new HashMap<>();
+    Set<Integer> downBrokers = new HashSet<>();
     for (OutOfSyncReplica oosReplica : oosReplicas) {
       int leaderId = (oosReplica.leader == null) ? -1 : oosReplica.leader.id();
       for (int oosBrokerId : oosReplica.outOfSyncBrokers) {
         KafkaBroker broker = kafkaCluster.getBroker(oosBrokerId);
         MutablePair<Integer, Integer> nodePair = new MutablePair<>(oosBrokerId, leaderId);
-        if (!urpReasons.containsKey(nodePair)) {
+        Integer times = triedTimes.get(nodePair);
+        if (times == null) {
+          times = 0;
+          triedTimes.put(nodePair, times);
+        }
+        // We only want to try per nodePair three times
+        if (!urpReasons.containsKey(nodePair) || times < 3) {
           UnderReplicatedReason reason;
-          reason = getUnderReplicatedReason(broker.name(), oosBrokerId, leaderId);
+          // Avoid pinging the bad hosts again and again, it's very time consuming to wait
+          // for the SocketTimeout
+          if (downBrokers.contains(oosBrokerId)) {
+            reason = UnderReplicatedReason.FOLLOWER_FAILURE;
+          } else if (downBrokers.contains(leaderId)) {
+            reason = UnderReplicatedReason.LEADER_FAILURE;
+          } else {
+            reason = getUnderReplicatedReason(broker.name(), oosBrokerId, leaderId,
+                oosReplica.topicPartition);
+            if (reason == UnderReplicatedReason.FOLLOWER_FAILURE) {
+              downBrokers.add(oosBrokerId);
+            } else if (reason == UnderReplicatedReason.LEADER_FAILURE) {
+              downBrokers.add(leaderId);
+            }
+          }
           urpReasons.put(nodePair, reason);
+          triedTimes.put(nodePair, times++);
         }
       }
     }
+    LOG.info("URP Reasons: {}", urpReasons);
 
     boolean alertOnFailure = true;
-    boolean brokerFailureOnly = true;
+    boolean followerFailureOnly = true;
     for (Map.Entry<MutablePair<Integer, Integer>, UnderReplicatedReason> entry : urpReasons.entrySet()) {
       UnderReplicatedReason reason = entry.getValue();
-      brokerFailureOnly &= (reason == UnderReplicatedReason.BROKER_FAILURE);
+      followerFailureOnly &= (reason == UnderReplicatedReason.FOLLOWER_FAILURE);
+      MutablePair<Integer,Integer> pair = entry.getKey();
     }
+    LOG.info("Down brokers: " + downBrokers);
 
     // when a kafka broker dies, PartitionInfo.replicas only has node.id info for the dead broker.
     // node.host() returns null. Because of this, we need to find the broker id info based on
     // the broker stats history.
-    if (brokerFailureOnly) {
+    if (followerFailureOnly) {
       Map<TopicPartition, Integer[]> replicasMap;
       replicasMap = generateReassignmentPlanForDeadBrokers(oosReplicas);
 
@@ -647,7 +680,7 @@ public class KafkaClusterManager implements Runnable {
 
     if (alertOnFailure) {
       Email.alertOnFailureInHandlingUrps(operatorConfig.getNotificationEmails(),
-          clusterConfig.getClusterName(), urps, reassignmentFailures);
+          clusterConfig.getClusterName(), urps, reassignmentFailures, downBrokers);
     }
   }
 
@@ -657,10 +690,17 @@ public class KafkaClusterManager implements Runnable {
    * a broker is dead or not. This method only returns true when we are sure that the broker
    * is not available.
    */
-  private boolean isDeadBroker(String host, int brokerId) {
+  private boolean isDeadBroker(String host, int brokerId, TopicPartition tp) {
     if (OperatorUtil.pingKafkaBroker(host, 9092, 5000)) {
       LOG.debug("Broker {} is alive as {}:9092 is reachable", brokerId, host);
-      return false;
+      if (OperatorUtil.canFetchData(host, 9092, tp.topic(), tp.partition())) {
+        LOG.debug("We are able to fetch data from broker {}", brokerId);
+        return false;
+      } else {
+        LOG.warn("We are not able to fetch data from broker {} topic {}, par {}",
+            brokerId, tp.topic(), tp.partition());
+        return true;
+      }
     }
     // invariant: cannot ping host:9092. The host may be rebooting. we need to wait
     // for some time to see if the host comes up.
