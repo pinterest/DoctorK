@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class Email {
@@ -94,7 +95,8 @@ public class Email {
                                                   String clusterName,
                                                   List<PartitionInfo> urps,
                                                   List<MutablePair<KafkaBroker, TopicPartition>>
-                                                      reassignmentFailures) {
+                                                      reassignmentFailures,
+                                                  Set<Integer> downBrokers) {
     if (urpFailureEmails.containsKey(clusterName) &&
         System.currentTimeMillis() - urpFailureEmails.get(clusterName) < COOLOFF_INTERVAL) {
       // return to avoid spamming users if an email has been sent within the coll-time time span
@@ -114,6 +116,10 @@ public class Email {
         TopicPartition topicPartition = pair.getValue();
         sb.append("Broker : " + broker.name() + ", " + topicPartition);
       });
+    }
+    if (downBrokers != null && !downBrokers.isEmpty()) {
+      sb.append("Down brokers: \n");
+      sb.append(downBrokers);
     }
     String content = sb.toString();
     sendTo(emails, title, content);

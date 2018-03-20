@@ -5,7 +5,16 @@ import com.pinterest.doctorkafka.BrokerStats;
 
 import com.google.common.net.HostAndPort;
 import org.apache.commons.lang3.tuple.MutablePair;
+
+import kafka.api.FetchRequest;
+import kafka.api.FetchRequestBuilder;
+import kafka.api.FetchResponse;
+import kafka.api.Request;
 import kafka.cluster.Broker;
+import kafka.common.TopicAndPartition;
+import kafka.consumer.ConsumerConfig;
+import kafka.consumer.SimpleConsumer;
+import kafka.message.MessageSet;
 import kafka.utils.ZkUtils;
 import org.I0Itec.zkclient.ZkClient;
 import org.I0Itec.zkclient.ZkConnection;
@@ -48,6 +57,11 @@ public class OperatorUtil {
   public static final int WINDOW_SIZE = 6000;
   public static final String HostName = getHostname();
   private static final DecoderFactory avroDecoderFactory = DecoderFactory.get();
+  private static final String FETCH_CLIENT_NAME = "DoctorKafka";
+  private static final int FETCH_SOCKET_TIMEOUT = 10 * 1000;
+  private static final int FETCH_BUFFER_SIZE = 4 * 1024 * 1024;
+  private static final int FETCH_RETRIES = 3;
+  private static final int FETCH_MAX_WAIT_MS = 1; // this is the same wait as simmpleConsumerShell
 
   public static String getHostname() {
     String hostName;
@@ -87,10 +101,98 @@ public class OperatorUtil {
       socket.connect(new InetSocketAddress(host, port), timeout);
       return true;
     } catch (UnknownHostException e) {
+      LOG.warn("Ping failure, host: " + host, e);
       return false;
     } catch (IOException e) {
+      LOG.warn("Ping failure IO, host: " + host, e);
       return false; // Either timeout or unreachable or failed DNS lookup.
     }
+  }
+
+  public static boolean canFetchData(String host, int port, String topic, int partition) {
+    LOG.info("Fetching data from host {}, topic {}, partition {}", host, topic, partition);
+    SimpleConsumer consumer = new SimpleConsumer(host, port,
+        FETCH_SOCKET_TIMEOUT, ConsumerConfig.SocketBufferSize(), FETCH_CLIENT_NAME);
+    try {
+      long earlyOffset = getOffset(consumer, topic, partition,
+          kafka.api.OffsetRequest.EarliestTime());
+      long latestOffset = getOffset(consumer, topic, partition,
+          kafka.api.OffsetRequest.LatestTime());
+      long readOffset = (earlyOffset + latestOffset) / 2;
+      LOG.info("earlyOffset: " + earlyOffset + " latestOffset: " + latestOffset +
+          " readOffset: " + readOffset);
+      for (int i = 0; i < FETCH_RETRIES; i++) {
+        FetchRequest req = new FetchRequestBuilder()
+            .clientId(FETCH_CLIENT_NAME)
+            .replicaId(Request.DebuggingConsumerId()) // this consumerId enable reads from follower
+            .maxWait(FETCH_MAX_WAIT_MS)
+            .minBytes(ConsumerConfig.MinFetchBytes())
+            .addFetch(topic, partition, readOffset, FETCH_BUFFER_SIZE)
+            .build();
+        try {
+          FetchResponse response = consumer.fetch(req);
+
+          if (response.hasError()) {
+            String errMsg = "Error fetching Data. ErrorCode: " + response.error(topic, partition);
+            LOG.warn(errMsg);
+          } else {
+            MessageSet msgSet = response.messageSet(topic, partition);
+            if (msgSet.sizeInBytes() <= 0) {
+              if (earlyOffset == latestOffset) {
+                LOG.warn("Passed. No data in partition.  Fetching data from host {}, topic {}, partition {}",
+                    host, topic, partition);
+                return true;
+              } else {
+                LOG.warn("host: " + host + " topic: " + topic + " par: " + partition +
+                    " Not enough bytes: {}", msgSet.sizeInBytes());
+              }
+            } else {
+              LOG.info("Passed. Fetching data from host {}, topic {}, partition {}",
+                  host, topic, partition);
+              return true;
+            }
+          }
+        } catch (Exception ex) {
+          LOG.warn("For host: " + host + " Unexpected exception", ex);
+        }
+        try {
+          Thread.sleep((long) (Math.random() * 3000));
+        } catch (InterruptedException ex) {
+          LOG.warn("Unexpected interruption", ex);
+        }
+      }
+    } catch (IOException e) {
+      LOG.warn("For host: " + host + " Unexpected exception", e);
+    } finally {
+      consumer.close();
+    }
+    LOG.warn("Failed Fetching data from host {}, topic {}, parttion {}", host, topic, partition);
+    return false;
+  }
+
+  public static long getOffset(SimpleConsumer consumer, String topic, int partition,
+                               long whichTime) throws IOException {
+    String errMsg = null;
+    Exception lastEx = null;
+    for (int i = 0; i < FETCH_RETRIES; i++) {
+      TopicAndPartition topicAndPartition = new TopicAndPartition(topic, partition);
+      try {
+        long offset = consumer.earliestOrLatestOffset(topicAndPartition, whichTime,
+            Request.DebuggingConsumerId());
+        return offset;
+      } catch (RuntimeException e) {
+        lastEx = e;
+        errMsg = "Failed to getting offset for topic: " + topic + " partition: " + partition
+            + " host: " + consumer.host();
+        LOG.warn(errMsg, e);
+        try {
+          Thread.sleep((long) (Math.random() * 3000));
+        } catch (InterruptedException ex) {
+          LOG.warn("Unexpected interruption", ex);
+        }
+      }
+    }
+    throw new IOException(errMsg, lastEx);
   }
 
   private static Map<String, KafkaConsumer> kafkaConsumers = new HashMap();
