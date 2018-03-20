@@ -3,10 +3,12 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+    <name>doctorkafka-parent</name>
     <groupId>com.github.pinterest</groupId>
     <artifactId>doctorkafka-parent</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
     <packaging>pom</packaging>
+    <url>https://github.com/pinterest/doctorkafka</url>
 
     <properties>
         <maven.compiler.source>1.8</maven.compiler.source>
@@ -14,6 +16,29 @@
         <encoding>UTF-8</encoding>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
+
+    <description>parent pom for doctorkafka and kafkastats</description>
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+            <comments>A business-friendly OSS license</comments>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>yuyang08</id>
+            <name>Yu Yang</name>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>https://github.com/pinterest/doctorkafka.git</connection>
+        <developerConnection>https://github.com/pinterest/doctorkafka.git</developerConnection>
+        <url>https://github.com/pinterest/doctorkafka</url>
+    </scm>
 
     <modules>
         <module>kafkastats</module>
