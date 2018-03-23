@@ -66,8 +66,9 @@ public class DoctorKafkaActionsServlet extends HttpServlet {
 
 
   private void retrieveActionReportMessages(PrintWriter writer) {
-    String zkUrl = DoctorKafkaMain.operator.getOperatorConfig().getBrokerStatsZookeeper();
-    String actionReportTopic = DoctorKafkaMain.operator.getOperatorConfig().getActionReportTopic();
+    String zkUrl = DoctorKafkaMain.doctorKafka.getOperatorConfig().getBrokerstatsZkurl();
+    String actionReportTopic =
+        DoctorKafkaMain.doctorKafka.getOperatorConfig().getActionReportTopic();
     Properties properties =
         OperatorUtil.createKafkaConsumerProperties(zkUrl, OPERATOR_ACTIONS_CONSUMER_GROUP);
     KafkaConsumer<byte[], byte[]> consumer = new KafkaConsumer<>(properties);

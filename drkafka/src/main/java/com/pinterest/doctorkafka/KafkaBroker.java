@@ -1,6 +1,5 @@
 package com.pinterest.doctorkafka;
 
-import com.pinterest.doctorkafka.BrokerStats;
 import com.pinterest.doctorkafka.config.DoctorKafkaClusterConfig;
 import com.pinterest.doctorkafka.replicastats.ReplicaStatsManager;
 
@@ -22,6 +21,7 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
   private String zkUrl;
   private int brokerId;
   private String brokerName;
+  private int brokerPort = 9092;
   private String rackId;
   private BrokerStats latestStats;
   private Set<TopicPartition> leaderReplicas;
@@ -50,7 +50,6 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
     this.bytesInPerSecLimit = clusterConfig.getNetworkInLimitInBytes();
     this.bytesOutPerSecLimit = clusterConfig.getNetworkOutLimitInBytes();
   }
-
 
   public long getMaxBytesIn() {
     long result = 0L;
@@ -86,6 +85,10 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
 
   public String name() {
     return brokerName;
+  }
+
+  public int port() {
+    return this.brokerPort;
   }
 
   public long lastStatsTimestamp() {

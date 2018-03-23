@@ -53,12 +53,12 @@ public class DoctorKafkaBrokerStatsServlet extends HttpServlet {
     writer.print("<tbody>");
 
     try {
-      KafkaClusterManager clusterMananger = DoctorKafkaMain.operator.getClusterManager(clusterName);
+      KafkaClusterManager clusterMananger =
+          DoctorKafkaMain.doctorKafka.getClusterManager(clusterName);
       if (clusterMananger == null) {
         writer.print("Failed to find cluster manager for " + clusterName);
         return;
       }
-
       KafkaCluster cluster = clusterMananger.getCluster();
       KafkaBroker broker = cluster.brokers.get(brokerId);
       BrokerStats latestStats = broker.getLatestStats();
@@ -102,7 +102,6 @@ public class DoctorKafkaBrokerStatsServlet extends HttpServlet {
     for (Map.Entry<TopicPartition, ReplicaStat> entry : replicaStats.entrySet()) {
       printHtmlTableRow(writer, entry.getKey(), entry.getValue());
     }
-
   }
 
   private void printHtmlTableRow(PrintWriter writer, Object col1, Object col2) {

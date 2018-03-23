@@ -1,9 +1,11 @@
 package com.pinterest.doctorkafka;
 
+import com.pinterest.doctorkafka.config.DoctorKafkaClusterConfig;
 import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
 import com.pinterest.doctorkafka.replicastats.BrokerStatsProcessor;
-import com.pinterest.doctorkafka.config.DoctorKafkaClusterConfig;
 import com.pinterest.doctorkafka.replicastats.ReplicaStatsManager;
+import com.pinterest.doctorkafka.util.ZookeeperClient;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -15,7 +17,7 @@ public class DoctorKafka {
 
   private static final Logger LOG = LogManager.getLogger(DoctorKafka.class);
 
-  private DoctorKafkaConfig operatorConf;
+  private DoctorKafkaConfig drkafkaConf;
 
   public BrokerStatsProcessor brokerStatsProcessor = null;
 
@@ -25,28 +27,32 @@ public class DoctorKafka {
 
   private Set<String> clusterZkUrls = null;
 
-  public DoctorKafka(DoctorKafkaConfig operatorConf) {
-    this.operatorConf = operatorConf;
-    this.clusterZkUrls = operatorConf.getClusterZkUrls();
+  private ZookeeperClient zookeeperClient = null;
+
+  public DoctorKafka(DoctorKafkaConfig drkafkaConf) {
+    this.drkafkaConf = drkafkaConf;
+    this.clusterZkUrls = drkafkaConf.getClusterZkUrls();
+    this.zookeeperClient = new ZookeeperClient(drkafkaConf.getDoctorKafkaZkurl());
   }
 
 
   public void start() {
-    String zkUrl = operatorConf.getBrokerStatsZookeeper();
-    String statsTopic = operatorConf.getBrokerStatsTopic();
-    String actionReportTopic = operatorConf.getActionReportTopic();
+    String brokerstatsZkurl = drkafkaConf.getBrokerstatsZkurl();
+    String actionReportZkurl = drkafkaConf.getActionReportZkurl();
+    String statsTopic = drkafkaConf.getBrokerStatsTopic();
+    String actionReportTopic = drkafkaConf.getActionReportTopic();
 
     LOG.info("Start rebuilding the replica stats by reading the past 24 hours brokerstats");
-    ReplicaStatsManager.readPastReplicaStats(zkUrl,
-        operatorConf.getBrokerStatsTopic(), operatorConf.getBrokerStatsBacktrackWindowsInSeconds());
+    ReplicaStatsManager.readPastReplicaStats(brokerstatsZkurl,
+        drkafkaConf.getBrokerStatsTopic(), drkafkaConf.getBrokerStatsBacktrackWindowsInSeconds());
     LOG.info("Finish rebuilding the replica stats");
 
-    brokerStatsProcessor = new BrokerStatsProcessor(zkUrl, statsTopic);
+    brokerStatsProcessor = new BrokerStatsProcessor(brokerstatsZkurl, statsTopic);
     brokerStatsProcessor.start();
 
-    actionReporter = new DoctorKafkaActionReporter(actionReportTopic, zkUrl);
+    actionReporter = new DoctorKafkaActionReporter(actionReportTopic, actionReportZkurl);
     for (String clusterZkUrl : clusterZkUrls) {
-      DoctorKafkaClusterConfig clusterConf = operatorConf.getClusterConfigByZkUrl(clusterZkUrl);
+      DoctorKafkaClusterConfig clusterConf = drkafkaConf.getClusterConfigByZkUrl(clusterZkUrl);
       KafkaCluster kafkaCluster = ReplicaStatsManager.clusters.get(clusterZkUrl);
 
       if (kafkaCluster == null) {
@@ -54,7 +60,7 @@ public class DoctorKafka {
         continue;
       }
       KafkaClusterManager clusterManager = new KafkaClusterManager(
-          clusterZkUrl, kafkaCluster, clusterConf, operatorConf, actionReporter);
+          clusterZkUrl, kafkaCluster, clusterConf, drkafkaConf, actionReporter, zookeeperClient);
       clusterManagers.add(clusterManager);
       clusterManager.start();
       LOG.info("Starting cluster manager for " + clusterZkUrl);
@@ -63,13 +69,14 @@ public class DoctorKafka {
 
   public void stop() {
     brokerStatsProcessor.stop();
+    zookeeperClient.close();
     for (KafkaClusterManager clusterManager : clusterManagers) {
       clusterManager.stop();
     }
   }
 
   public DoctorKafkaConfig getOperatorConfig() {
-    return operatorConf;
+    return drkafkaConf;
   }
 
   public List<KafkaClusterManager> getClusterManagers() {
@@ -78,8 +85,9 @@ public class DoctorKafka {
 
   public KafkaClusterManager getClusterManager(String clusterName) {
     for (KafkaClusterManager clusterManager : clusterManagers) {
-      if (clusterManager.getClusterName().equals(clusterName))
+      if (clusterManager.getClusterName().equals(clusterName)) {
         return clusterManager;
+      }
     }
     return null;
   }

@@ -34,7 +34,7 @@ public class KafkaClusterManagerTest {
 
     PartitionInfo partitionInfo = new PartitionInfo("brokerstats", 7, leader, replicas, isrs);
     KafkaClusterManager clusterManager = new KafkaClusterManager("datazk001:2181/testk10", null,
-        config.getClusterConfigByName("cluster1"), null, null);
+        config.getClusterConfigByName("cluster1"), null, null, null);
     Set<Node> nodes = KafkaUtils.getNotInSyncBrokers(partitionInfo);
     assertEquals(1, nodes.size());
     assertEquals(replicas[2], nodes.iterator().next());

@@ -21,13 +21,18 @@ public class DoctorKafkaConfig {
   private static final String DOCTORKAFKA_PREFIX = "doctorkafka.";
   private static final String CLUSTER_PREFIX = "kafkacluster.";
 
+  private static final String BROKERSTATS_ZKURL = "brokerstats.zkurl";
   private static final String BROKERSTATS_TOPIC = "brokerstats.topic";
   private static final String BROKERSTATS_VERSION = "brokerstats.version";
   private static final String BROKERSTATS_BACKTRACK_SECONDS = "brokerstats.backtrack.seconds";
-  private static final String ACTION_REPORT_TOPIC = "action_report.topic";
+  private static final String ACTION_REPORT_ZKURL= "action.report.zkurl";
+  private static final String ACTION_REPORT_TOPIC = "action.report.topic";
+  private static final String BROKER_REPLACEMENT_INTERVAL_SECONDS =
+      "action.broker_relacement.interval.seconds";
+  private static final String BROKER_REPLACEMENT_COMMAND = "action.broker_replacement.command";
   private static final String OSTRICH_PORT = "ostrich.port";
   private static final String RESTART_INTERVAL_SECONDS = "restart.interval.seconds";
-  private static final String BROKERSTATS_ZOOKEEPER = "zookeeper";
+  private static final String DOCTORKAFKA_ZKURL = "zkurl";
   private static final String TSD_HOSTPORT = "tsd.hostport";
   private static final String WEB_PORT = "web.port";
   private static final String NOTIFICATION_EMAILS = "emails.notification";
@@ -35,14 +40,14 @@ public class DoctorKafkaConfig {
 
 
   private PropertiesConfiguration configuration = null;
-  private AbstractConfiguration operatorConfiguration = null;
+  private AbstractConfiguration drkafkaConfiguration = null;
   private Map<String, DoctorKafkaClusterConfig> clusterConfigurations = null;
 
   public DoctorKafkaConfig(String configPath) throws Exception {
     try {
       Configurations configurations = new Configurations();
       configuration = configurations.properties(new File(configPath));
-      operatorConfiguration = new SubsetConfiguration(configuration, DOCTORKAFKA_PREFIX);
+      drkafkaConfiguration = new SubsetConfiguration(configuration, DOCTORKAFKA_PREFIX);
       this.initialize();
     } catch (Exception e) {
       LOG.error("Failed to initialize configuration file {}", configPath, e);
@@ -52,7 +57,6 @@ public class DoctorKafkaConfig {
   private void initialize() {
     Set<String> clusters = new HashSet();
     Iterator<String> keysIterator = configuration.getKeys();
-
     while (keysIterator.hasNext()) {
       String propertyName = keysIterator.next();
       if (propertyName.startsWith(CLUSTER_PREFIX)) {
@@ -60,7 +64,6 @@ public class DoctorKafkaConfig {
         clusters.add(clusterName);
       }
     }
-
     clusterConfigurations = new HashMap<>();
     for (String cluster : clusters) {
       SubsetConfiguration subsetConfiguration =
@@ -79,41 +82,59 @@ public class DoctorKafkaConfig {
         .collect(Collectors.toSet());
   }
 
+  public String getDoctorKafkaZkurl() {
+    return drkafkaConfiguration.getString(DOCTORKAFKA_ZKURL);
+  }
+
+  public String getBrokerstatsZkurl() {
+    return drkafkaConfiguration.getString(BROKERSTATS_ZKURL);
+  }
+
   public String getBrokerStatsTopic() {
-    return operatorConfiguration.getString(BROKERSTATS_TOPIC);
+    return drkafkaConfiguration.getString(BROKERSTATS_TOPIC);
   }
 
   public String getBrokerStatsVersion() {
-    return operatorConfiguration.getString(BROKERSTATS_VERSION);
+    return drkafkaConfiguration.getString(BROKERSTATS_VERSION);
   }
 
   public long getBrokerStatsBacktrackWindowsInSeconds() {
-    String backtrackWindow = operatorConfiguration.getString(BROKERSTATS_BACKTRACK_SECONDS);
+    String backtrackWindow = drkafkaConfiguration.getString(BROKERSTATS_BACKTRACK_SECONDS);
     return Long.parseLong(backtrackWindow);
   }
 
+  public String getActionReportZkurl() {
+    return drkafkaConfiguration.getString(ACTION_REPORT_ZKURL);
+  }
+
   public String getActionReportTopic() {
-    return operatorConfiguration.getString(ACTION_REPORT_TOPIC);
+    return drkafkaConfiguration.getString(ACTION_REPORT_TOPIC);
+  }
+
+  public int getBrokerReplacementIntervalInSeconds() {
+    return drkafkaConfiguration.getInt(BROKER_REPLACEMENT_INTERVAL_SECONDS, 43200);
+  }
+
+  public String getBrokerReplacementCommand() {
+    String command = drkafkaConfiguration.getString(BROKER_REPLACEMENT_COMMAND);
+    command = command.replaceAll("^\"|\"$", "");
+    return command;
   }
 
   public String getTsdHostPort() {
-    return operatorConfiguration.getString(TSD_HOSTPORT);
+    return drkafkaConfiguration.getString(TSD_HOSTPORT);
   }
 
   public int getOstrichPort() {
-    return operatorConfiguration.getInt(OSTRICH_PORT);
-  }
-
-  public String getBrokerStatsZookeeper() {
-    return operatorConfiguration.getString(BROKERSTATS_ZOOKEEPER);
+    return drkafkaConfiguration.getInt(OSTRICH_PORT);
   }
 
   public long getRestartIntervalInSeconds() {
-    return operatorConfiguration.getLong(RESTART_INTERVAL_SECONDS);
+    return drkafkaConfiguration.getLong(RESTART_INTERVAL_SECONDS);
   }
 
   public int getWebserverPort() {
-    return operatorConfiguration.getInteger(WEB_PORT, 8080);
+    return drkafkaConfiguration.getInteger(WEB_PORT, 8080);
   }
 
   public DoctorKafkaClusterConfig getClusterConfigByZkUrl(String clusterZkUrl) {
@@ -134,7 +155,7 @@ public class DoctorKafkaConfig {
    * @return an array of email addresses for sending notification to.
    */
   public String[] getNotificationEmails() {
-    String emailsStr = operatorConfiguration.getString(NOTIFICATION_EMAILS);
+    String emailsStr = drkafkaConfiguration.getString(NOTIFICATION_EMAILS);
     return emailsStr.split(",");
   }
 
@@ -143,7 +164,7 @@ public class DoctorKafkaConfig {
    * @return an array of email addresses for sending alerts to.
    */
   public String[] getAlertEmails() {
-    String emailsStr = operatorConfiguration.getString(ALERT_EMAILS);
+    String emailsStr = drkafkaConfiguration.getString(ALERT_EMAILS);
     return emailsStr.split(",");
   }
 }

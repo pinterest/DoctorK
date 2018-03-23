@@ -2,18 +2,37 @@ package com.pinterest.doctorkafka.servlet;
 
 import static java.util.stream.Collectors.toList;
 
+import com.pinterest.doctorkafka.DoctorKafkaMain;
+
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.apache.kafka.common.TopicPartition;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.TreeMap;
 
 public class DoctorKafkaServletUtil {
+
+  public static String getVersion() {
+    String versionString = "";
+    try {
+      final Properties properties = new Properties();
+      InputStream inputStream = DoctorKafkaMain.class.getResourceAsStream("/versioning.properties");
+      properties.load(inputStream);
+      versionString = properties.getProperty("version");
+    } catch (IOException e) {
+      versionString = "Unknown";
+    }
+    return versionString;
+  }
 
   public static void printHeader(PrintWriter writer) {
     writer.print("<html>");

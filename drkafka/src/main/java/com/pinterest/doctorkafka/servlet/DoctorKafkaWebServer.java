@@ -65,7 +65,7 @@ public class DoctorKafkaWebServer implements Runnable {
       }
       server.join();
     } catch (Exception e) {
-      LOG.error("Exception in KafkaOperatorWebServer.", e);
+      LOG.error("Exception in DoctorKafkaWebServer.", e);
     }
   }
 

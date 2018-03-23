@@ -24,7 +24,13 @@ public class DoctorKafkaClusterConfig {
   private static final String NETWORK_BANDWITH_MB = "network.bandwidth.max.mb";
   private static final String CHECK_INTERVAL_IN_SECS = "check_interval_in_seconds";
   private static final String UNDER_REPLICTED_ALERT_IN_SECS = "under_replicated.alert.seconds";
+  private static final String BROKER_REPLACEMENT_ENABLE = "broker_replacement.enable";
+  private static final String BROKER_REPLACEMENT_NO_STATS_SECONDS =
+      "broker_replacement.no_stats.seconds";
+  private static final String NOTIFICATION_EMAIL = "notification.email";
+  private static final String NOTIFICATION_PAGER = "notificatino.pager";
 
+  private static final int DEFAULT_DEADBROKER_REPLACEMENT_NO_STATS_SECONDS = 1200;
   private static final int DEFAULT_UNDER_REPLICTED_ALERT_IN_SECS = 7200;
 
   private String clusterName;
@@ -46,7 +52,7 @@ public class DoctorKafkaClusterConfig {
   public String getZkUrl() {
     return clusterConfiguration.getString(ZKURL);
   }
-  
+
   public boolean enabledWorloadBalancing() {
     boolean result = false;
     if (clusterConfiguration.containsKey(ENABLE_WORLOAD_BALANCING)) {
@@ -90,5 +96,27 @@ public class DoctorKafkaClusterConfig {
 
   public long getUnderReplicatedAlertTimeInMs() {
     return getUnderReplicatedAlertTimeInSeconds() * 1000L;
+  }
+
+  public boolean enabledDeadbrokerReplacement() {
+    boolean result = false;
+    if (clusterConfiguration.containsKey(BROKER_REPLACEMENT_ENABLE)) {
+      result = clusterConfiguration.getBoolean(BROKER_REPLACEMENT_ENABLE);
+    }
+    return result;
+  }
+
+  public int getBrokerReplacementNoStatsSeconds() {
+    int result = clusterConfiguration.getInt(BROKER_REPLACEMENT_NO_STATS_SECONDS,
+        DEFAULT_DEADBROKER_REPLACEMENT_NO_STATS_SECONDS);
+    return result;
+  }
+
+  public String getNotificationEmail() {
+    return clusterConfiguration.getString(NOTIFICATION_EMAIL, "");
+  }
+
+  public String getNotificationPager() {
+    return clusterConfiguration.getString(NOTIFICATION_PAGER, "");
   }
 }

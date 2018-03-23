@@ -15,8 +15,12 @@ import org.apache.commons.cli.ParseException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.InputStream;
+import java.net.URL;
+import java.util.Properties;
+
 /**
- *  kafkaoperator is the central service for managing kafka operation.
+ *  DoctorKafka is the central service for managing kafka operation.
  *
  */
 public class DoctorKafkaMain {
@@ -28,17 +32,13 @@ public class DoctorKafkaMain {
   private static final String TSD_HOSTPORT = "tsdhostport";
   private static final String UPTIME_IN_SECONDS = "uptimeinseconds";
   private static final String ZOOKEEPER = "zookeeper";
-
   private static final Options options = new Options();
 
-  public static  DoctorKafka operator = null;
+  public static  DoctorKafka doctorKafka = null;
   private static DoctorKafkaWatcher operatorWatcher = null;
 
   /**
-   *  Usage:  DoctorKafkaMain  --zookeeper datazk001:2181/data07 \
-   *             --topic brokerstats kafkahost  \
-   *             --tsdhost  localhost:18321  --ostrichport 2051
-   *             --uptimeinseconds 43200
+   *  Usage:  DoctorKafkaMain  --config config_file_path
    */
   private static CommandLine parseCommandLine(String[] args) {
     Option configPath = new Option(CONFIG_PATH, true, "config file path");
@@ -52,7 +52,6 @@ public class DoctorKafkaMain {
     ostrichPort.setRequired(false);
     Option uptimeInSeconds = new Option(UPTIME_IN_SECONDS, true, "uptime in seconds");
     uptimeInSeconds.setRequired(false);
-
     options.addOption(configPath).addOption(zookeeper).addOption(topic)
         .addOption(tsdHostPort).addOption(ostrichPort).addOption(uptimeInSeconds);
 
@@ -71,7 +70,7 @@ public class DoctorKafkaMain {
 
   private static void printUsageAndExit() {
     HelpFormatter formatter = new HelpFormatter();
-    formatter.printHelp("KafkaOperator", options);
+    formatter.printHelp("DoctorKafka", options);
     System.exit(1);
   }
 
@@ -84,8 +83,8 @@ public class DoctorKafkaMain {
     LOG.info("configuration path : {}", configPath);
 
     ReplicaStatsManager.config =  new DoctorKafkaConfig(configPath);
-    operator = new DoctorKafka(ReplicaStatsManager.config);
-    operator.start();
+    doctorKafka = new DoctorKafka(ReplicaStatsManager.config);
+    doctorKafka.start();
 
     // start the web UI
     int webPort = ReplicaStatsManager.config.getWebserverPort();
@@ -95,7 +94,6 @@ public class DoctorKafkaMain {
     int ostrichPort = ReplicaStatsManager.config.getOstrichPort();
     String tsdHostPort = ReplicaStatsManager.config.getTsdHostPort();
     OperatorUtil.startOstrichService(tsdHostPort, ostrichPort);
-
     LOG.info("DoctorKafka started.");
   }
 
@@ -104,8 +102,8 @@ public class DoctorKafkaMain {
     @Override
     public void run() {
       try {
-        if (operator != null) {
-          operator.stop();
+        if (doctorKafka != null) {
+          doctorKafka.stop();
         }
       } catch (Throwable t) {
         LOG.error("Failure in stopping operator", t);

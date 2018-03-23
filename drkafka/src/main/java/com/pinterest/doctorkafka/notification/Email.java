@@ -22,12 +22,14 @@ public class Email {
   private static final Logger LOG = LogManager.getLogger(Email.class);
   private static final String TITLE_PREFIX = "doctorkafka : ";
   private static final String TMP_FILE_PREFIX = "/tmp/doctorkafka_";
-  private static final long COOLOFF_INTERVAL = 900000L;
+  private static final long COOLOFF_INTERVAL = 1200000L;
 
   private static final Map<String, Long> reassignmentEmails = new ConcurrentHashMap<>();
   private static final Map<String, Long> urpFailureEmails = new ConcurrentHashMap<>();
   private static final Map<String, Long> prolongedUrpEmails = new ConcurrentHashMap<>();
   private static final Map<String, Long> noStatsBrokerEmails = new ConcurrentHashMap<>();
+  private static final Map<String, Long> slowBrokerReplacementEmail = new ConcurrentHashMap<>();
+
 
   public static void sendTo(String[] emails, String title, String content) {
     String tmpFileName = TMP_FILE_PREFIX + "_" + System.currentTimeMillis() + ".txt";
@@ -53,7 +55,6 @@ public class Email {
         LOG.error("Interrupted in sending mail to {} : {}:{}", email, title, content);
       }
     }
-
     File file = new File(tmpFileName);
     file.delete();
   }
@@ -72,12 +73,17 @@ public class Email {
     String title = clusterName + " partition reassignment ";
     String content = "Assignment json: \n\n" + assignmentJson;
     sendTo(emails, title, content);
+  }
 
+  public static void notifyOnBrokerReplacement(String[] emails, String clusterName, String broker) {
+    String title = clusterName + " broker replacement : " + broker;
+    String content = "Replacing broker " + broker + " in cluster " + clusterName;
+    sendTo(emails, title, content);
   }
 
   public static void alertOnNoStatsBrokers(String[] emails,
-                                         String clusterName,
-                                         List<Broker> noStatsBrokers) {
+                                           String clusterName,
+                                           List<Broker> noStatsBrokers) {
 
     if (noStatsBrokerEmails.containsKey(clusterName) &&
         System.currentTimeMillis() - noStatsBrokerEmails.get(clusterName) < COOLOFF_INTERVAL) {
@@ -86,7 +92,7 @@ public class Email {
     noStatsBrokerEmails.put(clusterName, System.currentTimeMillis());
     String title = clusterName + " : " + noStatsBrokers.size() + " brokers do not have stats";
     StringBuilder sb = new StringBuilder();
-    sb.append( "No stats brokers : \n");
+    sb.append("No stats brokers : \n");
     noStatsBrokers.stream().forEach(broker -> sb.append(broker + "\n"));
     sendTo(emails, title, sb.toString());
   }
@@ -103,6 +109,7 @@ public class Email {
       return;
     }
 
+    urpFailureEmails.put(clusterName, System.currentTimeMillis());
     String title = "Failed to handle under-replicated partitions on " + clusterName
         + " (" + urps.size() + " under-replicated partitions)";
     StringBuilder sb = new StringBuilder();
@@ -136,7 +143,8 @@ public class Email {
       return;
     }
 
-    String title = clusterName + "has been under-replicated for > "
+    prolongedUrpEmails.put(clusterName, System.currentTimeMillis());
+    String title = clusterName + " has been under-replicated for > "
         + waitTimeInSeconds + " seconds (" + urps.size() + ") under-replicated partitions";
     StringBuilder sb = new StringBuilder();
     for (PartitionInfo partitionInfo : urps) {
@@ -144,5 +152,24 @@ public class Email {
     }
     String content = sb.toString();
     sendTo(emails, title, content);
+  }
+
+
+  public static void alertOnProlongedBrokerReplacement(String[] emails,
+                                                       String clusterName,
+                                                       String brokerName,
+                                                       long replacementTimeInSeconds) {
+    long lastEmailTime = System.currentTimeMillis() - slowBrokerReplacementEmail.get(clusterName);
+    if (slowBrokerReplacementEmail.containsKey(clusterName) && lastEmailTime < COOLOFF_INTERVAL) {
+      // return to avoid spamming users with too many emails
+      return;
+    }
+
+    slowBrokerReplacementEmail.put(clusterName, System.currentTimeMillis());
+    String title = "Slow broker replacement : " + clusterName + ", " + brokerName;
+    StringBuilder sb = new StringBuilder();
+    sb.append("Broker replacement " + clusterName + ":" + brokerName
+        + " has not finished after " + replacementTimeInSeconds + " seconds");
+    sendTo(emails, title, sb.toString());
   }
 }

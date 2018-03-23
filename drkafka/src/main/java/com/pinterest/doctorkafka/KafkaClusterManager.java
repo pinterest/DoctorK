@@ -4,6 +4,7 @@ import com.pinterest.doctorkafka.config.DoctorKafkaClusterConfig;
 import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
 import com.pinterest.doctorkafka.notification.Email;
 import com.pinterest.doctorkafka.replicastats.ReplicaStatsManager;
+import com.pinterest.doctorkafka.util.BrokerReplacer;
 import com.pinterest.doctorkafka.util.KafkaUtils;
 import com.pinterest.doctorkafka.util.OpenTsdbMetricConverter;
 import com.pinterest.doctorkafka.util.OperatorUtil;
@@ -11,6 +12,7 @@ import com.pinterest.doctorkafka.util.OutOfSyncReplica;
 import com.pinterest.doctorkafka.util.PreferredReplicaElectionInfo;
 import com.pinterest.doctorkafka.util.ReassignmentInfo;
 import com.pinterest.doctorkafka.util.UnderReplicatedReason;
+import com.pinterest.doctorkafka.util.ZookeeperClient;
 
 import kafka.cluster.Broker;
 import kafka.common.TopicAndPartition;
@@ -52,8 +54,8 @@ public class KafkaClusterManager implements Runnable {
    * The time-out for machine reboot etc.
    */
   private static final long MAX_HOST_REBOOT_TIME_MS = 300000L;
-
   private static final long MAX_TIMEOUT_MS = 300000L;
+  private static final long MAX_HOST_REPLACEMENT_TIME_SECONDS = 1800L;
 
   /**
    *  The number of broker stats that we need to examine to tell if a broker dies or not.
@@ -63,7 +65,7 @@ public class KafkaClusterManager implements Runnable {
   private String zkUrl;
   private ZkUtils zkUtils;
   private KafkaCluster kafkaCluster = null;
-  private DoctorKafkaConfig operatorConfig = null;
+  private DoctorKafkaConfig drkafkaConfig = null;
   private DoctorKafkaClusterConfig clusterConfig;
   private DoctorKafkaActionReporter actionReporter = null;
   private boolean stopped = true;
@@ -76,6 +78,8 @@ public class KafkaClusterManager implements Runnable {
   private Map<String, scala.collection.Map<Object, Seq<Object>>> topicPartitionAssignments
       = new HashMap<>();
   private List<MutablePair<KafkaBroker, TopicPartition>> reassignmentFailures = new ArrayList();
+  private BrokerReplacer brokerReplacer;
+  private ZookeeperClient zookeeperClient;
 
   /**
    * fields that are used for partition reassignments
@@ -85,19 +89,23 @@ public class KafkaClusterManager implements Runnable {
 
   public KafkaClusterManager(String zkUrl, KafkaCluster kafkaCluster,
                              DoctorKafkaClusterConfig clusterConfig,
-                             DoctorKafkaConfig operatorConfig,
-                             DoctorKafkaActionReporter actionReporter) {
+                             DoctorKafkaConfig drkafkaConfig,
+                             DoctorKafkaActionReporter actionReporter,
+                             ZookeeperClient zookeeperClient) {
     assert clusterConfig != null;
     this.zkUrl = zkUrl;
     this.zkUtils = KafkaUtils.getZkUtils(zkUrl);
     this.kafkaCluster = kafkaCluster;
     this.clusterConfig = clusterConfig;
-    this.operatorConfig = operatorConfig;
+    this.drkafkaConfig = drkafkaConfig;
     this.actionReporter = actionReporter;
     this.bytesInLimit = clusterConfig.getNetworkInLimitInBytes();
     this.bytesOutLimit = clusterConfig.getNetworkOutLimitInBytes();
+    this.zookeeperClient = zookeeperClient;
+    if (clusterConfig.enabledDeadbrokerReplacement()) {
+      this.brokerReplacer = new BrokerReplacer(drkafkaConfig.getBrokerReplacementCommand());
+    }
   }
-
 
   public KafkaCluster getCluster() {
     return kafkaCluster;
@@ -464,11 +472,9 @@ public class KafkaClusterManager implements Runnable {
       List<ACL> acls = KafkaUtils.getZookeeperAcls(false);
       zkUtils.createPersistentPath(KafkaUtils.ReassignPartitionsPath, jsonReassignmentData, acls);
       LOG.info("Set the reassignment data: ");
-
       actionReporter.sendMessage(clusterConfig.getClusterName(),
           "partition reassignment : " + jsonReassignmentData);
-
-      Email.notifyOnPartitionReassignment(operatorConfig.getNotificationEmails(),
+      Email.notifyOnPartitionReassignment(drkafkaConfig.getNotificationEmails(),
           clusterConfig.getClusterName(), jsonReassignmentData);
     }
   }
@@ -527,11 +533,12 @@ public class KafkaClusterManager implements Runnable {
    *  by network saturation.
    */
   public UnderReplicatedReason getUnderReplicatedReason(String brokerHost,
+                                                        int kafkaPort,
                                                         int brokerId,
                                                         int leaderId,
                                                         TopicPartition tp) {
     UnderReplicatedReason reason = UnderReplicatedReason.UNKNOWN;
-    if (brokerHost != null && isDeadBroker(brokerHost, brokerId, tp)) {
+    if (brokerHost != null && isDeadBroker(brokerHost, kafkaPort, brokerId, tp)) {
       reason = UnderReplicatedReason.FOLLOWER_FAILURE;
     } else if (leaderId < 0) {
       LOG.error("No live leader {}:{}", brokerHost, brokerId);
@@ -539,7 +546,7 @@ public class KafkaClusterManager implements Runnable {
     } else {
       KafkaBroker leaderBroker = kafkaCluster.getBroker(leaderId);
       // Leader might be bad as well
-      if (leaderBroker != null && isDeadBroker(leaderBroker.name(), leaderId, tp)) {
+      if (leaderBroker != null && isDeadBroker(leaderBroker.name(), kafkaPort, leaderId, tp)) {
         reason = UnderReplicatedReason.LEADER_FAILURE;
       } else if (isNetworkSaturated(leaderId)) {
         reason = UnderReplicatedReason.LEADER_NETWORK_SATURATION;
@@ -633,7 +640,7 @@ public class KafkaClusterManager implements Runnable {
           } else if (downBrokers.contains(leaderId)) {
             reason = UnderReplicatedReason.LEADER_FAILURE;
           } else {
-            reason = getUnderReplicatedReason(broker.name(), oosBrokerId, leaderId,
+            reason = getUnderReplicatedReason(broker.name(), broker.port(), oosBrokerId, leaderId,
                 oosReplica.topicPartition);
             if (reason == UnderReplicatedReason.FOLLOWER_FAILURE) {
               downBrokers.add(oosBrokerId);
@@ -650,10 +657,11 @@ public class KafkaClusterManager implements Runnable {
 
     boolean alertOnFailure = true;
     boolean followerFailureOnly = true;
-    for (Map.Entry<MutablePair<Integer, Integer>, UnderReplicatedReason> entry : urpReasons.entrySet()) {
+    for (Map.Entry<MutablePair<Integer, Integer>, UnderReplicatedReason> entry : urpReasons
+        .entrySet()) {
       UnderReplicatedReason reason = entry.getValue();
       followerFailureOnly &= (reason == UnderReplicatedReason.FOLLOWER_FAILURE);
-      MutablePair<Integer,Integer> pair = entry.getKey();
+      MutablePair<Integer, Integer> pair = entry.getKey();
     }
     LOG.info("Down brokers: " + downBrokers);
 
@@ -679,7 +687,7 @@ public class KafkaClusterManager implements Runnable {
     }
 
     if (alertOnFailure) {
-      Email.alertOnFailureInHandlingUrps(operatorConfig.getNotificationEmails(),
+      Email.alertOnFailureInHandlingUrps(drkafkaConfig.getNotificationEmails(),
           clusterConfig.getClusterName(), urps, reassignmentFailures, downBrokers);
     }
   }
@@ -690,10 +698,10 @@ public class KafkaClusterManager implements Runnable {
    * a broker is dead or not. This method only returns true when we are sure that the broker
    * is not available.
    */
-  private boolean isDeadBroker(String host, int brokerId, TopicPartition tp) {
-    if (OperatorUtil.pingKafkaBroker(host, 9092, 5000)) {
+  private boolean isDeadBroker(String host, int kafkaPort, int brokerId, TopicPartition tp) {
+    if (OperatorUtil.pingKafkaBroker(host, kafkaPort, 5000)) {
       LOG.debug("Broker {} is alive as {}:9092 is reachable", brokerId, host);
-      if (OperatorUtil.canFetchData(host, 9092, tp.topic(), tp.partition())) {
+      if (OperatorUtil.canFetchData(host, kafkaPort, tp.topic(), tp.partition())) {
         LOG.debug("We are able to fetch data from broker {}", brokerId);
         return false;
       } else {
@@ -712,7 +720,7 @@ public class KafkaClusterManager implements Runnable {
       return uptime < MAX_HOST_REBOOT_TIME_MS;
     }
 
-    // If a healthy broker is terminated before it can report any failure to kafkaoperator,
+    // If a healthy broker is terminated before it can report any failure to doctorkafka,
     // the last few brokers stats that kafkaoperator received would always be healthy stats.
     // Because of this, we cannot rely on brokerstats.hasFailure field alone to tell if broker
     // has failure or not.
@@ -843,6 +851,60 @@ public class KafkaClusterManager implements Runnable {
   }
 
 
+  private boolean checkAndReplaceDeadBrokers() {
+    long now = System.currentTimeMillis();
+    if (brokerReplacer.busy()) {
+      long brokerReplacementTimeInSeconds = (now - brokerReplacer.getReplacementStartTime()) / 1000;
+      if (brokerReplacementTimeInSeconds > MAX_HOST_REPLACEMENT_TIME_SECONDS) {
+        // send out alerts for prolonged broker replacement
+        Email.alertOnProlongedBrokerReplacement(drkafkaConfig.getNotificationEmails(),
+            clusterConfig.getClusterName(), brokerReplacer.getReplacedBroker(),
+            brokerReplacementTimeInSeconds);
+      }
+      LOG.info("{} broker replacer is busy with replacing {}", clusterConfig.getClusterName(),
+          brokerReplacer.getReplacedBroker());
+      return false;
+    }
+
+    KafkaBroker toBeReplaced = null;
+    for (Map.Entry<Integer, KafkaBroker> brokerEntry : kafkaCluster.brokers.entrySet()) {
+      KafkaBroker broker = brokerEntry.getValue();
+      double lastUpdateTime = (now - broker.lastStatsTimestamp()) / 1000.0;
+      // call broker replacement script to replace dead brokers
+      if (lastUpdateTime > clusterConfig.getBrokerReplacementNoStatsSeconds()) {
+        toBeReplaced = broker;
+        break;
+      }
+    }
+
+    if (toBeReplaced != null) {
+      String brokerName= toBeReplaced.name();
+      String clusterName = clusterConfig.getClusterName();
+
+      try {
+        long lastReplacementTime =
+            zookeeperClient.getLastBrokerReplacementTime(clusterConfig.getClusterName());
+        long elaspedTimeInSeconds = (now - lastReplacementTime) / 1000;
+        if (elaspedTimeInSeconds < drkafkaConfig.getBrokerReplacementIntervalInSeconds()) {
+          LOG.info("Cannot replace {}:{} due to replace frequency limitation",
+              clusterName, brokerName);
+          return false;
+        }
+      } catch (Exception e) {
+        LOG.error("Failed to check last broker replacement info for {}", clusterName, e);
+        return false;
+      }
+
+      LOG.info("Replacing {}  in {}", brokerName, clusterName);
+      brokerReplacer.replaceBroker(brokerName);
+      zookeeperClient.recordBrokerTermination(clusterName, brokerName);
+      actionReporter.sendMessage(clusterName, "broker replacement : " + brokerName);
+      Email.notifyOnBrokerReplacement(drkafkaConfig.getNotificationEmails(),
+          clusterName, brokerName);
+    }
+    return true;
+  }
+
   /**
    *  KafkaClusterManager periodically check the health of the cluster. If it finds
    *  an under-replicated partitions, it will perform partition reassignment. It will also
@@ -867,13 +929,12 @@ public class KafkaClusterManager implements Runnable {
         List<Broker> noStatsBrokers = getNoStatsBrokers();
         if (!noStatsBrokers.isEmpty()) {
           Email.alertOnNoStatsBrokers(
-              operatorConfig.getAlertEmails(), clusterConfig.getClusterName(), noStatsBrokers);
+              drkafkaConfig.getAlertEmails(), clusterConfig.getClusterName(), noStatsBrokers);
           continue;
         }
 
         Seq<String> topicsSeq = zkUtils.getAllTopics();
         List<String> topics = scala.collection.JavaConverters.seqAsJavaList(topicsSeq);
-
         scala.collection.mutable.Map<String, scala.collection.Map<Object, Seq<Object>>>
             partitionAssignments = zkUtils.getPartitionAssignmentForTopics(topicsSeq);
 
@@ -904,7 +965,8 @@ public class KafkaClusterManager implements Runnable {
             // send out an alert if the cluster has been under-replicated for a while
             long underReplicatedTimeMills = System.currentTimeMillis() - firstSeenUrpsTimestamp;
             if (underReplicatedTimeMills > clusterConfig.getUnderReplicatedAlertTimeInMs()) {
-              Email.alertOnProlongedUnderReplicatedPartitions(operatorConfig.getAlertEmails(),
+
+              Email.alertOnProlongedUnderReplicatedPartitions(drkafkaConfig.getAlertEmails(),
                   clusterConfig.getClusterName(),
                   clusterConfig.getUnderReplicatedAlertTimeInSeconds(),
                   underReplicatedPartitions);
@@ -922,6 +984,10 @@ public class KafkaClusterManager implements Runnable {
             reassignmentMap.clear();
             balanceWorkload();
           }
+        }
+        if (clusterConfig.enabledDeadbrokerReplacement()) {
+          // replace the brokers that do not have kafkastats update for a while
+          checkAndReplaceDeadBrokers();
         }
       } catch (Exception e) {
         LOG.error("Unexpected failure in cluster manager for {}: ", zkUrl, e);

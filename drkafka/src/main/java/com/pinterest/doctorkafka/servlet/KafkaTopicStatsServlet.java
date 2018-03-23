@@ -44,7 +44,8 @@ public class KafkaTopicStatsServlet extends HttpServlet {
           + "</a> > " + topic + "</p> </div>");
 
       // generate the HTML markups
-      KafkaClusterManager clusterMananger = DoctorKafkaMain.operator.getClusterManager(clusterName);
+      KafkaClusterManager clusterMananger =
+          DoctorKafkaMain.doctorKafka.getClusterManager(clusterName);
       if (clusterMananger == null) {
         writer.print("Failed to find cluster manager for " + clusterName);
         return;

@@ -34,7 +34,8 @@ public class UnderReplicatedPartitionsServlet extends HttpServlet {
 
     DoctorKafkaServletUtil.printHeader(writer);
 
-    KafkaClusterManager clusterMananger = DoctorKafkaMain.operator.getClusterManager(clusterName);
+    KafkaClusterManager clusterMananger =
+        DoctorKafkaMain.doctorKafka.getClusterManager(clusterName);
 
     if (clusterMananger == null) {
       writer.print("Failed to find cluster manager for " + clusterName);

@@ -38,7 +38,8 @@ public class ClusterInfoServlet extends HttpServlet {
       Map<String, String> params = DoctorKafkaServletUtil.parseQueryString(queryString);
       String clusterName = params.get("name");
 
-      KafkaClusterManager clusterMananger = DoctorKafkaMain.operator.getClusterManager(clusterName);
+      KafkaClusterManager clusterMananger;
+      clusterMananger = DoctorKafkaMain.doctorKafka.getClusterManager(clusterName);
       if (clusterMananger == null) {
         writer.print("Failed to find cluster manager for " + clusterName);
         return;

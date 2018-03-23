@@ -32,12 +32,13 @@ public class DoctorKafkaInfoServlet extends HttpServlet {
 
     PrintWriter writer = resp.getWriter();
     try {
-      long jvmUpTime = ManagementFactory.getRuntimeMXBean().getUptime();
+      double jvmUpTimeInSeconds = ManagementFactory.getRuntimeMXBean().getUptime() / 1000.0;
+      String version = DoctorKafkaServletUtil.getVersion();
       writer.print("<div>");
-      writer.print(" <p> Uptime : " + jvmUpTime / 1000.0 + " seconds </p>");
+      writer.print("<p> Version: " + version + ", Uptime: " + jvmUpTimeInSeconds + " seconds </p>");
       writer.print("</div>");
 
-      List<KafkaClusterManager> clusterManagers = DoctorKafkaMain.operator.getClusterManagers();
+      List<KafkaClusterManager> clusterManagers = DoctorKafkaMain.doctorKafka.getClusterManagers();
       writer.print("<div> ");
       writer.print("<table class=\"table table-responsive\"> ");
       writer.print("<th> ClusterName </th> <th> Size </th> <th> Under-replicated Partitions</th>");

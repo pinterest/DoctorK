@@ -98,7 +98,7 @@ public class ClusterLoadBalancer {
         ReplicaStatsManager.config.getClusterConfigByZkUrl(clusterZk);
     KafkaCluster kafkaCluster = ReplicaStatsManager.clusters.get(clusterZk);
     KafkaClusterManager clusterManager = new KafkaClusterManager(
-        clusterZk, kafkaCluster, clusterConf, ReplicaStatsManager.config, null);
+        clusterZk, kafkaCluster, clusterConf, ReplicaStatsManager.config, null, null);
 
     List<KafkaBroker> highTrafficBrokers = clusterManager.getHighTrafficBroker();
     if (onlyOne) {
