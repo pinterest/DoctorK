@@ -6,6 +6,7 @@ import com.pinterest.doctorkafka.BrokerError;
 import com.pinterest.doctorkafka.BrokerStats;
 import com.pinterest.doctorkafka.ReplicaStat;
 import com.pinterest.doctorkafka.util.OperatorUtil;
+import com.pinterest.doctorkafka.util.KafkaUtils;
 
 import kafka.common.TopicAndPartition;
 import kafka.controller.ReassignedPartitionsContext;
@@ -221,7 +222,8 @@ public class BrokerStatsRetriever {
    */
   private void retrieveStatsThroughKafkaApi() {
     Properties props = new Properties();
-    props.put("bootstrap.servers", "localhost:9092");
+    String bootstrapBrokers = OperatorUtil.getBrokers(zkUrl);
+    props.put(KafkaUtils.BOOTSTRAP_SERVERS, bootstrapBrokers);
     props.put("group.id", "brokerstats_local");
     props.put("key.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
     props.put("value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");

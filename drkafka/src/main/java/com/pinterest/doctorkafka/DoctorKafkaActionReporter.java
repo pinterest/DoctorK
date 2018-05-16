@@ -1,6 +1,7 @@
 package com.pinterest.doctorkafka;
 
 import com.pinterest.doctorkafka.util.OperatorUtil;
+import com.pinterest.doctorkafka.util.KafkaUtils;
 
 import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.EncoderFactory;
@@ -32,7 +33,7 @@ public class DoctorKafkaActionReporter {
     this.topic = topic;
     String bootstrapBrokers = OperatorUtil.getBrokers(zkUrl);
     Properties props = new Properties();
-    props.put("bootstrap.servers", bootstrapBrokers);
+    props.put(KafkaUtils.BOOTSTRAP_SERVERS, bootstrapBrokers);
     props.put("acks", "1");
     props.put("retries", 0);
     props.put("batch.size", 1638400);
