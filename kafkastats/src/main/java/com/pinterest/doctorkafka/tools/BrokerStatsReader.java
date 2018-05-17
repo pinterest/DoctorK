@@ -2,6 +2,7 @@ package com.pinterest.doctorkafka.tools;
 
 import com.pinterest.doctorkafka.BrokerStats;
 import com.pinterest.doctorkafka.util.OperatorUtil;
+import com.pinterest.doctorkafka.util.KafkaUtils;
 
 import org.apache.avro.Schema;
 import org.apache.avro.io.BinaryDecoder;
@@ -62,9 +63,9 @@ public class BrokerStatsReader {
     String zkUrl = commandLine.getOptionValue(ZOOKEEPER);
     String statsTopic = commandLine.getOptionValue(STATS_TOPIC);
 
-    String boostrapBrokers = OperatorUtil.getBrokers(zkUrl);
+    String bootstrapBrokers = OperatorUtil.getBrokers(zkUrl);
     Properties props = new Properties();
-    props.put("bootstrap.servers", boostrapBrokers);
+    props.put(KafkaUtils.BOOTSTRAP_SERVERS, bootstrapBrokers);
     props.put("group.id", "broker_statsreader_group");
     props.put("enable.auto.commit", "false");
     props.put("auto.commit.interval.ms", "1000");

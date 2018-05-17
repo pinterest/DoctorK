@@ -235,7 +235,7 @@ public class OperatorUtil {
   public static Properties createKafkaProducerProperties(String zkUrl) {
     String bootstrapBrokers = OperatorUtil.getBrokers(zkUrl);
     Properties props = new Properties();
-    props.put("bootstrap.servers", bootstrapBrokers);
+    props.put(KafkaUtils.BOOTSTRAP_SERVERS, bootstrapBrokers);
     props.put("acks", "1");
     props.put("retries", 0);
     props.put("batch.size", 1638400);
@@ -248,9 +248,9 @@ public class OperatorUtil {
 
 
   public static Properties createKafkaConsumerProperties(String zkUrl, String consumerGroupName) {
-    String boostrapBrokers = OperatorUtil.getBrokers(zkUrl);
+    String bootstrapBrokers = OperatorUtil.getBrokers(zkUrl);
     Properties props = new Properties();
-    props.put("bootstrap.servers", boostrapBrokers);
+    props.put(KafkaUtils.BOOTSTRAP_SERVERS, bootstrapBrokers);
     props.put("group.id", consumerGroupName);
     props.put("enable.auto.commit", "true");
     props.put("auto.commit.interval.ms", "1000");
