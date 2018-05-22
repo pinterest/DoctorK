@@ -372,7 +372,7 @@ public class BrokerStatsRetriever {
           brokerStats.setInstanceType(elements[1].trim());
         } else if (elements[0].equals("ami-id")) {
           brokerStats.setAmiId(elements[1].trim());
-        } else if (elements[0].equals("hostname")) {
+        } else if (elements[0].equals("hostname")) { // This only works if the hostname is explicitly set in AWS
           brokerStats.setName(elements[1].trim());
         }
       }
@@ -386,6 +386,19 @@ public class BrokerStatsRetriever {
           LOG.error("Failed to close bufferReader", e);
         }
       }
+    }
+    LOG.warn("set hostname to {}", brokerStats.getName());
+  }
+
+  /**
+   *  Not everyone sets 'hostname' on their AWS instances, and not every
+   *  broker lives in AWS.
+   */
+  private void ensureBrokerName() {
+    if (brokerStats.getName() == null) {
+	brokerStats.setName(OperatorUtil.getHostname());
+	LOG.info("set hostname to {}", brokerStats.getName());
+      return;
     }
   }
 
@@ -519,6 +532,7 @@ public class BrokerStatsRetriever {
 
     // set information on availability zone, instance type, ami-id, hostname etc.
     setBrokerInstanceInfo();
+    ensureBrokerName();
     // set broker id, log dir, default retention hours etc.
     setBrokerConfiguration();
 
