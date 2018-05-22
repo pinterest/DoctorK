@@ -387,19 +387,11 @@ public class BrokerStatsRetriever {
         }
       }
     }
-    LOG.warn("set hostname to {}", brokerStats.getName());
-  }
-
-  /**
-   *  Not everyone sets 'hostname' on their AWS instances, and not every
-   *  broker lives in AWS.
-   */
-  private void ensureBrokerName() {
+    // Not every Kafka cluster lives in AWS
     if (brokerStats.getName() == null) {
 	brokerStats.setName(OperatorUtil.getHostname());
-	LOG.info("set hostname to {}", brokerStats.getName());
-      return;
     }
+    LOG.info("set hostname to {}", brokerStats.getName());
   }
 
   /**
@@ -532,7 +524,6 @@ public class BrokerStatsRetriever {
 
     // set information on availability zone, instance type, ami-id, hostname etc.
     setBrokerInstanceInfo();
-    ensureBrokerName();
     // set broker id, log dir, default retention hours etc.
     setBrokerConfiguration();
 
