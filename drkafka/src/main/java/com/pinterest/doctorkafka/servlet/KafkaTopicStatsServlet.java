@@ -66,8 +66,8 @@ public class KafkaTopicStatsServlet extends HttpServlet {
     writer.print("<p> <h5>" + topic + "</h5></p>");
     writer.print("<table class=\"table\">");
     writer.print("<thead> <tr> <th> Partition</th> ");
-    writer.print("<th>In Max</th> ");
-    writer.print("<th>Out max</th>");
+    writer.print("<th>In Max (Mb/s)</th> ");
+    writer.print("<th>Out max (Mb/s)</th>");
     writer.print("</tr> </thead> <tbody>");
 
     int zeroTrafficPartitions = 0;
@@ -95,7 +95,7 @@ public class KafkaTopicStatsServlet extends HttpServlet {
       writer.print("</tr>");
     }
     writer.print("<tr> <td colspan=\"8\">" + zeroTrafficPartitions
-        + " empty partitions </td> </tr>");
+        + " zero traffic partitions </td> </tr>");
     writer.print("</tbody> </table>");
   }
 
