@@ -372,7 +372,7 @@ public class BrokerStatsRetriever {
           brokerStats.setInstanceType(elements[1].trim());
         } else if (elements[0].equals("ami-id")) {
           brokerStats.setAmiId(elements[1].trim());
-        } else if (elements[0].equals("hostname")) {
+        } else if (elements[0].equals("hostname")) { // This only works if the hostname is explicitly set in AWS
           brokerStats.setName(elements[1].trim());
         }
       }
@@ -387,6 +387,11 @@ public class BrokerStatsRetriever {
         }
       }
     }
+    // Not every Kafka cluster lives in AWS
+    if (brokerStats.getName() == null) {
+	brokerStats.setName(OperatorUtil.getHostname());
+    }
+    LOG.info("set hostname to {}", brokerStats.getName());
   }
 
   /**
