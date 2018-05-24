@@ -101,7 +101,7 @@ public class ClusterLoadBalancer {
         clusterZk, kafkaCluster, clusterConf, ReplicaStatsManager.config, null, null);
 
     List<KafkaBroker> highTrafficBrokers = clusterManager.getHighTrafficBroker();
-    if (onlyOne) {
+    if (onlyOne && highTrafficBrokers.size() > 0) {
       KafkaBroker broker = highTrafficBrokers.get(0);
       highTrafficBrokers.clear();
       highTrafficBrokers.add(broker);
