@@ -49,7 +49,7 @@ public class KafkaUtils {
   public static ZkUtils getZkUtils(String zkUrl) {
     if (!zkUtilsMap.containsKey(zkUrl)) {
       Tuple2<ZkClient, ZkConnection> zkClientAndConnection =
-          ZkUtils.createZkClientAndConnection(zkUrl, 300, 3000000);
+          ZkUtils.createZkClientAndConnection(zkUrl, 30000, 3000000);
 
       ZkUtils zkUtils = new ZkUtils(zkClientAndConnection._1(), zkClientAndConnection._2(), true);
       zkUtilsMap.put(zkUrl, zkUtils);
