@@ -126,7 +126,7 @@ public class DoctorKafkaConfig {
   }
 
   public int getOstrichPort() {
-    return drkafkaConfiguration.getInt(OSTRICH_PORT);
+    return drkafkaConfiguration.getInt(OSTRICH_PORT, 0);
   }
 
   public long getRestartIntervalInSeconds() {

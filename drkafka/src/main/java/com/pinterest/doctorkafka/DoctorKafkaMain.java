@@ -17,6 +17,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.InputStream;
 import java.net.URL;
+import java.util.NoSuchElementException;
 import java.util.Properties;
 
 /**
@@ -93,7 +94,13 @@ public class DoctorKafkaMain {
 
     int ostrichPort = ReplicaStatsManager.config.getOstrichPort();
     String tsdHostPort = ReplicaStatsManager.config.getTsdHostPort();
-    OperatorUtil.startOstrichService(tsdHostPort, ostrichPort);
+    if (tsdHostPort == null && ostrichPort == 0) {
+      LOG.warn("OpenTSDB and Ostrich options missing, not starting Ostrich service");
+    } else if (ostrichPort == 0) {
+      throw new NoSuchElementException(String.format("Key '%s' does not map to an existing object!", OSTRICH_PORT));
+    } else {
+      OperatorUtil.startOstrichService(tsdHostPort, ostrichPort);
+    }
     LOG.info("DoctorKafka started.");
   }
 
