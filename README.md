@@ -129,8 +129,7 @@ java8 -Dlog4j.configurationFile=file:./log4j2.xml  -cp  lib/*:doctorkafka-0.1.0.
       com.pinterest.doctorkafka.tools.ClusterLoadBalancer \
       -brokerstatstopic  brokerstats -brokerstatszk  zookeeper001:2181/cluster1  \
       -clusterzk  zookeeper001:2181,zookeeper002:2181,zookeeper003:2181/cluster2 \
-      -config  ./drkafka/config/doctorkafka.prod.properties  \
-      -inbound_limit_mb 40 -outbound_limit_mb 80
+      -config  ./drkafka/config/doctorkafka.prod.properties
 ```
 Cluster load balancer balances the workload among brokers to make sure the broker network
 usage does not exceed the threshold. 
