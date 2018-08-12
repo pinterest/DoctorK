@@ -63,4 +63,8 @@ public class KafkaAvroPublisher {
       throw new RuntimeException("Avro serialization failure", e);
     }
   }
+
+  public void close() {
+    kafkaProducer.close();
+  }
 }
