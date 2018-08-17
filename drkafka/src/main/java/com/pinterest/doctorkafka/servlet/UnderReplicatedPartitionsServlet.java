@@ -32,6 +32,10 @@ public class UnderReplicatedPartitionsServlet extends HttpServlet {
     resp.setStatus(HttpStatus.OK_200);
     PrintWriter writer = resp.getWriter();
 
+    renderHTML(clusterName, writer);
+  }
+
+  private void renderHTML(String clusterName, PrintWriter writer) {
     DoctorKafkaServletUtil.printHeader(writer);
 
     KafkaClusterManager clusterMananger =

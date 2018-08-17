@@ -32,7 +32,10 @@ public class ClusterInfoServlet extends HttpServlet {
     String queryString = req.getQueryString();
     resp.setStatus(HttpStatus.OK_200);
     PrintWriter writer = resp.getWriter();
+    renderHTML(queryString, writer);
+  }
 
+  private void renderHTML(String queryString, PrintWriter writer) {
     DoctorKafkaServletUtil.printHeader(writer);
     try {
       Map<String, String> params = DoctorKafkaServletUtil.parseQueryString(queryString);

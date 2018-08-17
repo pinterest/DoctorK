@@ -37,6 +37,10 @@ public class KafkaTopicStatsServlet extends HttpServlet {
     resp.setStatus(HttpStatus.OK_200);
 
     PrintWriter writer = resp.getWriter();
+    renderHTML(clusterName, topic, writer);
+  }
+
+  private void renderHTML(String clusterName, String topic, PrintWriter writer) {
     try {
       DoctorKafkaServletUtil.printHeader(writer);
       writer.print("<div> <p><a href=\"/\">Home</a> > "

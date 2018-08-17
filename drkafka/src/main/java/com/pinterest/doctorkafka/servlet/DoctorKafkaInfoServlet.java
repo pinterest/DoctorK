@@ -31,6 +31,10 @@ public class DoctorKafkaInfoServlet extends HttpServlet {
     resp.setStatus(HttpStatus.OK_200);
 
     PrintWriter writer = resp.getWriter();
+    renderHTML(writer);
+  }
+
+  private void renderHTML(PrintWriter writer) {
     try {
       double jvmUpTimeInSeconds = ManagementFactory.getRuntimeMXBean().getUptime() / 1000.0;
       String version = DoctorKafkaServletUtil.getVersion();
@@ -44,7 +48,7 @@ public class DoctorKafkaInfoServlet extends HttpServlet {
       writer.print("<th> ClusterName </th> <th> Size </th> <th> Under-replicated Partitions</th>");
       writer.print("<tbody>");
 
-      Map<String, String>  clustersHtml = new TreeMap<>();
+      Map<String, String> clustersHtml = new TreeMap<>();
       for (KafkaClusterManager clusterManager : clusterManagers) {
         String clusterName = clusterManager.getClusterName();
         String htmlStr;
