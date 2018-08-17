@@ -41,6 +41,10 @@ public class DoctorKafkaBrokerStatsServlet extends HttpServlet {
     resp.setStatus(HttpStatus.OK_200);
 
     PrintWriter writer = resp.getWriter();
+    renderHTML(clusterName, brokerId, writer);
+  }
+
+  private void renderHTML(String clusterName, int brokerId, PrintWriter writer) {
     DoctorKafkaServletUtil.printHeader(writer);
 
     writer.print("<div> <p><a href=\"/\">Home</a> > "

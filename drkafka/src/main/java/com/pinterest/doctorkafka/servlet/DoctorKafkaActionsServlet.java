@@ -49,6 +49,10 @@ public class DoctorKafkaActionsServlet extends HttpServlet {
     resp.setStatus(HttpStatus.OK_200);
 
     PrintWriter writer = resp.getWriter();
+    renderHTML(writer);
+  }
+
+  private void renderHTML(PrintWriter writer) {
     DoctorKafkaServletUtil.printHeader(writer);
     writer.print("<div> <p><a href=\"/\">Home</a> > doctorkafka action </p> </div>");
     writer.print("<table class=\"table table-hover\"> ");
