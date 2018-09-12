@@ -25,17 +25,15 @@ public class BrokerStatsReporter implements Runnable {
   private String brokerHost;
   private String jmxPort;
   private String kafkaConfigPath;
-  private String statsTopic;
-  private String zkUrl;
+  private KafkaAvroPublisher avroPublisher;
   private long pollingIntervalInSeconds;
 
   public BrokerStatsReporter(String kafkaConfigPath, String host, String jmxPort,
-                             String statsTopic, String zkUrl, long pollingIntervalInSeconds) {
+                             KafkaAvroPublisher avroPublisher, long pollingIntervalInSeconds) {
     this.brokerHost = host;
     this.jmxPort = jmxPort;
     this.kafkaConfigPath = kafkaConfigPath;
-    this.statsTopic = statsTopic;
-    this.zkUrl = zkUrl;
+    this.avroPublisher = avroPublisher;
     this.pollingIntervalInSeconds = pollingIntervalInSeconds;
   }
 
@@ -55,7 +53,6 @@ public class BrokerStatsReporter implements Runnable {
     BrokerStatsRetriever brokerStatsRetriever = new BrokerStatsRetriever(kafkaConfigPath);
     try {
       BrokerStats stats = brokerStatsRetriever.retrieveBrokerStats(brokerHost, jmxPort);
-      KafkaAvroPublisher avroPublisher = new KafkaAvroPublisher(statsTopic, zkUrl);
       avroPublisher.publish(stats);
       LOG.info("publised to kafka : {}", stats);
     } catch (Exception e) {

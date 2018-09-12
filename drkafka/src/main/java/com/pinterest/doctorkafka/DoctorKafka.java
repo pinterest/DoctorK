@@ -68,8 +68,12 @@ public class DoctorKafka {
   }
 
   public void stop() {
-    brokerStatsProcessor.stop();
-    zookeeperClient.close();
+    if (brokerStatsProcessor != null) {
+      brokerStatsProcessor.stop();
+    }
+    if (zookeeperClient != null) {
+      zookeeperClient.close();
+    }
     for (KafkaClusterManager clusterManager : clusterManagers) {
       clusterManager.stop();
     }

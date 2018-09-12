@@ -28,7 +28,7 @@ Note that as of kafka 0.10.2, kafka only expose network traffic metrics for lead
 
 #### DoctorKafka cluster manager
 
-The broker workload traffic usually varies throughout the day. Because of this, we need to read broker stats from 24-48 hours time window to infer the traffic of each replica. As partition reassignment does not reflect the noraml workload traffic, we need to exclude partition reassignment traffic during the metric computation. 
+The broker workload traffic usually varies throughout the day. Because of this, we need to read broker stats from 24-48 hours time window to infer the traffic of each replica. As partition reassignment does not reflect the normal workload traffic, we need to exclude partition reassignment traffic during the metric computation. 
 
 
 ###### Algorithm for dead broker healing:
@@ -38,8 +38,10 @@ The broker workload traffic usually varies throughout the day. Because of this, 
          under-replicated reason → reason list
     if all under-replicated partitions are due to broker failure: 
         for each under-replicated topic partition tp:
-            if  exists broker h that satisfies constraints for hosting tp:
-                 add [tp → h]  to the partition reassignment plan
+            if exists broker h that satisfies constraints for hosting tp:
+                 add [tp → h] to the partition reassignment plan
+            else if above minimum required replicas:
+                 remove from the partition reassignment plan
             else:
                  send out alerts and exit the procedure 
      execute partition reassignment plan
@@ -53,14 +55,26 @@ The broker workload traffic usually varies throughout the day. Because of this, 
       let leader_replias be the leader replicas on b, sorted by traffic in decending order
       while workload(b) > l: 
         select a leader replica that has not been processed
-        if  exists follower boker c that has capacity to host tp as leader:
-           add [tp,  b → c]  to the preferred leader election list
-        else if exist borker h that satisfies constraints for hosting tp:
+        if exists follower broker c that has capacity to host tp as leader:
+           add [tp,  b → c] to the preferred leader election list
+        else if exist broker h that satisfies constraints for hosting tp:
            add [tp → h] to partition reassignment list
         else:
              send out alerts and exit             
     execute leader movement and partition reassignment
-```                     
+```
+
+###### Algorithm for adding replicas to new brokers
+
+```
+    for each under-replicated topic partition tp:
+         under-replicated reason → reason list
+    for each under-replicated topic partition tp where the replica count is less than live brokers:
+        if exists brokers h that satisfies constraints for hosting tp:
+             assign one of h as new leader randomly
+             add [tp → h] to the partition reassignment plan
+     execute partition reassignment plan
+```
 
 #### DoctorKafka UI 
 

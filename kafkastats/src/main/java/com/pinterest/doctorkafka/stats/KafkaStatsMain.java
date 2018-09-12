@@ -18,6 +18,8 @@ import org.apache.logging.log4j.Logger;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CountDownLatch;
+
 
 /**
  * StatsCollectorMain collects all kafka operation related metrics from a kafka broker, and send
@@ -44,6 +46,7 @@ public class KafkaStatsMain {
   private static final Options options = new Options();
   private static MetricsPusher metricsPusher = null;
   private static final int TSDB_METRICS_PUSH_INTERVAL_IN_MILLISECONDS = 10 * 1000;
+  private static final CountDownLatch shutdownLatch = new CountDownLatch(1);
 
   /**
    *  Usage:  com.pinterest.kafka.KafkaStatsMain  --host kafkahost --port 9999
@@ -92,6 +95,7 @@ public class KafkaStatsMain {
 
   private static BrokerStatsReporter brokerStatsReporter = null;
   private static CollectorMonitor collectorMonitor = null;
+  private static KafkaAvroPublisher avroPublisher = null;
 
   public static void main(String[] args) throws Exception {
     Runtime.getRuntime().addShutdownHook(new KafkaStatsCleanupThread());
@@ -111,8 +115,9 @@ public class KafkaStatsMain {
     long uptimeInSeconds = Long.parseLong(commandLine.getOptionValue(UPTIME_IN_SECONDS));
     long pollingInterval = Long.parseLong(commandLine.getOptionValue(POLLING_INTERVAL));
 
+    avroPublisher = new KafkaAvroPublisher(destTopic, zkUrl);
     brokerStatsReporter = new BrokerStatsReporter(
-        kafkaConfigPath, host, jmxPort, destTopic, zkUrl, pollingInterval);
+        kafkaConfigPath, host, jmxPort, avroPublisher, pollingInterval);
     brokerStatsReporter.start();
 
     collectorMonitor = new CollectorMonitor(uptimeInSeconds);
@@ -122,6 +127,7 @@ public class KafkaStatsMain {
     } else {
       OperatorUtil.startOstrichService(tsdHostPort, Integer.parseInt(ostrichPort));
     }
+    shutdownLatch.await(10, TimeUnit.SECONDS);
   }
 
 
@@ -182,6 +188,15 @@ public class KafkaStatsMain {
       } catch (Throwable t) {
         LOG.error("Shutdown failure in collectorMonitor : ", t);
       }
+
+      try {
+        if (avroPublisher != null) {
+          avroPublisher.close();
+        }
+      } catch (Throwable t) {
+        LOG.error("Shutdown failure in avroPublisher : ", t);
+      }
+      shutdownLatch.countDown();
     }
   }
 }

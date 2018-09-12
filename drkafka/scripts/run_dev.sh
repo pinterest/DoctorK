@@ -2,7 +2,7 @@
 
 set -x
 
-java -cp drkafka/target/lib/*:drkafka/target/doctorkafka-0.2.2.jar \
+java -cp drkafka/target/lib/*:drkafka/target/doctorkafka-0.2.3.jar \
      -Dlog4j.configurationFile=file:./drkafka/config/log4j2.dev.xml   \
      com.pinterest.doctorkafka.DoctorKafkaMain   \
      -config  drkafka/config/doctorkafka.dev.properties \

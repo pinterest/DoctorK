@@ -11,6 +11,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -235,6 +236,11 @@ public class KafkaCluster {
     boolean success = true;
     Map<Integer, KafkaBroker> result = new HashMap<>();
     for (int oosBrokerId : oosReplica.outOfSyncBrokers) {
+      if (oosReplica.inSyncBrokers.size() + result.size() >= clusterConfig.getReplicaCountMin()) {
+        LOG.info("Reducing replica count by removing {}", oosBrokerId);
+        result.put(oosBrokerId, null);
+        continue;
+      }
       List<KafkaBroker> unusableBrokers = new ArrayList<>();
       // we will get the broker with the least network usage
       KafkaBroker leastUsedBroker = brokerQueue.poll();
@@ -257,9 +263,9 @@ public class KafkaCluster {
           LOG.error("Failed to allocate resource to replace {}:{}", oosReplica, oosBrokerId);
           success = false;
         }
+        unusableBrokers.stream().forEach(broker -> brokerQueue.add(broker));
+        brokerQueue.add(leastUsedBroker);
       }
-      unusableBrokers.stream().forEach(broker -> brokerQueue.add(broker));
-      brokerQueue.add(leastUsedBroker);
     }
     return success ? result : null;
   }
@@ -267,20 +273,29 @@ public class KafkaCluster {
 
   public KafkaBroker getAlternativeBroker(TopicPartition topicPartition,
                                           double tpBytesIn, double tpBytesOut) {
+    return getAlternativeBroker(topicPartition, tpBytesIn, tpBytesOut, Collections.emptyList());
+  }
+
+  public KafkaBroker getAlternativeBroker(TopicPartition topicPartition,
+                                          double tpBytesIn, double tpBytesOut,
+                                          List<KafkaBroker> brokersToSkip) {
     PriorityQueue<KafkaBroker> brokerQueue =
         new PriorityQueue<>(new KafkaBroker.KafkaBrokerComparator());
 
     for (Map.Entry<Integer, KafkaBroker> entry : brokers.entrySet()) {
       KafkaBroker broker = entry.getValue();
-      if (!broker.hasTopicPartition(topicPartition)) {
+      if (!broker.hasTopicPartition(topicPartition) && !brokersToSkip.contains(broker)) {
         brokerQueue.add(broker);
       }
     }
     // we will get the broker with the least network usage
+    boolean success = false;
     KafkaBroker leastUsedBroker = brokerQueue.poll();
-    LOG.info("LeastUsedBroker for replacing {} : {}", topicPartition, leastUsedBroker.id());
-    boolean success = leastUsedBroker.reserveInBoundBandwidth(topicPartition, tpBytesIn);
-    success &= leastUsedBroker.reserveOutBoundBandwidth(topicPartition, tpBytesOut);
+    if (leastUsedBroker != null) {
+      LOG.info("LeastUsedBroker for replacing {} : {}", topicPartition, leastUsedBroker.id());
+      success = leastUsedBroker.reserveInBoundBandwidth(topicPartition, tpBytesIn);
+      success &= leastUsedBroker.reserveOutBoundBandwidth(topicPartition, tpBytesOut);
+    }
 
     if (!success) {
       LOG.error("Failed to allocate resource to replace {}", topicPartition);

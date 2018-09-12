@@ -30,8 +30,6 @@ public class ClusterLoadBalancer {
   private static final String BROKERSTATS_ZOOKEEPER = "brokerstatszk";
   private static final String BROKERSTATS_TOPIC = "brokerstatstopic";
   private static final String CLUSTER_ZOOKEEPER = "clusterzk";
-  private static final String INBOUND_LIMIT_MB = "inbound_limit_mb";
-  private static final String OUTBOUND_LIMIT_MB = "outbound_limit_mb";
   private static final String SECONDS = "seconds";
   private static final String ONLY_ONE = "onlyone";
 
