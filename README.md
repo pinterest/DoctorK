@@ -8,6 +8,7 @@ DoctorKafka is a service for [Kafka] cluster auto healing and workload balancing
 
  * Automated cluster healing by moving partitions on failed brokers to other brokers
  * Workload balancing among brokers
+ * Replica count adjustment based on available brokers
  * Centralized management of multiple kafka clusters 
 
 #### Detailed design
@@ -113,8 +114,10 @@ java -server -cp lib/*:doctorkafka-0.1.0.jar  com.pinterest.doctorkafka.DoctorKa
   -tsdhostport localhost:18261 -uptimeinseconds 86400
 ```
 
+The DoctorKafka process will respond to the SIGHUP signal to immediately heal and balance the clusters.
+
 ##### Customize configuration parameters
-Edit `src/main/config/*.properties` files to specify parameters describing the environment. 
+Edit `src/drkafka/config/*.properties` files to specify parameters describing the environment. 
 Those files contain comments describing the meaning of individual parameters.
 
 

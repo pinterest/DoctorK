@@ -22,6 +22,8 @@ public class DoctorKafkaClusterConfig {
   private static final String NETWORK_IN_LIMIT_MB = "network.inbound.limit.mb";
   private static final String NETWORK_OUT_MB = "network.outbound.limit.mb";
   private static final String NETWORK_BANDWITH_MB = "network.bandwidth.max.mb";
+  private static final String REPLICA_MIN_COUNT = "replica.min";
+  private static final String REPLICA_MAX_COUNT = "replica.max";
   private static final String CHECK_INTERVAL_IN_SECS = "check_interval_in_seconds";
   private static final String UNDER_REPLICTED_ALERT_IN_SECS = "under_replicated.alert.seconds";
   private static final String BROKER_REPLACEMENT_ENABLE = "broker_replacement.enable";
@@ -83,6 +85,14 @@ public class DoctorKafkaClusterConfig {
 
   public double getNetworkBandwidthInBytes() {
     return getNetworkBandwidthInMb() * 1024.0 * 1024.0;
+  }
+
+  public int getReplicaCountMin() {
+    return clusterConfiguration.getInt(REPLICA_MIN_COUNT, 0);
+  }
+
+  public int getReplicaCountMax() {
+    return clusterConfiguration.getInt(REPLICA_MAX_COUNT, 0);
   }
 
   public int getCheckIntervalInSeconds() {

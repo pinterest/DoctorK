@@ -27,6 +27,8 @@ import org.apache.logging.log4j.Logger;
 import org.apache.zookeeper.data.ACL;
 import scala.collection.JavaConverters;
 import scala.collection.Seq;
+import sun.misc.Signal;
+import sun.misc.SignalHandler;
 
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
@@ -37,6 +39,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
+import java.util.Random;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -62,6 +65,22 @@ public class KafkaClusterManager implements Runnable {
    */
   private static final int NUM_BROKER_STATS = 4;
 
+  final class ReloadHandler implements SignalHandler {
+    @Override
+    public void handle(Signal signal) {
+      synchronized (notifier) {
+        notifier.notify();
+      }
+    }
+  }
+
+  final class TermHandler implements SignalHandler {
+    @Override
+    public void handle(Signal signal) {
+      stop();
+    }
+  }
+
   private String zkUrl;
   private ZkUtils zkUtils;
   private KafkaCluster kafkaCluster = null;
@@ -70,10 +89,12 @@ public class KafkaClusterManager implements Runnable {
   private DoctorKafkaActionReporter actionReporter = null;
   private boolean stopped = true;
   private Thread thread = null;
+  private final Object notifier = new Object();
 
   private List<PartitionInfo> underReplicatedPartitions = new ArrayList<>();
   private double bytesInLimit;
   private double bytesOutLimit;
+  private int replicaCountMax;
 
   private Map<String, scala.collection.Map<Object, Seq<Object>>> topicPartitionAssignments
       = new HashMap<>();
@@ -101,10 +122,13 @@ public class KafkaClusterManager implements Runnable {
     this.actionReporter = actionReporter;
     this.bytesInLimit = clusterConfig.getNetworkInLimitInBytes();
     this.bytesOutLimit = clusterConfig.getNetworkOutLimitInBytes();
+    this.replicaCountMax = clusterConfig.getReplicaCountMax();
     this.zookeeperClient = zookeeperClient;
     if (clusterConfig.enabledDeadbrokerReplacement()) {
       this.brokerReplacer = new BrokerReplacer(drkafkaConfig.getBrokerReplacementCommand());
     }
+    Signal.handle(new Signal("HUP"), new ReloadHandler());
+    Signal.handle(new Signal("TERM"), new TermHandler());
   }
 
   public KafkaCluster getCluster() {
@@ -119,6 +143,9 @@ public class KafkaClusterManager implements Runnable {
 
   public void stop() {
     stopped = true;
+    synchronized (notifier) {
+      notifier.notify();
+    }
   }
 
   public String getClusterName() {
@@ -390,7 +417,7 @@ public class KafkaClusterManager implements Runnable {
       }
     }
 
-    Map<TopicPartition, Integer[]> assignmentPlan = new HashMap<>();
+    Map<TopicPartition, List<Integer>> assignmentPlan = new HashMap<>();
     // limit to reassign one partition per broker at a time to reduce congestion
     Set<Integer> sourceBrokerId = new HashSet<>();
 
@@ -399,12 +426,12 @@ public class KafkaClusterManager implements Runnable {
       PartitionInfo partitionInfo = tpInfoMap.get(tp.topic()).get(tp.partition());
 
       Node[] replicas = partitionInfo.replicas();
-      Integer[] newReplicas = new Integer[partitionInfo.replicas().length];
+      List<Integer> newReplicas = new ArrayList<>(partitionInfo.replicas().length);
       for (int i = 0; i < replicas.length; i++) {
         if (replicas[i].id() == reassign.source.id()) {
-          newReplicas[i] = reassign.dest.id();
+          newReplicas.add(reassign.dest.id());
         } else {
-          newReplicas[i] = replicas[i].id();
+          newReplicas.add(replicas[i].id());
         }
       }
       assignmentPlan.put(tp, newReplicas);
@@ -481,14 +508,14 @@ public class KafkaClusterManager implements Runnable {
 
 
   private scala.collection.Map<TopicAndPartition, Seq<Object>> getAssignmentPlan(
-      Map<TopicPartition, Integer[]> replicasMap) {
+      Map<TopicPartition, List<Integer>> replicasMap) {
     scala.collection.mutable.HashMap<TopicAndPartition, Seq<Object>> result =
         new scala.collection.mutable.HashMap<>();
 
-    for (Map.Entry<TopicPartition, Integer[]> entry : replicasMap.entrySet()) {
+    for (Map.Entry<TopicPartition, List<Integer>> entry : replicasMap.entrySet()) {
       TopicPartition tp = entry.getKey();
       TopicAndPartition tap = new TopicAndPartition(tp.topic(), tp.partition());
-      List<Object> objs = Arrays.asList(entry.getValue()).stream()
+      List<Object> objs = entry.getValue().stream()
           .map(val -> (Object) val).collect(Collectors.toList());
       Seq<Object> replicas = JavaConverters.asScalaBuffer(objs).seq();
       result.put(tap, replicas);
@@ -550,20 +577,41 @@ public class KafkaClusterManager implements Runnable {
         reason = UnderReplicatedReason.LEADER_FAILURE;
       } else if (isNetworkSaturated(leaderId)) {
         reason = UnderReplicatedReason.LEADER_NETWORK_SATURATION;
-      } else if (isNetworkSaturated(leaderId)) {
+      } else if (isNetworkSaturated(brokerId)) {
         reason = UnderReplicatedReason.FOLLOWER_NETWORK_SATURATION;
       }
     }
     return reason;
   }
 
+  /**
+   * Merge zero or more reassignment plans into one. The original plans are not modified.
+   * @return new plan, never null
+   */
+  private Map<TopicPartition, List<Integer>> mergeReassignmentPlans(Map<TopicPartition, List<Integer>> ... plans) {
+    Map<TopicPartition, List<Integer>> result = new HashMap<>();
+    for(Map<TopicPartition, List<Integer>> plan : plans) {
+      if (plan == null) {
+        continue;
+      }
+      for(Map.Entry<TopicPartition, List<Integer>> entry : plan.entrySet()) {
+        List<Integer> values = result.computeIfAbsent(entry.getKey(), key -> new ArrayList<>());
+        entry.getValue().forEach(id -> {
+          if (!values.contains(id)) {
+            values.add(id);
+          }
+        });
+      }
+    }
+    return result;
+  }
 
   /**
    * Generate reassignment plan for dead brokers
    */
-  private Map<TopicPartition, Integer[]> generateReassignmentPlanForDeadBrokers(
+  private Map<TopicPartition, List<Integer>> generateReassignmentPlanForDeadBrokers(
       List<OutOfSyncReplica> outOfSyncReplicas) {
-    Map<TopicPartition, Integer[]> replicasMap = new HashMap<>();
+    Map<TopicPartition, List<Integer>> replicasMap = new HashMap<>();
     boolean success = true;
 
     PriorityQueue<KafkaBroker> brokerQueue = kafkaCluster.getBrokerQueue();
@@ -579,11 +627,17 @@ public class KafkaClusterManager implements Runnable {
         break;
       } else {
         List<Integer> replicas = oosReplica.replicaBrokers;
-        Integer[] newReplicas = new Integer[replicas.size()];
+        List<Integer> newReplicas = new ArrayList<>(replicas.size());
         for (int i = 0; i < replicas.size(); i++) {
           int brokerId = replicas.get(i);
-          newReplicas[i] = replacedNodes.containsKey(brokerId) ? replacedNodes.get(brokerId).id()
-                                                               : brokerId;
+          if (replacedNodes.containsKey(brokerId)) {
+            KafkaBroker altBroker = replacedNodes.get(brokerId);
+            if (altBroker != null) {
+              newReplicas.add(altBroker.id());
+            }
+          } else {
+            newReplicas.add(brokerId);
+          }
         }
         replicasMap.put(oosReplica.topicPartition, newReplicas);
       }
@@ -591,6 +645,69 @@ public class KafkaClusterManager implements Runnable {
     return success ? replicasMap : null;
   }
 
+  /**
+   * Generate reassignment plan for increasing replicas due to more available brokers.
+   */
+  private Map<TopicPartition, List<Integer>> generateReassignmentPlanForReplicaIncrease(
+          List<PartitionInfo> urps,
+          List<Broker> allBrokers,
+          Set<Integer> downBrokers,
+          Map<TopicPartition, List<Integer>> currentReplicaPlan) {
+    Map<TopicPartition, List<Integer>> plan = new HashMap<>();
+    Random rnd = new Random();
+    List<Broker> upBrokers = allBrokers.stream().filter(b -> !downBrokers.contains(b.id())).collect(Collectors.toList());
+    LOG.info("Looking for replica increase with {} brokers up to {} replicas", upBrokers, replicaCountMax);
+    urps.stream()
+      .filter(urp -> urp.replicas().length < replicaCountMax && urp.replicas().length < upBrokers.size())
+      .forEach(urp -> {
+        int newReplicaCount = Math.min(replicaCountMax - urp.replicas().length, upBrokers.size() - urp.replicas().length);
+        LOG.info("Looking for {} additional broker(s) for {}:{}, current {}, max {}", newReplicaCount, urp.topic(), urp.partition(), urp.replicas(), replicaCountMax);
+        TopicPartition tp = new TopicPartition(urp.topic(), urp.partition());
+        double tpBytesIn = ReplicaStatsManager.getMaxBytesIn(zkUrl, tp);
+        double tpBytesOut = ReplicaStatsManager.getMaxBytesOut(zkUrl, tp);
+
+        List<KafkaBroker> newReplicas = new ArrayList<>(newReplicaCount);
+        List<KafkaBroker> usedReplicas = new ArrayList<>(newReplicaCount+1);
+        if (currentReplicaPlan != null && currentReplicaPlan.containsKey(tp)) {
+          currentReplicaPlan.get(tp).forEach(id -> usedReplicas.add(kafkaCluster.getBroker(id)));
+        }
+        for(int i = newReplicaCount; i > 0; i--) {
+          KafkaBroker newReplica = kafkaCluster.getAlternativeBroker(tp, tpBytesIn, tpBytesOut, usedReplicas);
+          if (newReplica != null) {
+            newReplicas.add(newReplica);
+            usedReplicas.add(newReplica);
+          } else {
+            // we ran out of brokers
+            break;
+          }
+        }
+
+        if (!newReplicas.isEmpty()) {
+          List<Integer> replicas = plan.computeIfAbsent(tp, key -> new ArrayList<>());
+
+          // Add existing live replicas
+          Arrays.stream(urp.replicas())
+                  .map(Node::id)
+                  .filter(id -> !downBrokers.contains(id))
+                  .forEach(replicas::add);
+
+          List<Integer> newReplicaIds = newReplicas.stream().map(KafkaBroker::id).collect(Collectors.toList());
+          // Move the leader based on random normal distribution. The new broker has lower traffic,
+          // getAlternativeBroker() assures that so we can't move the leader based on traffic. We
+          // give every broker in the replica set an even chance to be the leader, so the distribution
+          // should be close to uniform. Balancing will tune it over time.
+          if (rnd.nextInt(urp.replicas().length + newReplicaIds.size()) == 0) {
+            replicas.addAll(0, newReplicaIds);
+          } else {
+            replicas.addAll(newReplicaIds);
+          }
+          LOG.info("Added new replica(s) for {} : {}", tp, newReplicas);
+        }
+      }
+    );
+
+    return plan;
+  }
 
   /**
    * There are a few causes for under-replicated partitions:
@@ -617,6 +734,7 @@ public class KafkaClusterManager implements Runnable {
       return oosReplica;
     }).collect(Collectors.toList());
 
+    List<Broker> allBrokers = Collections.unmodifiableList(scala.collection.JavaConverters.seqAsJavaList(zkUtils.getAllBrokersInCluster()));
     Map<MutablePair<Integer, Integer>, UnderReplicatedReason> urpReasons = new HashMap<>();
     Map<MutablePair<Integer, Integer>, Integer> triedTimes = new HashMap<>();
     Set<Integer> downBrokers = new HashSet<>();
@@ -630,6 +748,7 @@ public class KafkaClusterManager implements Runnable {
           times = 0;
           triedTimes.put(nodePair, times);
         }
+        int replicationFactor = replicationFactors.getOrDefault(oosReplica.topic(), 0);
         // We only want to try per nodePair three times
         if (!urpReasons.containsKey(nodePair) || times < 3) {
           UnderReplicatedReason reason;
@@ -646,6 +765,8 @@ public class KafkaClusterManager implements Runnable {
               downBrokers.add(oosBrokerId);
             } else if (reason == UnderReplicatedReason.LEADER_FAILURE) {
               downBrokers.add(leaderId);
+            } else if (replicationFactor < replicaCountMax && replicationFactor < allBrokers.size()) {
+              reason = UnderReplicatedReason.REPLICA_INCREASE;
             }
           }
           urpReasons.put(nodePair, reason);
@@ -656,34 +777,42 @@ public class KafkaClusterManager implements Runnable {
     LOG.info("URP Reasons: {}", urpReasons);
 
     boolean alertOnFailure = true;
-    boolean followerFailureOnly = true;
+    boolean leaderFailure = false;
+    boolean followerFailure = false;
     for (Map.Entry<MutablePair<Integer, Integer>, UnderReplicatedReason> entry : urpReasons
         .entrySet()) {
       UnderReplicatedReason reason = entry.getValue();
-      followerFailureOnly &= (reason == UnderReplicatedReason.FOLLOWER_FAILURE);
-      MutablePair<Integer, Integer> pair = entry.getKey();
+      leaderFailure |= (reason == UnderReplicatedReason.LEADER_FAILURE);
+      followerFailure |= (reason == UnderReplicatedReason.FOLLOWER_FAILURE);
     }
     LOG.info("Down brokers: " + downBrokers);
 
+    boolean reassignmentPlanNeeded = false;
+    Map<TopicPartition, List<Integer>> replicasMap = new HashMap<>();
     // when a kafka broker dies, PartitionInfo.replicas only has node.id info for the dead broker.
     // node.host() returns null. Because of this, we need to find the broker id info based on
     // the broker stats history.
-    if (followerFailureOnly) {
-      Map<TopicPartition, Integer[]> replicasMap;
+    if (followerFailure && !leaderFailure) {
+      reassignmentPlanNeeded = true;
       replicasMap = generateReassignmentPlanForDeadBrokers(oosReplicas);
+    }
+    Map<TopicPartition, List<Integer>> replicaIncreasePlan = generateReassignmentPlanForReplicaIncrease(urps, allBrokers, downBrokers, replicasMap);
+    if (!replicaIncreasePlan.isEmpty()) {
+      reassignmentPlanNeeded = true;
+      replicasMap = mergeReassignmentPlans(replicasMap, replicaIncreasePlan);
+    }
 
-      if (replicasMap != null && !replicasMap.isEmpty()) {
-        scala.collection.Map<TopicAndPartition, Seq<Object>> proposedAssignment =
-            getAssignmentPlan(replicasMap);
-        String jsonReassignmentData = ZkUtils.formatAsReassignmentJson(proposedAssignment);
+    if (replicasMap != null && !replicasMap.isEmpty()) {
+      scala.collection.Map<TopicAndPartition, Seq<Object>> proposedAssignment =
+              getAssignmentPlan(replicasMap);
+      String jsonReassignmentData = ZkUtils.formatAsReassignmentJson(proposedAssignment);
 
-        LOG.info("Reassignment plan: {}", jsonReassignmentData);
-        reassignTopicPartitions(jsonReassignmentData);
-        alertOnFailure = false;
-      } else {
-        LOG.error("Failed to generate a reassignment plan");
-        OpenTsdbMetricConverter.incr(DoctorKafkaMetrics.HANDLE_URP_FAILURE, 1, "cluster=" + zkUrl);
-      }
+      LOG.info("Reassignment plan: {}", jsonReassignmentData);
+      reassignTopicPartitions(jsonReassignmentData);
+      alertOnFailure = false;
+    } else if (reassignmentPlanNeeded) {
+      LOG.error("Failed to generate a reassignment plan");
+      OpenTsdbMetricConverter.incr(DoctorKafkaMetrics.HANDLE_URP_FAILURE, 1, "cluster=" + zkUrl);
     }
 
     if (alertOnFailure) {
@@ -700,7 +829,7 @@ public class KafkaClusterManager implements Runnable {
    */
   private boolean isDeadBroker(String host, int kafkaPort, int brokerId, TopicPartition tp) {
     if (OperatorUtil.pingKafkaBroker(host, kafkaPort, 5000)) {
-      LOG.debug("Broker {} is alive as {}:9092 is reachable", brokerId, host);
+      LOG.debug("Broker {} is alive as {}:{} is reachable", brokerId, host, kafkaPort);
       if (OperatorUtil.canFetchData(host, kafkaPort, tp.topic(), tp.partition())) {
         LOG.debug("We are able to fetch data from broker {}", brokerId);
         return false;
@@ -793,7 +922,9 @@ public class KafkaClusterManager implements Runnable {
       scala.collection.mutable.Map<String, scala.collection.Map<Object, Seq<Object>>>
           partitionAssignments,
       Map<String, Integer> replicationFactors,
-      Map<String, Integer> partitionCounts) {
+      Map<String, Integer> partitionCounts,
+      List<Broker> brokers,
+      int replicaCountMax) {
     List<PartitionInfo> underReplicated = new ArrayList();
     KafkaConsumer kafkaConsumer = KafkaUtils.getKafkaConsumer(zkUrl);
     for (String topic : topics) {
@@ -812,8 +943,11 @@ public class KafkaClusterManager implements Runnable {
         noLeaderFlags[i] = true;
       }
       for (PartitionInfo info : partitionInfoList) {
+        Integer replicationFactor = replicationFactors.get(info.topic());
         if (info.inSyncReplicas().length < info.replicas().length &&
-            replicationFactors.get(info.topic()) > info.inSyncReplicas().length) {
+            replicationFactor > info.inSyncReplicas().length) {
+          underReplicated.add(info);
+        } else if (replicationFactor < replicaCountMax && brokers.size() > replicationFactor) {
           underReplicated.add(info);
         }
         noLeaderFlags[info.partition()] = false;
@@ -840,6 +974,13 @@ public class KafkaClusterManager implements Runnable {
   public List<Broker> getNoStatsBrokers() {
     Seq<Broker> brokerSeq = zkUtils.getAllBrokersInCluster();
     List<Broker> brokers = scala.collection.JavaConverters.seqAsJavaList(brokerSeq);
+    return getNoStatsBrokers(brokers);
+  }
+
+    /**
+     *   return the list of brokers that do not have stats
+     */
+  private List<Broker> getNoStatsBrokers(List<Broker> brokers) {
     List<Broker> noStatsBrokers = new ArrayList<>();
 
     brokers.stream().forEach(broker -> {
@@ -922,11 +1063,15 @@ public class KafkaClusterManager implements Runnable {
 
     while (!stopped) {
       try {
-        Thread.sleep(checkIntervalInMs);
+        synchronized (notifier) {
+          notifier.wait(checkIntervalInMs);
+        }
         ZkUtils zkUtils = KafkaUtils.getZkUtils(zkUrl);
+        Seq<Broker> brokerSeq = zkUtils.getAllBrokersInCluster();
+        List<Broker> brokers = scala.collection.JavaConverters.seqAsJavaList(brokerSeq);
 
         // check if there is any broker that do not have stats.
-        List<Broker> noStatsBrokers = getNoStatsBrokers();
+        List<Broker> noStatsBrokers = getNoStatsBrokers(brokers);
         if (!noStatsBrokers.isEmpty()) {
           Email.alertOnNoStatsBrokers(
               drkafkaConfig.getAlertEmails(), clusterConfig.getClusterName(), noStatsBrokers);
@@ -948,7 +1093,7 @@ public class KafkaClusterManager implements Runnable {
         });
 
         underReplicatedPartitions = getUnderReplicatedPartitions(
-            zkUrl, topics, partitionAssignments, replicationFactors, partitionCounts);
+            zkUrl, topics, partitionAssignments, replicationFactors, partitionCounts, brokers, replicaCountMax);
         LOG.info("Under-replicated partitions: {}", underReplicatedPartitions.size());
 
         for (PartitionInfo partitionInfo : underReplicatedPartitions) {
@@ -990,7 +1135,7 @@ public class KafkaClusterManager implements Runnable {
           checkAndReplaceDeadBrokers();
         }
       } catch (Exception e) {
-        LOG.error("Unexpected failure in cluster manager for {}: ", zkUrl, e);
+        LOG.error("Unexpected failure in cluster manager for "+zkUrl, e);
       }
     }
   }

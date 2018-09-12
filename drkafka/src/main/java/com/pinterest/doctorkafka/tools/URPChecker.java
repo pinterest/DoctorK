@@ -4,6 +4,7 @@ package com.pinterest.doctorkafka.tools;
 import com.pinterest.doctorkafka.KafkaClusterManager;
 import com.pinterest.doctorkafka.util.KafkaUtils;
 
+import kafka.cluster.Broker;
 import kafka.utils.ZkUtils;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -64,6 +65,8 @@ public class URPChecker {
     String zookeeper = commandLine.getOptionValue(ZOOKEEPER);
 
     ZkUtils zkUtils = KafkaUtils.getZkUtils(zookeeper);
+    Seq<Broker> brokerSeq = zkUtils.getAllBrokersInCluster();
+    List<Broker> brokers = scala.collection.JavaConverters.seqAsJavaList(brokerSeq);
     Seq<String> topicsSeq = zkUtils.getAllTopics();
     List<String> topics = scala.collection.JavaConverters.seqAsJavaList(topicsSeq);
 
@@ -81,7 +84,7 @@ public class URPChecker {
     });
 
     List<PartitionInfo> urps = KafkaClusterManager.getUnderReplicatedPartitions(
-        zookeeper, topics, partitionAssignments, replicationFactors, partitionCounts);
+        zookeeper, topics, partitionAssignments, replicationFactors, partitionCounts, brokers, 0);
 
     for (PartitionInfo partitionInfo : urps) {
       LOG.info("under-replicated : {}", partitionInfo);

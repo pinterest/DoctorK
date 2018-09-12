@@ -4,6 +4,7 @@ package com.pinterest.doctorkafka.util;
 import com.pinterest.doctorkafka.BrokerStats;
 
 import com.google.common.net.HostAndPort;
+import kafka.common.ReplicaNotAvailableException;
 import org.apache.commons.lang3.tuple.MutablePair;
 
 import kafka.api.FetchRequest;
@@ -161,6 +162,8 @@ public class OperatorUtil {
           LOG.warn("Unexpected interruption", ex);
         }
       }
+    } catch (ReplicaNotAvailableException e) {
+      LOG.warn("For host: " + host + " Unexpected exception", e);
     } catch (IOException e) {
       LOG.warn("For host: " + host + " Unexpected exception", e);
     } finally {
