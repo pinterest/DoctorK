@@ -5,9 +5,11 @@ import com.pinterest.doctorkafka.DoctorKafkaMetrics;
 import com.pinterest.doctorkafka.util.OpenTsdbMetricConverter;
 import com.pinterest.doctorkafka.util.OperatorUtil;
 
+import java.util.Map;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -20,16 +22,22 @@ import java.util.Properties;
 public class BrokerStatsProcessor implements Runnable {
 
   private static final Logger LOG = LogManager.getLogger(BrokerStatsProcessor.class);
+  private static final long BROKER_STATS_POLL_INTERVAL_MS = 200L;
   private static final String BROKERSTATS_CONSUMER_GROUP =
       "operator_brokerstats_group_" + OperatorUtil.getHostname();
   protected Thread thread;
   private boolean stopped = true;
-  private String zkUrl = null;
-  private String topic = null;
+  private String zkUrl;
+  private String topic;
+  private SecurityProtocol securityProtocol;
+  private Map<String, String> consumerConfigs;
 
-  public BrokerStatsProcessor(String zkUrl, String topic) {
+  public BrokerStatsProcessor(String zkUrl, SecurityProtocol securityProtocol,
+      String topic, Map<String, String> consumerConfigs) {
     this.zkUrl = zkUrl;
     this.topic = topic;
+    this.securityProtocol = securityProtocol;
+    this.consumerConfigs = consumerConfigs;
   }
 
 
@@ -50,13 +58,13 @@ public class BrokerStatsProcessor implements Runnable {
     thread.setUncaughtExceptionHandler(new BrokerStatsReaderExceptionHandler());
     this.stopped = false;
     try {
-      Properties properties =
-          OperatorUtil.createKafkaConsumerProperties(zkUrl, BROKERSTATS_CONSUMER_GROUP);
+      Properties properties = OperatorUtil.createKafkaConsumerProperties(
+          zkUrl, BROKERSTATS_CONSUMER_GROUP, securityProtocol, consumerConfigs);
       KafkaConsumer<byte[], byte[]> consumer = new KafkaConsumer<>(properties);
 
       consumer.subscribe(Arrays.asList(topic));
       while (!stopped) {
-        ConsumerRecords<byte[], byte[]> records = consumer.poll(100);
+        ConsumerRecords<byte[], byte[]> records = consumer.poll(BROKER_STATS_POLL_INTERVAL_MS);
         for (ConsumerRecord<byte[], byte[]> record : records) {
           try {
 

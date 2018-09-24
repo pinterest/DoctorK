@@ -19,6 +19,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -77,8 +78,8 @@ public class DoctorKafkaActionRetriever {
     String zookeeper = commandLine.getOptionValue(ZOOKEEPER);
     String topic = commandLine.getOptionValue(TOPIC);
     int num_messages = Integer.parseInt(commandLine.getOptionValue(NUM_MESSAGES));
-    Properties properties =
-        OperatorUtil.createKafkaConsumerProperties(zookeeper, "operator_action_commandline");
+    Properties properties = OperatorUtil.createKafkaConsumerProperties(zookeeper, "operator_action_commandline",
+        SecurityProtocol.PLAINTEXT, null);
 
     KafkaConsumer<byte[], byte[]> consumer = new KafkaConsumer<>(properties);
     TopicPartition operatorReportTopicPartition = new TopicPartition(topic, 0);

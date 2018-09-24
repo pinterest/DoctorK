@@ -4,6 +4,7 @@ package com.pinterest.doctorkafka.util;
 import com.pinterest.doctorkafka.BrokerStats;
 
 import com.google.common.net.HostAndPort;
+import java.util.ArrayList;
 import org.apache.commons.lang3.tuple.MutablePair;
 
 import kafka.api.FetchRequest;
@@ -24,6 +25,10 @@ import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.config.ConfigException;
+import org.apache.kafka.common.config.SslConfigs;
+import org.apache.kafka.common.config.internals.BrokerSecurityConfigs;
 import org.apache.kafka.common.network.ListenerName;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.logging.log4j.LogManager;
@@ -209,46 +214,37 @@ public class OperatorUtil {
     return zkUtilsMap.get(zkUrl);
   }
 
-  public static String getBrokers(String zkUrl) {
+  public static String getBrokers(String zkUrl, SecurityProtocol securityProtocol) {
     ZkUtils zkUtils = getZkUtils(zkUrl);
     Seq<Broker> brokersSeq = zkUtils.getAllBrokersInCluster();
     Broker[] brokers = new Broker[brokersSeq.size()];
     brokersSeq.copyToArray(brokers);
 
     String brokersStr = Arrays.stream(brokers)
-        .map(b -> b.getBrokerEndPoint(
-            ListenerName.forSecurityProtocol(SecurityProtocol.PLAINTEXT)).connectionString())
+        .map(b -> b.brokerEndPoint(
+            ListenerName.forSecurityProtocol(securityProtocol)).connectionString())
         .reduce(null, (a, b) -> (a == null) ? b : a + "," + b);
     return brokersStr;
   }
 
-  public static List<String> getBrokerList(String zkUrl) {
-    ZkUtils zkUtils = getZkUtils(zkUrl);
-    Seq<Broker> brokersSeq = zkUtils.getAllBrokersInCluster();
-    List<Broker> brokersList = scala.collection.JavaConverters.seqAsJavaList(brokersSeq);
-    return brokersList.stream().map(b -> b.getBrokerEndPoint(
-        ListenerName.forSecurityProtocol(SecurityProtocol.PLAINTEXT)).connectionString())
-        .collect(Collectors.toList());
-  }
-
-
-  public static Properties createKafkaProducerProperties(String zkUrl) {
-    String bootstrapBrokers = OperatorUtil.getBrokers(zkUrl);
+  public static Properties createKafkaProducerProperties(String zkUrl, SecurityProtocol securityProtocol) {
+    String bootstrapBrokers = OperatorUtil.getBrokers(zkUrl, securityProtocol);
     Properties props = new Properties();
     props.put(KafkaUtils.BOOTSTRAP_SERVERS, bootstrapBrokers);
-    props.put("acks", "1");
-    props.put("retries", 0);
-    props.put("batch.size", 1638400);
-    props.put("buffer.memory", 3554432);
-    props.put("compression.type", "gzip");
-    props.put("key.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
-    props.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
+    props.put(ProducerConfig.ACKS_CONFIG, "1");
+    props.put(ProducerConfig.RETRIES_CONFIG, 0);
+    props.put(ProducerConfig.BATCH_SIZE_CONFIG, 1638400);
+    props.put(ProducerConfig.BUFFER_MEMORY_CONFIG, 3554432);
+    props.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "gzip");
+    props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.ByteArraySerializer");
+    props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.ByteArraySerializer");
     return props;
   }
 
 
-  public static Properties createKafkaConsumerProperties(String zkUrl, String consumerGroupName) {
-    String bootstrapBrokers = OperatorUtil.getBrokers(zkUrl);
+  public static Properties createKafkaConsumerProperties(String zkUrl, String consumerGroupName,
+      SecurityProtocol securityProtocol, Map<String, String> consumerConfigs) {
+    String bootstrapBrokers = OperatorUtil.getBrokers(zkUrl, securityProtocol);
     Properties props = new Properties();
     props.put(KafkaUtils.BOOTSTRAP_SERVERS, bootstrapBrokers);
     props.put("group.id", consumerGroupName);
@@ -256,6 +252,12 @@ public class OperatorUtil {
     props.put("auto.commit.interval.ms", "1000");
     props.put("key.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
     props.put("value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
+
+    if (consumerConfigs != null) {
+      for (Map.Entry<String, String> entry : consumerConfigs.entrySet()) {
+        props.put(entry.getKey(), entry.getValue());
+      }
+    }
     return props;
   }
 

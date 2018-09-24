@@ -1,10 +1,13 @@
 package com.pinterest.doctorkafka.stats;
 
-
+import com.pinterest.doctorkafka.BrokerError;
 import com.pinterest.doctorkafka.util.MetricsPusher;
 import com.pinterest.doctorkafka.util.OperatorUtil;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.util.Properties;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
@@ -19,7 +22,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.CountDownLatch;
-
 
 /**
  * StatsCollectorMain collects all kafka operation related metrics from a kafka broker, and send
@@ -42,6 +44,9 @@ public class KafkaStatsMain {
   private static final String POLLING_INTERVAL = "pollingintervalinseconds";
   private static final String KAFKA_CONFIG = "kafka_config";
 
+  // The producer configuration for writing to the kafkastats topic
+  private static final String STATS_PRODUCER_CONFIG = "producer_config";
+
   protected static final String hostName = OperatorUtil.getHostname();
   private static final Options options = new Options();
   private static MetricsPusher metricsPusher = null;
@@ -51,6 +56,7 @@ public class KafkaStatsMain {
   /**
    *  Usage:  com.pinterest.kafka.KafkaStatsMain  --host kafkahost --port 9999
    *             --zookeeper datazk001:2181/data05  --topic  kafka_metrics
+   *             --stats_producer_config  producer_config.properties
    *             --tsdhost  localhost:18321  --ostrichport 2051
    *             --uptimeinseconds 43200 --pollinginterval 15
    *             --kafka_config  /etc/kafka/server.properties
@@ -69,14 +75,16 @@ public class KafkaStatsMain {
     Option uptimeInSeconds = new Option(UPTIME_IN_SECONDS, true, "uptime in seconds");
     Option pollingInterval = new Option(POLLING_INTERVAL, true, "polling interval in seconds");
     Option kafkaConfig = new Option(KAFKA_CONFIG, true, "kafka server properties file path");
+    Option statsProducerConfig = new Option(STATS_PRODUCER_CONFIG, true, "kafka_stats producer config");
 
     options.addOption(jmxPort).addOption(host).addOption(zookeeper).addOption(topic)
         .addOption(tsdHostPort).addOption(ostrichPort).addOption(uptimeInSeconds)
-        .addOption(pollingInterval).addOption(kafkaConfig);
+        .addOption(pollingInterval).addOption(kafkaConfig).addOption(statsProducerConfig);
 
     if (args.length < 6) {
       printUsageAndExit();
     }
+
     CommandLineParser parser = new DefaultParser();
     CommandLine cmd = null;
     try {
@@ -115,9 +123,13 @@ public class KafkaStatsMain {
     long uptimeInSeconds = Long.parseLong(commandLine.getOptionValue(UPTIME_IN_SECONDS));
     long pollingInterval = Long.parseLong(commandLine.getOptionValue(POLLING_INTERVAL));
 
-    avroPublisher = new KafkaAvroPublisher(destTopic, zkUrl);
-    brokerStatsReporter = new BrokerStatsReporter(
-        kafkaConfigPath, host, jmxPort, avroPublisher, pollingInterval);
+    String statsProducerPropertiesConfig = null;
+    if (commandLine.hasOption(STATS_PRODUCER_CONFIG)) {
+      statsProducerPropertiesConfig = commandLine.getOptionValue(STATS_PRODUCER_CONFIG);
+    }
+
+    avroPublisher = new KafkaAvroPublisher(zkUrl, destTopic, statsProducerPropertiesConfig);
+    brokerStatsReporter = new BrokerStatsReporter(kafkaConfigPath, host, jmxPort, avroPublisher, pollingInterval);
     brokerStatsReporter.start();
 
     collectorMonitor = new CollectorMonitor(uptimeInSeconds);
@@ -136,7 +148,7 @@ public class KafkaStatsMain {
     private static final Logger LOG = LogManager.getLogger(CollectorMonitor.class);
     private static final int INITIAL_DELAY = 0;
     /**
-     * The executor service for executing MercedWorkerMonitor thread
+     * The executor service for executing the monitor thread
      */
     public static ScheduledExecutorService monitorExecutor;
 
@@ -150,7 +162,6 @@ public class KafkaStatsMain {
     public CollectorMonitor(long uptimeInSeconds) {
       this.restartTime = System.currentTimeMillis() + uptimeInSeconds * 1000L;
     }
-
 
     public void start() {
       monitorExecutor.scheduleAtFixedRate(this, INITIAL_DELAY, 15, TimeUnit.SECONDS);

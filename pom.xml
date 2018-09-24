@@ -6,7 +6,7 @@
     <name>doctorkafka-parent</name>
     <groupId>com.github.pinterest</groupId>
     <artifactId>doctorkafka-parent</artifactId>
-    <version>0.2.3</version>
+    <version>0.2.4</version>
     <packaging>pom</packaging>
     <url>https://github.com/pinterest/doctorkafka</url>
 
@@ -59,12 +59,12 @@
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka_2.12</artifactId>
-            <version>1.0.1</version>
+            <version>1.1.0</version>
         </dependency>
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
-            <version>1.0.1</version>
+            <version>1.1.0</version>
         </dependency>
         <dependency>
             <groupId>org.apache.avro</groupId>

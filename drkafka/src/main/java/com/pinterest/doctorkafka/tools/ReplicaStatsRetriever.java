@@ -13,6 +13,7 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -80,7 +81,7 @@ public class ReplicaStatsRetriever {
 
     long startTime = System.currentTimeMillis();
     ReplicaStatsManager.config = new DoctorKafkaConfig(configFilePath);
-    ReplicaStatsManager.readPastReplicaStats(brokerStatsZk, brokerStatsTopic, seconds);
+    ReplicaStatsManager.readPastReplicaStats(brokerStatsZk, SecurityProtocol.PLAINTEXT, brokerStatsTopic, seconds);
     long endTime = System.currentTimeMillis();
     LOG.info("Spent time : {} seconds", (endTime - startTime) / 1000.0);
 

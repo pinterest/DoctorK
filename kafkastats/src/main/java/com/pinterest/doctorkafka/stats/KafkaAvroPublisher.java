@@ -1,18 +1,23 @@
 package com.pinterest.doctorkafka.stats;
 
-
 import com.pinterest.doctorkafka.util.OpenTsdbMetricConverter;
 import com.pinterest.doctorkafka.util.OperatorUtil;
 import com.pinterest.doctorkafka.BrokerStats;
 
+import java.io.FileInputStream;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.commons.compress.utils.IOUtils;
+import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -33,11 +38,33 @@ public class KafkaAvroPublisher {
 
   private String destTopic;
 
-  public KafkaAvroPublisher(String topic, String zkUrl) {
+  public KafkaAvroPublisher(String zkUrl, String topic, String statsProducerPropertiesFile) {
     this.destTopic = topic;
-    Properties props = OperatorUtil.createKafkaProducerProperties(zkUrl);
-    kafkaProducer = new KafkaProducer<>(props);
+    Properties statsProducerProperties = new Properties();
+    Map<String, Object> keyValueMap = new HashMap<>();
+    try {
+      if (statsProducerPropertiesFile != null) {
+        statsProducerProperties.load(new FileInputStream(statsProducerPropertiesFile));
+        for (String propertyName : statsProducerProperties.stringPropertyNames()) {
+          keyValueMap.put(propertyName, statsProducerProperties.get(propertyName));
+        }
+      }
+    } catch (IOException e) {
+      LOG.error("Failed to load configuration file {}", statsProducerPropertiesFile, e);
+    }
+    // set the security protocol based on
+    SecurityProtocol securityProtocol = SecurityProtocol.PLAINTEXT;
+    if (keyValueMap.containsKey(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG)) {
+      String secStr = keyValueMap.get(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG).toString();
+      securityProtocol = Enum.valueOf(SecurityProtocol.class, secStr);
+    }
+    Properties producerProperties = OperatorUtil.createKafkaProducerProperties(zkUrl, securityProtocol);
+    for (Map.Entry<String, Object> entry: keyValueMap.entrySet()) {
+      producerProperties.put(entry.getKey(), entry.getValue());
+    }
+    this.kafkaProducer = new KafkaProducer<>(producerProperties);
   }
+
 
   public void publish(BrokerStats brokerStats) throws IOException {
     try {

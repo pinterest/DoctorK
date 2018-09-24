@@ -16,6 +16,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -79,7 +80,7 @@ public class BrokerStatsFilter {
     KafkaConsumer kafkaConsumer = null;
     List<BrokerStats> result = new ArrayList<>();
     try {
-      String brokers = KafkaUtils.getBrokers(zkUrl);
+      String brokers = KafkaUtils.getBrokers(zkUrl, SecurityProtocol.PLAINTEXT);
       LOG.info("ZkUrl: {}, Brokers: {}", zkUrl, brokers);
       Properties props = new Properties();
       props.put(KafkaUtils.BOOTSTRAP_SERVERS, brokers);
@@ -131,7 +132,9 @@ public class BrokerStatsFilter {
 
     KafkaConsumer kafkaConsumer = KafkaUtils.getKafkaConsumer(brokerStatsZk,
         "org.apache.kafka.common.serialization.ByteArrayDeserializer",
-        "org.apache.kafka.common.serialization.ByteArrayDeserializer", 1);
+        "org.apache.kafka.common.serialization.ByteArrayDeserializer", 1,
+        SecurityProtocol.PLAINTEXT,
+        null);
 
     long startTimestampInMillis = System.currentTimeMillis() - 86400 * 1000L;
     Map<TopicPartition, Long> offsets = ReplicaStatsManager.getProcessingStartOffsets(

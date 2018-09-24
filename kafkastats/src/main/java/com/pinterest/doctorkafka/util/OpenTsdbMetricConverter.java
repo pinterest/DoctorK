@@ -51,8 +51,15 @@ public class OpenTsdbMetricConverter  {
     this.defaultTags = "host=" + hostname;
   }
 
-  public boolean convertCounter(
-      String name, int epochSecs, float value, OpenTsdbClient.MetricsBuffer buffer) {
+  public boolean convertCounter(String name, int epochSecs, float value, OpenTsdbClient.MetricsBuffer buffer) {
+    return convertCounterOrGauge(name, epochSecs, value, buffer);
+  }
+
+  public boolean convertGauge(String name, int epochSecs, float value, OpenTsdbClient.MetricsBuffer buffer) {
+    return convertCounterOrGauge(name, epochSecs, value, buffer);
+  }
+
+  private boolean convertCounterOrGauge(String name, int epochSecs, float value, OpenTsdbClient.MetricsBuffer buffer) {
     Tuple2<String, StringBuilder> nameAndTags = getNameAndTags(name);
     if (nameAndTags == null) {
       return false;
@@ -64,21 +71,7 @@ public class OpenTsdbMetricConverter  {
     return true;
   }
 
-  public boolean convertGauge(
-      String name, int epochSecs, float value, OpenTsdbClient.MetricsBuffer buffer) {
-    Tuple2<String, StringBuilder> nameAndTags = getNameAndTags(name);
-    if (nameAndTags == null) {
-      return false;
-    }
-    String statName = nameAndTags._1();
-    StringBuilder tags = nameAndTags._2().append(" ").append(getDefaultTags());
-
-    buffer.addMetric(statName, epochSecs, value, tags.toString());
-    return true;
-  }
-
-  public boolean convertMetric(
-      String name, int epochSecs, Distribution dist, OpenTsdbClient.MetricsBuffer buffer) {
+  public boolean convertMetric(String name, int epochSecs, Distribution dist, OpenTsdbClient.MetricsBuffer buffer) {
     Tuple2<String, StringBuilder> nameAndTags = getNameAndTags(name);
     if (nameAndTags == null) {
       return false;
@@ -128,7 +121,7 @@ public class OpenTsdbMetricConverter  {
       tags.append(parts[i]);
     }
 
-    return new Tuple2<String, StringBuilder>(openTsdStatName, tags);
+    return new Tuple2<>(openTsdStatName, tags);
   }
 
   public static String nameMetric(String name, String... tags) {

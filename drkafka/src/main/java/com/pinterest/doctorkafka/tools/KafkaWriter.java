@@ -16,6 +16,7 @@ import org.apache.kafka.clients.producer.RecordMetadata;
 import java.util.Properties;
 import java.util.Random;
 import java.util.concurrent.Future;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
 
 
 public class KafkaWriter {
@@ -64,7 +65,7 @@ public class KafkaWriter {
     int numMessages = Integer.parseInt(commandLine.getOptionValue(NUM_MESSAGES));
 
     Random random = new Random();
-    Properties props = OperatorUtil.createKafkaProducerProperties(zkUrl);
+    Properties props = OperatorUtil.createKafkaProducerProperties(zkUrl, SecurityProtocol.PLAINTEXT);
     KafkaProducer kafkaProducer = new KafkaProducer<>(props);
 
     byte[] key = new byte[16];

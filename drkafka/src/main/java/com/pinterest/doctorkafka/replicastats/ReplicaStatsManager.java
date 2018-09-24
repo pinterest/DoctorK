@@ -15,6 +15,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -54,7 +55,6 @@ public class ReplicaStatsManager {
   public static void initialize(DoctorKafkaConfig conf) {
     config = conf;
   }
-
 
   public static void updateReplicaReassignmentTimestamp(String brokerZkUrl,
                                                          ReplicaStat replicaStat) {
@@ -256,13 +256,15 @@ public class ReplicaStatsManager {
    * @param zkUrl
    */
   public static void readPastReplicaStats(String zkUrl,
+                                          SecurityProtocol securityProtocol,
                                           String brokerStatsTopic,
                                           long backtrackWindowInSeconds) {
     long startTime = System.currentTimeMillis();
 
     KafkaConsumer kafkaConsumer = KafkaUtils.getKafkaConsumer(zkUrl,
         "org.apache.kafka.common.serialization.ByteArrayDeserializer",
-        "org.apache.kafka.common.serialization.ByteArrayDeserializer", 1);
+        "org.apache.kafka.common.serialization.ByteArrayDeserializer",
+        1, securityProtocol, null);
 
     long startTimestampInMillis = System.currentTimeMillis() - backtrackWindowInSeconds * 1000L;
     Map<TopicPartition, Long> offsets = ReplicaStatsManager.getProcessingStartOffsets(
@@ -276,7 +278,7 @@ public class ReplicaStatsManager {
 
     for (TopicPartition tp : latestOffsets.keySet()) {
       PastReplicaStatsProcessor processor;
-      processor = new PastReplicaStatsProcessor(zkUrl, tp, offsets.get(tp), latestOffsets.get(tp));
+      processor = new PastReplicaStatsProcessor(zkUrl, securityProtocol, tp, offsets.get(tp), latestOffsets.get(tp));
       processors.add(processor);
       processor.start();
     }

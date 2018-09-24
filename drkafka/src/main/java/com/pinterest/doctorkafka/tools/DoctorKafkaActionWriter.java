@@ -9,6 +9,7 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
 
 public class DoctorKafkaActionWriter {
 
@@ -55,7 +56,8 @@ public class DoctorKafkaActionWriter {
     String topic = commandLine.getOptionValue(TOPIC);
     String message = commandLine.getOptionValue(MESSAGE);
 
-    DoctorKafkaActionReporter actionReporter = new DoctorKafkaActionReporter(topic, zkUrl);
+    DoctorKafkaActionReporter actionReporter =
+        new DoctorKafkaActionReporter(zkUrl, SecurityProtocol.PLAINTEXT, topic, null);
     actionReporter.sendMessage("testkafka10", message);
   }
 }

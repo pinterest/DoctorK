@@ -15,10 +15,10 @@ public class BrokerStatsReporter implements Runnable {
   private static final Logger LOG = LogManager.getLogger(BrokerStatsReporter.class);
   private static final int INITIAL_DELAY = 0;
 
-  public static ScheduledExecutorService statsReprotExecutor;
+  public static ScheduledExecutorService statsReportExecutor;
 
   static {
-    statsReprotExecutor = Executors.newSingleThreadScheduledExecutor(
+    statsReportExecutor = Executors.newSingleThreadScheduledExecutor(
         new ThreadFactoryBuilder().setNameFormat("StatsReporter").build());
   }
 
@@ -40,12 +40,12 @@ public class BrokerStatsReporter implements Runnable {
 
   public void start() {
     LOG.info("Starting broker stats reporter.....");
-    statsReprotExecutor.scheduleAtFixedRate(
+    statsReportExecutor.scheduleAtFixedRate(
         this, INITIAL_DELAY, pollingIntervalInSeconds, TimeUnit.SECONDS);
   }
 
   public void stop() throws Exception {
-    statsReprotExecutor.shutdown();
+    statsReportExecutor.shutdown();
   }
 
   @Override
@@ -54,9 +54,9 @@ public class BrokerStatsReporter implements Runnable {
     try {
       BrokerStats stats = brokerStatsRetriever.retrieveBrokerStats(brokerHost, jmxPort);
       avroPublisher.publish(stats);
-      LOG.info("publised to kafka : {}", stats);
+      LOG.info("published to kafka : {}", stats);
     } catch (Exception e) {
-      LOG.error("Faield to report stats", e);
+      LOG.error("Failed to report stats", e);
     }
   }
 }

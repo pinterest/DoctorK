@@ -13,6 +13,7 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.kafka.common.PartitionInfo;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import scala.collection.Seq;
@@ -81,7 +82,7 @@ public class URPChecker {
     });
 
     List<PartitionInfo> urps = KafkaClusterManager.getUnderReplicatedPartitions(
-        zookeeper, topics, partitionAssignments, replicationFactors, partitionCounts);
+        zookeeper, SecurityProtocol.PLAINTEXT, null, topics, partitionAssignments, replicationFactors, partitionCounts);
 
     for (PartitionInfo partitionInfo : urps) {
       LOG.info("under-replicated : {}", partitionInfo);

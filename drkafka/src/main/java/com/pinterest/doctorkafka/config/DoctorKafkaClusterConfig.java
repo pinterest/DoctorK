@@ -1,7 +1,10 @@
 package com.pinterest.doctorkafka.config;
 
 
+import java.util.Map;
 import org.apache.commons.configuration2.AbstractConfiguration;
+import org.apache.commons.configuration2.SubsetConfiguration;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
 
 
 /**
@@ -16,6 +19,7 @@ import org.apache.commons.configuration2.AbstractConfiguration;
  */
 public class DoctorKafkaClusterConfig {
 
+  private static final String CONSUMER_PREFIX = "consumer.";
   private static final String DRYRUN = "dryrun";
   private static final String ZKURL = "zkurl";
   private static final String ENABLE_WORLOAD_BALANCING = "balance_workload.enabled";
@@ -27,6 +31,7 @@ public class DoctorKafkaClusterConfig {
   private static final String BROKER_REPLACEMENT_ENABLE = "broker_replacement.enable";
   private static final String BROKER_REPLACEMENT_NO_STATS_SECONDS =
       "broker_replacement.no_stats.seconds";
+  private static final String SECURITY_PROTOCOL = "security.protocol";
   private static final String NOTIFICATION_EMAIL = "notification.email";
   private static final String NOTIFICATION_PAGER = "notificatino.pager";
 
@@ -112,6 +117,17 @@ public class DoctorKafkaClusterConfig {
     return result;
   }
 
+  public Map<String, String> getConsumerConfigurations() {
+    AbstractConfiguration sslConfiguration = new SubsetConfiguration(clusterConfiguration, CONSUMER_PREFIX);
+    return DoctorKafkaConfig.configurationToMap(sslConfiguration);
+  }
+
+  public SecurityProtocol getSecurityProtocol() {
+    Map<String, String> sslConfigMap = getConsumerConfigurations();
+    return sslConfigMap.containsKey(SECURITY_PROTOCOL)
+        ?  Enum.valueOf(SecurityProtocol.class, sslConfigMap.get(SECURITY_PROTOCOL)) : SecurityProtocol.PLAINTEXT;
+
+  }
   public String getNotificationEmail() {
     return clusterConfiguration.getString(NOTIFICATION_EMAIL, "");
   }

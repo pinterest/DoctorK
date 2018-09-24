@@ -2,6 +2,7 @@ package com.pinterest.doctorkafka.servlet;
 
 import com.pinterest.doctorkafka.DoctorKafkaMain;
 import com.pinterest.doctorkafka.OperatorAction;
+import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
 import com.pinterest.doctorkafka.util.OperatorUtil;
 
 import com.google.common.collect.Lists;
@@ -36,6 +37,7 @@ public class DoctorKafkaActionsServlet extends HttpServlet {
   private static final Logger LOG = LogManager.getLogger(DoctorKafkaActionsServlet.class);
   private static final String OPERATOR_ACTIONS_CONSUMER_GROUP = "doctorkafka_actions_consumer";
   private static final int NUM_MESSAGES = 1000;
+  private static final long CONSUMER_POLL_TIMEOUT_MS = 1000L;
   private static final DecoderFactory avroDecoderFactory = DecoderFactory.get();
   private static Schema operatorActionSchema = OperatorAction.getClassSchema();
 
@@ -66,11 +68,13 @@ public class DoctorKafkaActionsServlet extends HttpServlet {
 
 
   private void retrieveActionReportMessages(PrintWriter writer) {
-    String zkUrl = DoctorKafkaMain.doctorKafka.getOperatorConfig().getBrokerstatsZkurl();
-    String actionReportTopic =
-        DoctorKafkaMain.doctorKafka.getOperatorConfig().getActionReportTopic();
+    DoctorKafkaConfig doctorKafkaConfig = DoctorKafkaMain.doctorKafka.getDoctorKafkaConfig();
+    String zkUrl = doctorKafkaConfig.getBrokerstatsZkurl();
+    String actionReportTopic = doctorKafkaConfig.getActionReportTopic();
     Properties properties =
-        OperatorUtil.createKafkaConsumerProperties(zkUrl, OPERATOR_ACTIONS_CONSUMER_GROUP);
+        OperatorUtil.createKafkaConsumerProperties(zkUrl, OPERATOR_ACTIONS_CONSUMER_GROUP,
+            doctorKafkaConfig.getActionReportProducerSecurityProtocol(),
+            doctorKafkaConfig.getActionReportProducerSslConfigs());
     KafkaConsumer<byte[], byte[]> consumer = new KafkaConsumer<>(properties);
 
     TopicPartition operatorReportTopicPartition = new TopicPartition(actionReportTopic, 0);
@@ -87,7 +91,7 @@ public class DoctorKafkaActionsServlet extends HttpServlet {
       consumer.seek(tp, Math.max(beginOffsets.get(tp), endOffsets.get(tp) - NUM_MESSAGES));
     }
 
-    ConsumerRecords<byte[], byte[]> records = consumer.poll(100);
+    ConsumerRecords<byte[], byte[]> records = consumer.poll(CONSUMER_POLL_TIMEOUT_MS);
     List<ConsumerRecord<byte[], byte[]>> recordList = new ArrayList<>();
     SimpleDateFormat dtFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
 
@@ -95,7 +99,7 @@ public class DoctorKafkaActionsServlet extends HttpServlet {
       for (ConsumerRecord<byte[], byte[]> record : records) {
         recordList.add(record);
       }
-      records = consumer.poll(100);
+      records = consumer.poll(CONSUMER_POLL_TIMEOUT_MS);
     }
 
     LOG.info("Read {} messages", recordList.size());

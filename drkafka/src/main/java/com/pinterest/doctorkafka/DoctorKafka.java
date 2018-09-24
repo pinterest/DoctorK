@@ -6,6 +6,7 @@ import com.pinterest.doctorkafka.replicastats.BrokerStatsProcessor;
 import com.pinterest.doctorkafka.replicastats.ReplicaStatsManager;
 import com.pinterest.doctorkafka.util.ZookeeperClient;
 
+import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -34,23 +35,26 @@ public class DoctorKafka {
     this.clusterZkUrls = drkafkaConf.getClusterZkUrls();
     this.zookeeperClient = new ZookeeperClient(drkafkaConf.getDoctorKafkaZkurl());
   }
-
-
+  
   public void start() {
     String brokerstatsZkurl = drkafkaConf.getBrokerstatsZkurl();
     String actionReportZkurl = drkafkaConf.getActionReportZkurl();
     String statsTopic = drkafkaConf.getBrokerStatsTopic();
+    SecurityProtocol statsSecurityProtocol = drkafkaConf.getBrokerStatsConsumerSecurityProtocol();
     String actionReportTopic = drkafkaConf.getActionReportTopic();
+    SecurityProtocol actionReportSecurityProtocol = drkafkaConf.getActionReportProducerSecurityProtocol();
 
     LOG.info("Start rebuilding the replica stats by reading the past 24 hours brokerstats");
-    ReplicaStatsManager.readPastReplicaStats(brokerstatsZkurl,
+    ReplicaStatsManager.readPastReplicaStats(brokerstatsZkurl, statsSecurityProtocol,
         drkafkaConf.getBrokerStatsTopic(), drkafkaConf.getBrokerStatsBacktrackWindowsInSeconds());
     LOG.info("Finish rebuilding the replica stats");
 
-    brokerStatsProcessor = new BrokerStatsProcessor(brokerstatsZkurl, statsTopic);
+    brokerStatsProcessor = new BrokerStatsProcessor(brokerstatsZkurl, statsSecurityProtocol, statsTopic,
+        drkafkaConf.getBrokerStatsConsumerSslConfigs());
     brokerStatsProcessor.start();
 
-    actionReporter = new DoctorKafkaActionReporter(actionReportTopic, actionReportZkurl);
+    actionReporter = new DoctorKafkaActionReporter(actionReportZkurl, actionReportSecurityProtocol, actionReportTopic,
+        drkafkaConf.getActionReportProducerSslConfigs());
     for (String clusterZkUrl : clusterZkUrls) {
       DoctorKafkaClusterConfig clusterConf = drkafkaConf.getClusterConfigByZkUrl(clusterZkUrl);
       KafkaCluster kafkaCluster = ReplicaStatsManager.clusters.get(clusterZkUrl);
@@ -75,7 +79,7 @@ public class DoctorKafka {
     }
   }
 
-  public DoctorKafkaConfig getOperatorConfig() {
+  public DoctorKafkaConfig getDoctorKafkaConfig() {
     return drkafkaConf;
   }
 

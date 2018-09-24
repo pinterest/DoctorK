@@ -10,11 +10,13 @@ import com.pinterest.doctorkafka.util.KafkaUtils;
 
 import kafka.common.TopicAndPartition;
 import kafka.controller.ReassignedPartitionsContext;
+import kafka.server.BrokerConfigHandler;
 import kafka.utils.ZkUtils;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -47,9 +49,15 @@ public class BrokerStatsRetriever {
   private static final String VERSION = "0.1.15";
   private static String KAFKA_LOG = "kafka.log";
   private static String KAFKA_SERVER = "kafka.server";
+  private static String LOG_DIR = "log.dir";
+  private static String LOG_DIRS = "log.dirs";
+  private static String SECURITY_INTER_BROKER_PROTOCOL = "security.inter.broker.protocol";
+  private static String ZOOKEEPER_CONNECT = "zookeeper.connect";
+
   private String zkUrl = null;
   private String kafkaConfigPath;
   private BrokerStats brokerStats = null;
+  private SecurityProtocol securityProtocol = SecurityProtocol.PLAINTEXT;
 
   public BrokerStatsRetriever(String kafkaConfigPath) {
     this.kafkaConfigPath = kafkaConfigPath;
@@ -222,7 +230,7 @@ public class BrokerStatsRetriever {
    */
   private void retrieveStatsThroughKafkaApi() {
     Properties props = new Properties();
-    String bootstrapBrokers = OperatorUtil.getBrokers(zkUrl);
+    String bootstrapBrokers = OperatorUtil.getBrokers(this.zkUrl, this.securityProtocol);
     props.put(KafkaUtils.BOOTSTRAP_SERVERS, bootstrapBrokers);
     props.put("group.id", "brokerstats_local");
     props.put("key.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
@@ -454,13 +462,16 @@ public class BrokerStatsRetriever {
       }
 
       setBrokerIdInfo(brokerStats, properties);
-      zkUrl = properties.getProperty("zookeeper.connect");
+      zkUrl = properties.getProperty(ZOOKEEPER_CONNECT);
       brokerStats.setZkUrl(zkUrl);
+
+      String securityProtocolStr = properties.getProperty(SECURITY_INTER_BROKER_PROTOCOL);
+      securityProtocol = Enum.valueOf(SecurityProtocol.class, securityProtocolStr);
 
       // log.dirs specifies the directories in which the log data is kept.
       // If not set, the value in log.dir is used
-      String logDirsStr = properties.containsKey("log.dirs") ? properties.getProperty("log.dirs")
-                                                             : properties.getProperty("log.dir");
+      String logDirsStr = properties.containsKey(LOG_DIRS) ? properties.getProperty(LOG_DIRS)
+                                                           : properties.getProperty(LOG_DIR);
       brokerStats.setLogFilesPath(logDirsStr);
       long freeSpaceInBytes = 0;
       long totalSpaceInBytes = 0;

@@ -14,6 +14,7 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -87,7 +88,7 @@ public class ClusterLoadBalancer {
     boolean onlyOne = commandLine.hasOption(ONLY_ONE);
 
     ReplicaStatsManager.config = new DoctorKafkaConfig(configFilePath);
-    ReplicaStatsManager.readPastReplicaStats(brokerStatsZk, brokerStatsTopic, seconds);
+    ReplicaStatsManager.readPastReplicaStats(brokerStatsZk, SecurityProtocol.PLAINTEXT, brokerStatsTopic, seconds);
     Set<String> zkUrls = ReplicaStatsManager.config.getClusterZkUrls();
     if (!zkUrls.contains(clusterZk)) {
       LOG.error("Failed to find zkurl {} in configuration", clusterZk);

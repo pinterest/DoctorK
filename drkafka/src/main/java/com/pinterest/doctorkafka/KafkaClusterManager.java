@@ -22,6 +22,7 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.zookeeper.data.ACL;
@@ -63,6 +64,8 @@ public class KafkaClusterManager implements Runnable {
   private static final int NUM_BROKER_STATS = 4;
 
   private String zkUrl;
+  private SecurityProtocol securityProtocol;
+  private Map<String, String> consumerConfigs;
   private ZkUtils zkUtils;
   private KafkaCluster kafkaCluster = null;
   private DoctorKafkaConfig drkafkaConfig = null;
@@ -75,8 +78,7 @@ public class KafkaClusterManager implements Runnable {
   private double bytesInLimit;
   private double bytesOutLimit;
 
-  private Map<String, scala.collection.Map<Object, Seq<Object>>> topicPartitionAssignments
-      = new HashMap<>();
+  private Map<String, scala.collection.Map<Object, Seq<Object>>> topicPartitionAssignments = new HashMap<>();
   private List<MutablePair<KafkaBroker, TopicPartition>> reassignmentFailures = new ArrayList();
   private BrokerReplacer brokerReplacer;
   private ZookeeperClient zookeeperClient;
@@ -95,6 +97,8 @@ public class KafkaClusterManager implements Runnable {
     assert clusterConfig != null;
     this.zkUrl = zkUrl;
     this.zkUtils = KafkaUtils.getZkUtils(zkUrl);
+    this.securityProtocol = clusterConfig.getSecurityProtocol();
+    this.consumerConfigs = clusterConfig.getConsumerConfigurations();
     this.kafkaCluster = kafkaCluster;
     this.clusterConfig = clusterConfig;
     this.drkafkaConfig = drkafkaConfig;
@@ -307,7 +311,7 @@ public class KafkaClusterManager implements Runnable {
 
 
   private Map<String, List<PartitionInfo>> getTopicPartitionInfoMap() {
-    KafkaConsumer kafkaConsumer = KafkaUtils.getKafkaConsumer(zkUrl);
+    KafkaConsumer kafkaConsumer = KafkaUtils.getKafkaConsumer(zkUrl, securityProtocol, consumerConfigs);
     Map<String, List<PartitionInfo>> topicPartitonInfoMap = kafkaConsumer.listTopics();
     return topicPartitonInfoMap;
   }
@@ -789,13 +793,13 @@ public class KafkaClusterManager implements Runnable {
    * We need to handle this special case in detecting under replicated topic partitions.
    */
   public static List<PartitionInfo> getUnderReplicatedPartitions(
-      String zkUrl, List<String> topics,
-      scala.collection.mutable.Map<String, scala.collection.Map<Object, Seq<Object>>>
-          partitionAssignments,
+      String zkUrl, SecurityProtocol securityProtocol, Map<String, String> consumerConfigs,
+      List<String> topics,
+      scala.collection.mutable.Map<String, scala.collection.Map<Object, Seq<Object>>> partitionAssignments,
       Map<String, Integer> replicationFactors,
       Map<String, Integer> partitionCounts) {
     List<PartitionInfo> underReplicated = new ArrayList();
-    KafkaConsumer kafkaConsumer = KafkaUtils.getKafkaConsumer(zkUrl);
+    KafkaConsumer kafkaConsumer = KafkaUtils.getKafkaConsumer(zkUrl, securityProtocol, consumerConfigs);
     for (String topic : topics) {
       List<PartitionInfo> partitionInfoList = kafkaConsumer.partitionsFor(topic);
       if (partitionInfoList == null) {
@@ -947,8 +951,8 @@ public class KafkaClusterManager implements Runnable {
           replicationFactors.put(topic, factor);
         });
 
-        underReplicatedPartitions = getUnderReplicatedPartitions(
-            zkUrl, topics, partitionAssignments, replicationFactors, partitionCounts);
+        underReplicatedPartitions = getUnderReplicatedPartitions(zkUrl, securityProtocol, consumerConfigs,
+            topics, partitionAssignments, replicationFactors, partitionCounts);
         LOG.info("Under-replicated partitions: {}", underReplicatedPartitions.size());
 
         for (PartitionInfo partitionInfo : underReplicatedPartitions) {

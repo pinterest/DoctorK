@@ -4,6 +4,7 @@ import org.apache.commons.configuration2.AbstractConfiguration;
 import org.apache.commons.configuration2.PropertiesConfiguration;
 import org.apache.commons.configuration2.SubsetConfiguration;
 import org.apache.commons.configuration2.builder.fluent.Configurations;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -20,6 +21,9 @@ public class DoctorKafkaConfig {
   private static final Logger LOG = LogManager.getLogger(DoctorKafkaConfig.class);
   private static final String DOCTORKAFKA_PREFIX = "doctorkafka.";
   private static final String CLUSTER_PREFIX = "kafkacluster.";
+  private static final String BROKERSTATS_CONSUMER_PREFIX = "brokerstats.consumer.";
+  private static final String ACTION_REPORT_PRODUCER_PREFIX = "action.report.producer.";
+  private static final String SECURITY_PROTOCOL = "security.protocol";
 
   private static final String BROKERSTATS_ZKURL = "brokerstats.zkurl";
   private static final String BROKERSTATS_TOPIC = "brokerstats.topic";
@@ -103,12 +107,50 @@ public class DoctorKafkaConfig {
     return Long.parseLong(backtrackWindow);
   }
 
+  /**
+   * This method parses the configuration file and returns the kafka producer ssl setting
+   * for writing to brokerstats kafka topic
+   */
+  public Map<String, String> getBrokerStatsConsumerSslConfigs() {
+    AbstractConfiguration sslConfiguration = new SubsetConfiguration(drkafkaConfiguration, BROKERSTATS_CONSUMER_PREFIX);
+    return configurationToMap(sslConfiguration);
+  }
+
+  public SecurityProtocol getBrokerStatsConsumerSecurityProtocol() {
+    Map<String, String> sslConfigMap = getBrokerStatsConsumerSslConfigs();
+    return sslConfigMap.containsKey(SECURITY_PROTOCOL)
+        ?  Enum.valueOf(SecurityProtocol.class, sslConfigMap.get(SECURITY_PROTOCOL)) : SecurityProtocol.PLAINTEXT;
+  }
+
   public String getActionReportZkurl() {
     return drkafkaConfiguration.getString(ACTION_REPORT_ZKURL);
   }
 
   public String getActionReportTopic() {
     return drkafkaConfiguration.getString(ACTION_REPORT_TOPIC);
+  }
+
+  public Map<String, String> getActionReportProducerSslConfigs() {
+    AbstractConfiguration sslConfiguration =
+        new SubsetConfiguration(drkafkaConfiguration, ACTION_REPORT_PRODUCER_PREFIX);
+    return configurationToMap(sslConfiguration);
+  }
+
+  public SecurityProtocol getActionReportProducerSecurityProtocol() {
+    Map<String, String> sslConfigMap = getActionReportProducerSslConfigs();
+    return sslConfigMap.containsKey(SECURITY_PROTOCOL)
+        ?  Enum.valueOf(SecurityProtocol.class, sslConfigMap.get(SECURITY_PROTOCOL)) : SecurityProtocol.PLAINTEXT;
+  }
+
+
+  protected static Map<String, String> configurationToMap(AbstractConfiguration  configuration) {
+    Iterator<String> keysIterator = configuration.getKeys();
+    Map<String, String> result = new HashMap<>();
+    while (keysIterator.hasNext()) {
+      String key = keysIterator.next();
+      result.put(key, configuration.getString(key));
+    }
+    return result;
   }
 
   public int getBrokerReplacementIntervalInSeconds() {

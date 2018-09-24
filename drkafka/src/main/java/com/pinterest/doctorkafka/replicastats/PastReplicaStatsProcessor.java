@@ -4,10 +4,12 @@ import com.pinterest.doctorkafka.BrokerStats;
 import com.pinterest.doctorkafka.util.KafkaUtils;
 import com.pinterest.doctorkafka.util.OperatorUtil;
 
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -24,13 +26,15 @@ public class PastReplicaStatsProcessor implements Runnable {
 
   private String zkUrl;
   private TopicPartition topicPartition;
+  private SecurityProtocol securityProtocol;
   private long startOffset;
   private long endOffset;
   private Thread thread;
 
-  public PastReplicaStatsProcessor(String zkUrl, TopicPartition topicPartition,
+  public PastReplicaStatsProcessor(String zkUrl, SecurityProtocol securityProtocol, TopicPartition topicPartition,
                                long startOffset, long endOffset) {
     this.zkUrl = zkUrl;
+    this.securityProtocol = securityProtocol;
     this.topicPartition = topicPartition;
     this.startOffset = startOffset;
     this.endOffset = endOffset;
@@ -48,12 +52,12 @@ public class PastReplicaStatsProcessor implements Runnable {
   public void run() {
     KafkaConsumer kafkaConsumer = null;
     try {
-      String brokers = KafkaUtils.getBrokers(zkUrl);
+      String brokers = KafkaUtils.getBrokers(zkUrl, securityProtocol);
       LOG.info("ZkUrl: {}, Brokers: {}", zkUrl, brokers);
       Properties props = new Properties();
-      props.put(KafkaUtils.BOOTSTRAP_SERVERS, brokers);
-      props.put(KafkaUtils.ENABLE_AUTO_COMMIT, "false");
-      props.put(KafkaUtils.GROUP_ID, "kafka_operator" + topicPartition);
+      props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, brokers);
+      props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
+      props.put(ConsumerConfig.GROUP_ID_CONFIG, "doctorkafka_" + topicPartition);
       props.put(KafkaUtils.KEY_DESERIALIZER,
           "org.apache.kafka.common.serialization.ByteArrayDeserializer");
       props.put(KafkaUtils.VALUE_DESERIALIZER,

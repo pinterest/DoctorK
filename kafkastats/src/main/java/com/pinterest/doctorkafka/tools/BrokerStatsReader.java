@@ -18,6 +18,7 @@ import org.apache.commons.cli.ParseException;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -29,6 +30,7 @@ public class BrokerStatsReader {
   private static final Logger LOG = LogManager.getLogger(BrokerStatsReader.class);
   private static final String ZOOKEEPER = "zookeeper";
   private static final String STATS_TOPIC = "topic";
+  private static final String SECURITY_PROTOCOL = "security.protocol";
   private static final DecoderFactory avroDecoderFactory = DecoderFactory.get();
 
   private static final Options options = new Options();
@@ -40,7 +42,8 @@ public class BrokerStatsReader {
 
     Option zookeeper = new Option(ZOOKEEPER, true, "zookeeper connection string");
     Option statsTopic = new Option(STATS_TOPIC, true, "kafka topic for broker stats");
-    options.addOption(zookeeper).addOption(statsTopic);
+    Option securityProtcol = new Option(SECURITY_PROTOCOL, true, "security protocol for reading from kafka");
+    options.addOption(zookeeper).addOption(statsTopic).addOption(securityProtcol);
 
     CommandLineParser parser = new DefaultParser();
     CommandLine cmd = null;
@@ -63,7 +66,7 @@ public class BrokerStatsReader {
     String zkUrl = commandLine.getOptionValue(ZOOKEEPER);
     String statsTopic = commandLine.getOptionValue(STATS_TOPIC);
 
-    String bootstrapBrokers = OperatorUtil.getBrokers(zkUrl);
+    String bootstrapBrokers = OperatorUtil.getBrokers(zkUrl, SecurityProtocol.PLAINTEXT);
     Properties props = new Properties();
     props.put(KafkaUtils.BOOTSTRAP_SERVERS, bootstrapBrokers);
     props.put("group.id", "broker_statsreader_group");
