@@ -1,5 +1,6 @@
 package com.pinterest.doctorkafka.servlet;
 
+import com.google.gson.Gson;
 import com.pinterest.doctorkafka.KafkaBroker;
 import com.pinterest.doctorkafka.DoctorKafkaMain;
 import com.pinterest.doctorkafka.KafkaCluster;
@@ -25,17 +26,43 @@ import javax.servlet.http.HttpServletResponse;
 public class ClusterInfoServlet extends HttpServlet {
 
   private static final Logger LOG = LogManager.getLogger(DoctorKafkaServletUtil.class);
+  private static final Gson gson = new Gson();
 
   @Override
-  protected void doGet(HttpServletRequest req, HttpServletResponse resp)
+  public void doGet(HttpServletRequest req, HttpServletResponse resp)
       throws ServletException, IOException {
     String queryString = req.getQueryString();
+    if (queryString == null) {
+      resp.setStatus(HttpStatus.BAD_REQUEST_400);
+      return;
+    }
     resp.setStatus(HttpStatus.OK_200);
     PrintWriter writer = resp.getWriter();
-    renderHTML(queryString, writer);
+    String contentType = req.getHeader("content-type");
+    switch(contentType) {
+      case "application/json":
+        renderJSON(queryString, writer);
+        break;
+      default:
+        renderHTML(queryString, writer);
+    }
   }
 
-  private void renderHTML(String queryString, PrintWriter writer) {
+  public void renderJSON(String queryString, PrintWriter writer) {
+    Map<String, String> params = DoctorKafkaServletUtil.parseQueryString(queryString);
+    String clusterName = params.get("name");
+    KafkaClusterManager clusterManager = DoctorKafkaMain.doctorKafka.getClusterManager(clusterName);
+
+    if (clusterManager == null) {
+      ClusterInfoError error = new ClusterInfoError("Failed to find cluster manager for " + clusterName);
+      gson.toJson(error, writer);
+      return;
+    }
+    // FIXME Need a JSON serializer for KafkaClusterManager for this to work
+    gson.toJson(clusterManager.getCluster(), writer);
+  }
+
+  public void renderHTML(String queryString, PrintWriter writer) {
     DoctorKafkaServletUtil.printHeader(writer);
     try {
       Map<String, String> params = DoctorKafkaServletUtil.parseQueryString(queryString);
