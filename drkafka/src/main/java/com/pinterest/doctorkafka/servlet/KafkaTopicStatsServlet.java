@@ -6,11 +6,15 @@ import com.pinterest.doctorkafka.KafkaCluster;
 import com.pinterest.doctorkafka.KafkaClusterManager;
 import com.pinterest.doctorkafka.replicastats.ReplicaStatsManager;
 import com.pinterest.doctorkafka.util.KafkaUtils;
+import com.pinterest.doctorkafka.errors.ClusterInfoError;
 
 import org.apache.kafka.common.TopicPartition;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.eclipse.jetty.http.HttpStatus;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonArray;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -24,7 +28,8 @@ import javax.servlet.http.HttpServletResponse;
 public class KafkaTopicStatsServlet extends HttpServlet {
 
   private static final Logger LOG = LogManager.getLogger(KafkaTopicStatsServlet.class);
-
+  private static final Gson gson = new Gson();
+  
   @Override
   protected void doGet(HttpServletRequest req, HttpServletResponse resp)
       throws ServletException, IOException {
@@ -37,7 +42,51 @@ public class KafkaTopicStatsServlet extends HttpServlet {
     resp.setStatus(HttpStatus.OK_200);
 
     PrintWriter writer = resp.getWriter();
-    renderHTML(clusterName, topic, writer);
+    String contentType = req.getHeader("content-type");
+    if (contentType != null && contentType == "application/json") {
+	resp.setContentType("application/json");
+        renderJSON(clusterName, topic, writer);
+    } else {
+      resp.setContentType("text/html");
+      renderHTML(clusterName, topic, writer);
+    }
+  }
+
+  private void renderJSON(String clusterName, String topic, PrintWriter writer) {
+    JsonArray json = new JsonArray();
+
+    KafkaClusterManager clusterMananger =
+      DoctorKafkaMain.doctorKafka.getClusterManager(clusterName);
+    if (clusterMananger == null) {
+      ClusterInfoError error = new ClusterInfoError("Failed to find cluster manager for {}", clusterName);
+      writer.print(gson.toJson(error));
+      return;
+    }
+
+    try {
+      KafkaCluster cluster = clusterMananger.getCluster();
+      
+      TreeSet<TopicPartition> topicPartitions =
+        new TreeSet( new KafkaUtils.TopicPartitionComparator());
+      topicPartitions.addAll(cluster.topicPartitions.get(topic));
+
+      for (TopicPartition topicPartition : topicPartitions) {
+	double bytesInMax =
+          ReplicaStatsManager.getMaxBytesIn(cluster.zkUrl, topicPartition) / 1024.0 / 1024.0;
+	double bytesOutMax =
+          ReplicaStatsManager.getMaxBytesOut(cluster.zkUrl, topicPartition) / 1024.0 / 1024.0;
+
+	JsonObject jsonPartition = new JsonObject();
+	jsonPartition.add("bytesInMax", gson.toJsonTree(bytesInMax));
+	jsonPartition.add("bytesOutMax", gson.toJsonTree(bytesOutMax));
+	jsonPartition.add("partition", gson.toJsonTree(topicPartition.partition()));
+	json.add(jsonPartition);
+      }
+      writer.print(json);
+
+    } catch (Exception e) {
+      writer.print(gson.toJson(e));
+    }
   }
 
   private void renderHTML(String clusterName, String topic, PrintWriter writer) {
