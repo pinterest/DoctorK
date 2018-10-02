@@ -16,6 +16,9 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.eclipse.jetty.http.HttpStatus;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonArray;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -34,10 +37,12 @@ import javax.servlet.http.HttpServletResponse;
 public class DoctorKafkaActionsServlet extends HttpServlet {
 
   private static final Logger LOG = LogManager.getLogger(DoctorKafkaActionsServlet.class);
+  private static final Gson gson = new Gson();
   private static final String OPERATOR_ACTIONS_CONSUMER_GROUP = "doctorkafka_actions_consumer";
   private static final int NUM_MESSAGES = 1000;
   private static final DecoderFactory avroDecoderFactory = DecoderFactory.get();
   private static Schema operatorActionSchema = OperatorAction.getClassSchema();
+  private static SimpleDateFormat dtFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
 
   @Override
   protected void doGet(HttpServletRequest req, HttpServletResponse resp)
@@ -47,7 +52,41 @@ public class DoctorKafkaActionsServlet extends HttpServlet {
     resp.setStatus(HttpStatus.OK_200);
 
     PrintWriter writer = resp.getWriter();
-    renderHTML(writer);
+    String contentType = req.getHeader("content-type");
+    if (contentType != null && contentType == "application/json") {
+	resp.setContentType("application/json");
+        renderJSON(writer);
+    } else {
+      resp.setContentType("text/html");
+      renderHTML(writer);
+    }
+  }
+
+
+  public void renderJSON(PrintWriter writer) {
+    JsonArray json = new JsonArray();
+
+    for (ConsumerRecord<byte[], byte[]> record : Lists.reverse(retrieveActionReportMessages())) {
+      try {
+	JsonObject jsonRecord = new JsonObject();
+	BinaryDecoder binaryDecoder = avroDecoderFactory.binaryDecoder(record.value(), null);
+	SpecificDatumReader<OperatorAction> reader =
+	  new SpecificDatumReader<>(operatorActionSchema);
+
+	OperatorAction result = new OperatorAction();
+	reader.read(result, binaryDecoder);
+
+	jsonRecord.add("date",gson.toJsonTree(new Date(result.getTimestamp())));
+	jsonRecord.add("clusterName",gson.toJsonTree(result.getClusterName()));
+	jsonRecord.add("description",gson.toJsonTree(result.getDescription()));
+	json.add(jsonRecord);
+      } catch (Exception e) {
+	LOG.info("Fail to decode an message", e);
+      }
+    }
+
+    writer.print(json);
+    
   }
 
   private void renderHTML(PrintWriter writer) {
@@ -59,7 +98,26 @@ public class DoctorKafkaActionsServlet extends HttpServlet {
     writer.print("<th class=\"active\"> Action </th>");
 
     try {
-      retrieveActionReportMessages(writer);
+      
+      for (ConsumerRecord<byte[], byte[]> record : Lists.reverse(retrieveActionReportMessages())) {
+	try {
+	  BinaryDecoder binaryDecoder = avroDecoderFactory.binaryDecoder(record.value(), null);
+	  SpecificDatumReader<OperatorAction> reader =
+            new SpecificDatumReader<>(operatorActionSchema);
+
+	  OperatorAction result = new OperatorAction();
+	  reader.read(result, binaryDecoder);
+
+	  Date date = new Date(result.getTimestamp());
+	  writer.println("<tr class=\"active\"> ");
+	  writer.println("<td>" + dtFormat.format(date) + "</td>");
+	  writer.println("<td>" + result.getClusterName() + "</td>");
+	  writer.println("<td> " + result.getDescription() + "</td>");
+	  writer.println("</tr>");
+	} catch (Exception e) {
+	  LOG.info("Fail to decode an message", e);
+	}
+      }
     } catch (Exception e) {
       LOG.error("Failed to get actions", e);
       e.printStackTrace(writer);
@@ -69,7 +127,7 @@ public class DoctorKafkaActionsServlet extends HttpServlet {
   }
 
 
-  private void retrieveActionReportMessages(PrintWriter writer) {
+  private List<ConsumerRecord<byte[], byte[]>> retrieveActionReportMessages() {
     String zkUrl = DoctorKafkaMain.doctorKafka.getOperatorConfig().getBrokerstatsZkurl();
     String actionReportTopic =
         DoctorKafkaMain.doctorKafka.getOperatorConfig().getActionReportTopic();
@@ -93,7 +151,6 @@ public class DoctorKafkaActionsServlet extends HttpServlet {
 
     ConsumerRecords<byte[], byte[]> records = consumer.poll(100);
     List<ConsumerRecord<byte[], byte[]>> recordList = new ArrayList<>();
-    SimpleDateFormat dtFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
 
     while (!records.isEmpty()) {
       for (ConsumerRecord<byte[], byte[]> record : records) {
@@ -103,24 +160,7 @@ public class DoctorKafkaActionsServlet extends HttpServlet {
     }
 
     LOG.info("Read {} messages", recordList.size());
-    for (ConsumerRecord<byte[], byte[]> record : Lists.reverse(recordList)) {
-      try {
-        BinaryDecoder binaryDecoder = avroDecoderFactory.binaryDecoder(record.value(), null);
-        SpecificDatumReader<OperatorAction> reader =
-            new SpecificDatumReader<>(operatorActionSchema);
+    return recordList;
 
-        OperatorAction result = new OperatorAction();
-        reader.read(result, binaryDecoder);
-
-        Date date = new Date(result.getTimestamp());
-        writer.println("<tr class=\"active\"> ");
-        writer.println("<td>" + dtFormat.format(date) + "</td>");
-        writer.println("<td>" + result.getClusterName() + "</td>");
-        writer.println("<td> " + result.getDescription() + "</td>");
-        writer.println("</tr>");
-      } catch (Exception e) {
-        LOG.info("Fail to decode an message", e);
-      }
-    }
   }
 }

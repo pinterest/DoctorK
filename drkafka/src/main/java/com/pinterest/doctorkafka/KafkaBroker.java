@@ -6,6 +6,10 @@ import com.pinterest.doctorkafka.replicastats.ReplicaStatsManager;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonArray;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -17,6 +21,7 @@ import java.util.stream.Collectors;
 public class KafkaBroker implements Comparable<KafkaBroker> {
 
   private static final Logger LOG = LogManager.getLogger(KafkaBroker.class);
+  private static final Gson gson = new Gson();
   private DoctorKafkaClusterConfig clusterConfig;
   private String zkUrl;
   private int brokerId;
@@ -49,6 +54,17 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
     this.reservedBytesOut = 0L;
     this.bytesInPerSecLimit = clusterConfig.getNetworkInLimitInBytes();
     this.bytesOutPerSecLimit = clusterConfig.getNetworkOutLimitInBytes();
+  }
+
+  public JsonElement toJson() {
+    // Return a JSON representation of a Kafka Broker.  Sadly, not everything can be trivially added.
+    JsonObject json = new JsonObject();
+    json.add("brokerId", gson.toJsonTree(brokerId));
+    json.add("brokerName", gson.toJsonTree(brokerName));
+    json.add("rackId", gson.toJsonTree(rackId));
+    json.add("bytesInPerSecLimit", gson.toJsonTree(bytesInPerSecLimit));
+    json.add("bytesOutPerSecLimit", gson.toJsonTree(bytesOutPerSecLimit));
+    return json;
   }
 
   public long getMaxBytesIn() {

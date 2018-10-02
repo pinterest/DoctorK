@@ -9,6 +9,9 @@ import org.apache.kafka.common.Node;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonArray;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -104,6 +107,21 @@ public class KafkaCluster {
     } catch (Exception e) {
       LOG.error("Failed to read broker stats : {}", brokerStats, e);
     }
+  }
+
+  public JsonElement toJson() {
+    JsonObject json = new JsonObject();
+    JsonArray jsonBrokers = new JsonArray();
+    json.add("brokers", jsonBrokers);
+
+    List<KafkaBroker> result = new ArrayList<>();
+
+    synchronized (brokers) {
+      for (KafkaBroker broker : brokers.values()) {
+	  jsonBrokers.add(broker.toJson());
+      }
+    }
+    return json;
   }
 
   /**

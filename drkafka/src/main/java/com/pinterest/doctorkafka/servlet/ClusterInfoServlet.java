@@ -5,6 +5,7 @@ import com.pinterest.doctorkafka.KafkaBroker;
 import com.pinterest.doctorkafka.DoctorKafkaMain;
 import com.pinterest.doctorkafka.KafkaCluster;
 import com.pinterest.doctorkafka.KafkaClusterManager;
+import com.pinterest.doctorkafka.errors.ClusterInfoError;
 
 import kafka.cluster.Broker;
 import org.apache.logging.log4j.LogManager;
@@ -39,11 +40,11 @@ public class ClusterInfoServlet extends HttpServlet {
     resp.setStatus(HttpStatus.OK_200);
     PrintWriter writer = resp.getWriter();
     String contentType = req.getHeader("content-type");
-    switch(contentType) {
-      case "application/json":
+    if (contentType != null && contentType == "application/json") {
+	resp.setContentType("application/json");
         renderJSON(queryString, writer);
-        break;
-      default:
+    } else {
+	resp.setContentType("text/html");
         renderHTML(queryString, writer);
     }
   }
@@ -55,11 +56,10 @@ public class ClusterInfoServlet extends HttpServlet {
 
     if (clusterManager == null) {
       ClusterInfoError error = new ClusterInfoError("Failed to find cluster manager for " + clusterName);
-      gson.toJson(error, writer);
-      return;
+      writer.print(gson.toJson(error));
+      return ;
     }
-    // FIXME Need a JSON serializer for KafkaClusterManager for this to work
-    gson.toJson(clusterManager.getCluster(), writer);
+    writer.print(gson.toJson(clusterManager.toJson()));
   }
 
   public void renderHTML(String queryString, PrintWriter writer) {

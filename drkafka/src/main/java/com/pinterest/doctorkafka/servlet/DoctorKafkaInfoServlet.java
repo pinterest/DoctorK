@@ -7,6 +7,10 @@ import com.pinterest.doctorkafka.DoctorKafkaMain;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.eclipse.jetty.http.HttpStatus;
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonArray;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -22,17 +26,53 @@ import javax.servlet.http.HttpServletResponse;
 public class DoctorKafkaInfoServlet extends HttpServlet {
 
   private static final Logger LOG = LogManager.getLogger(DoctorKafkaInfoServlet.class);
+  private static final Gson gson = new Gson();
 
   @Override
   protected void doGet(HttpServletRequest req, HttpServletResponse resp)
       throws ServletException, IOException {
 
-    resp.setContentType("text/html");
     resp.setStatus(HttpStatus.OK_200);
 
     PrintWriter writer = resp.getWriter();
-    renderHTML(writer);
+    String contentType = req.getHeader("content-type");
+    if (contentType != null && contentType == "application/json") {
+	resp.setContentType("application/json");
+        renderJSON(writer);
+    } else {
+      resp.setContentType("text/html");
+      renderHTML(writer);
+    }
+    
   }
+
+
+  public void renderJSON(PrintWriter writer) {
+    JsonObject json = new JsonObject();
+    json.add("version", gson.toJsonTree(DoctorKafkaServletUtil.getVersion()));
+    json.add("uptime", gson.toJsonTree(ManagementFactory.getRuntimeMXBean().getUptime() / 1000.0));
+    JsonArray jsonClusters = new JsonArray();
+    json.add("clusters", jsonClusters);
+
+    List<KafkaClusterManager> clusterManagers = DoctorKafkaMain.doctorKafka.getClusterManagers();
+
+    for (KafkaClusterManager clusterManager : clusterManagers) {
+      JsonObject cluster = new JsonObject();
+      cluster.add("clusterName", gson.toJsonTree(clusterManager.getClusterName()));
+      if (clusterManager.getCluster() != null) {
+	cluster.add("size", gson.toJsonTree(clusterManager.getClusterSize()));
+	cluster.add("urps", gson.toJsonTree(clusterManager.getUnderReplicatedPartitions().size()));
+      } else {
+	cluster.add("size", gson.toJsonTree(0));
+	cluster.add("urps", gson.toJsonTree(0));
+      }
+      jsonClusters.add(cluster);
+    }
+
+    writer.print(json);
+    
+  }
+  
 
   private void renderHTML(PrintWriter writer) {
     try {

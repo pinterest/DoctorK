@@ -1,10 +1,16 @@
-package com.pinterest.doctorkafka.servlet;
+package com.pinterest.doctorkafka.errors;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.lang.Exception;
 
-public class ClusterInfoError {
+public class ClusterInfoError extends Exception {
     String[] errors;
+
+    public ClusterInfoError() {
+        this.errors = new String[1];
+	this.errors[0] = "Unknown error";
+    }
 
     public ClusterInfoError(String... errors) {
         this.errors = new String[errors.length];
