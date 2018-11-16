@@ -3,10 +3,10 @@ package com.pinterest.doctorkafka.servlet;
 
 import com.pinterest.doctorkafka.KafkaClusterManager;
 import com.pinterest.doctorkafka.DoctorKafkaMain;
+import com.pinterest.doctorkafka.servlet.DoctorKafkaServletUtil;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.eclipse.jetty.http.HttpStatus;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -18,38 +18,16 @@ import java.lang.management.ManagementFactory;
 import java.util.Collection;
 import java.util.Map;
 import java.util.TreeMap;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
-public class DoctorKafkaInfoServlet extends HttpServlet {
+public class DoctorKafkaInfoServlet extends DoctorKafkaServletUtil {
 
   private static final Logger LOG = LogManager.getLogger(DoctorKafkaInfoServlet.class);
   private static final Gson gson = new Gson();
 
   @Override
-  protected void doGet(HttpServletRequest req, HttpServletResponse resp)
-      throws ServletException, IOException {
-
-    resp.setStatus(HttpStatus.OK_200);
-
-    PrintWriter writer = resp.getWriter();
-    String contentType = req.getHeader("content-type");
-    if (contentType != null && contentType == "application/json") {
-	resp.setContentType("application/json");
-        renderJSON(writer);
-    } else {
-      resp.setContentType("text/html");
-      renderHTML(writer);
-    }
-    
-  }
-
-
-  public void renderJSON(PrintWriter writer) {
+  public void renderJSON(PrintWriter writer, Map<String, String> params) {
     JsonObject json = new JsonObject();
-    json.add("version", gson.toJsonTree(DoctorKafkaServletUtil.getVersion()));
+    json.add("version", gson.toJsonTree(getVersion()));
     json.add("uptime", gson.toJsonTree(ManagementFactory.getRuntimeMXBean().getUptime() / 1000.0));
     JsonArray jsonClusters = new JsonArray();
     json.add("clusters", jsonClusters);
@@ -74,10 +52,11 @@ public class DoctorKafkaInfoServlet extends HttpServlet {
   }
   
 
-  private void renderHTML(PrintWriter writer) {
+  @Override
+  public void renderHTML(PrintWriter writer, Map<String, String> params) {
     try {
       double jvmUpTimeInSeconds = ManagementFactory.getRuntimeMXBean().getUptime() / 1000.0;
-      String version = DoctorKafkaServletUtil.getVersion();
+      String version = getVersion();
       writer.print("<div>");
       writer.print("<p> Version: " + version + ", Uptime: " + jvmUpTimeInSeconds + " seconds </p>");
       writer.print("</div>");

@@ -4,11 +4,11 @@ package com.pinterest.doctorkafka.servlet;
 import com.pinterest.doctorkafka.DoctorKafkaMain;
 import com.pinterest.doctorkafka.KafkaClusterManager;
 import com.pinterest.doctorkafka.errors.ClusterInfoError;
+import com.pinterest.doctorkafka.servlet.DoctorKafkaServletUtil;
 
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.eclipse.jetty.http.HttpStatus;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonArray;
@@ -17,38 +17,15 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.List;
 import java.util.Map;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
-public class UnderReplicatedPartitionsServlet extends HttpServlet {
+public class UnderReplicatedPartitionsServlet extends DoctorKafkaServletUtil {
 
   private static final Logger LOG = LogManager.getLogger(UnderReplicatedPartitionsServlet.class);
   private static final Gson gson = new Gson();
-  
+
   @Override
-  protected void doGet(HttpServletRequest req, HttpServletResponse resp)
-      throws ServletException, IOException {
-    String queryString = req.getQueryString();
-    Map<String, String> params = DoctorKafkaServletUtil.parseQueryString(queryString);
+  public void renderJSON(PrintWriter writer, Map<String, String> params) {
     String clusterName = params.get("cluster");
-
-    resp.setStatus(HttpStatus.OK_200);
-    PrintWriter writer = resp.getWriter();
-
-    String contentType = req.getHeader("content-type");
-    if (contentType != null && contentType == "application/json") {
-	resp.setContentType("application/json");
-        renderJSON(clusterName,writer);
-    } else {
-      resp.setContentType("text/html");
-    renderHTML(clusterName, writer);
-    }
-  }
-
-  private void renderJSON(String clusterName, PrintWriter writer) {
-
     KafkaClusterManager clusterMananger =
         DoctorKafkaMain.doctorKafka.getClusterManager(clusterName);
 
@@ -67,9 +44,10 @@ public class UnderReplicatedPartitionsServlet extends HttpServlet {
     writer.print(json);
   }
 
-
-  private void renderHTML(String clusterName, PrintWriter writer) {
-    DoctorKafkaServletUtil.printHeader(writer);
+  @Override
+  public void renderHTML(PrintWriter writer, Map<String, String> params) {
+    String clusterName = params.get("cluster");
+    printHeader(writer);
 
     KafkaClusterManager clusterMananger =
         DoctorKafkaMain.doctorKafka.getClusterManager(clusterName);
@@ -91,6 +69,6 @@ public class UnderReplicatedPartitionsServlet extends HttpServlet {
       writer.print("</td> </tr>");
     }
     writer.print("</tbody> </table>");
-    DoctorKafkaServletUtil.printFooter(writer);
+    printFooter(writer);
   }
 }
