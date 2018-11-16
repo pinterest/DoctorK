@@ -6,6 +6,9 @@ import com.pinterest.doctorkafka.DoctorKafkaMain;
 
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.eclipse.jetty.http.HttpStatus;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -18,8 +21,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.TreeMap;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
-public class DoctorKafkaServletUtil {
+public class DoctorKafkaServletUtil extends HttpServlet {
+  private static final Logger LOG = LogManager.getLogger(DoctorKafkaWebServer.class);
 
   public static String getVersion() {
     String versionString = "";
@@ -77,7 +85,7 @@ public class DoctorKafkaServletUtil {
   }
 
 
-  public static Map<String, String> parseQueryString(String queryString) {
+  private static Map<String, String> parseQueryString(String queryString) {
     Map<String, String> result = new HashMap<>();
     Arrays.stream(queryString.split("&")).map(s -> s.split("=")).collect(toList())
         .forEach(arr -> result.put(arr[0], arr[1]));
@@ -101,4 +109,27 @@ public class DoctorKafkaServletUtil {
     }
     return result;
   }
+
+  public void renderJSON(PrintWriter writer, Map<String, String> params){};
+  public void renderHTML(PrintWriter writer, Map<String, String> params){};
+
+  @Override
+  protected void doGet(HttpServletRequest req, HttpServletResponse resp)
+      throws ServletException, IOException {
+
+    LOG.info("Start working on get request");
+    resp.setStatus(HttpStatus.OK_200);
+
+    PrintWriter writer = resp.getWriter();
+    String contentType = req.getHeader("content-type");
+    String queryString = req.getQueryString();
+    Map<String, String> params = parseQueryString(queryString);
+    if (contentType != null && contentType == "application/json") {
+	resp.setContentType("application/json");
+        renderJSON(writer, params);
+    } else {
+      resp.setContentType("text/html");
+      renderHTML(writer, params);
+    }
+  }  
 }

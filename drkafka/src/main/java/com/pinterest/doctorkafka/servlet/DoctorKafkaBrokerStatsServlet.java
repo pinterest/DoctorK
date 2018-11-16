@@ -8,11 +8,11 @@ import com.pinterest.doctorkafka.KafkaClusterManager;
 import com.pinterest.doctorkafka.ReplicaStat;
 import com.pinterest.doctorkafka.util.KafkaUtils;
 import com.pinterest.doctorkafka.errors.ClusterInfoError;
+import com.pinterest.doctorkafka.servlet.DoctorKafkaServletUtil;
 
 import org.apache.kafka.common.TopicPartition;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.eclipse.jetty.http.HttpStatus;
 import com.google.gson.Gson;
 
 import java.io.IOException;
@@ -23,37 +23,11 @@ import java.lang.Integer;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
-public class DoctorKafkaBrokerStatsServlet extends HttpServlet {
+public class DoctorKafkaBrokerStatsServlet extends DoctorKafkaServletUtil {
 
   private static final Logger LOG = LogManager.getLogger(DoctorKafkaBrokerStatsServlet.class);
   private static final Gson gson = new Gson();
-
-  @Override
-  protected void doGet(HttpServletRequest req, HttpServletResponse resp)
-      throws ServletException, IOException {
-
-    String queryString = req.getQueryString();
-    Map<String, String> params = DoctorKafkaServletUtil.parseQueryString(queryString);
-    int brokerId = Integer.parseInt(params.get("brokerid"));
-    String clusterName = params.get("cluster");
-
-    resp.setStatus(HttpStatus.OK_200);
-
-    PrintWriter writer = resp.getWriter();
-    String contentType = req.getHeader("content-type");
-    if (contentType != null && contentType == "application/json") {
-	resp.setContentType("application/json");
-        renderJSON(clusterName, brokerId, writer);
-    } else {
-      resp.setContentType("text/html");
-      renderHTML(clusterName, brokerId, writer);
-    }
-  }
 
   public BrokerStats getLatestStats(String clusterName, int brokerId)
     throws ClusterInfoError {
@@ -77,8 +51,12 @@ public class DoctorKafkaBrokerStatsServlet extends HttpServlet {
     }
   }
   
-  public void renderJSON(String clusterName, int brokerId, PrintWriter writer) {
+  @Override
+  public void renderJSON(PrintWriter writer, Map<String, String> params) {
     try {
+      int brokerId = Integer.parseInt(params.get("brokerid"));
+      String clusterName = params.get("cluster");
+
       BrokerStats latestStats = getLatestStats(clusterName, brokerId);
       writer.print(gson.toJson(latestStats));
     } catch (Exception e) {
@@ -88,8 +66,11 @@ public class DoctorKafkaBrokerStatsServlet extends HttpServlet {
     }
   }
 
-  private void renderHTML(String clusterName, int brokerId, PrintWriter writer) {
-    DoctorKafkaServletUtil.printHeader(writer);
+  @Override
+  public void renderHTML(PrintWriter writer, Map<String, String> params) {
+    int brokerId = Integer.parseInt(params.get("brokerid"));
+    String clusterName = params.get("cluster");
+    printHeader(writer);
 
     writer.print("<div> <p><a href=\"/\">Home</a> > "
 		 + "<a href=\"/servlet/clusterinfo?name=" + clusterName + "\"> " + clusterName
@@ -110,7 +91,7 @@ public class DoctorKafkaBrokerStatsServlet extends HttpServlet {
       LOG.error("Unexpected exception : ", e);
       e.printStackTrace(writer);
     }
-    DoctorKafkaServletUtil.printFooter(writer);
+    printFooter(writer);
   }
 
   private void generateBrokerStatsHtml(PrintWriter writer, BrokerStats stats) {

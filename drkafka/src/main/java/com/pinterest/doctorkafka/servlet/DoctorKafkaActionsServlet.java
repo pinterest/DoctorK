@@ -3,6 +3,7 @@ package com.pinterest.doctorkafka.servlet;
 import com.pinterest.doctorkafka.DoctorKafkaMain;
 import com.pinterest.doctorkafka.OperatorAction;
 import com.pinterest.doctorkafka.util.OperatorUtil;
+import com.pinterest.doctorkafka.servlet.DoctorKafkaServletUtil;
 
 import com.google.common.collect.Lists;
 import org.apache.avro.Schema;
@@ -15,7 +16,6 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.eclipse.jetty.http.HttpStatus;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonArray;
@@ -29,12 +29,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
 
-public class DoctorKafkaActionsServlet extends HttpServlet {
+public class DoctorKafkaActionsServlet extends DoctorKafkaServletUtil {
 
   private static final Logger LOG = LogManager.getLogger(DoctorKafkaActionsServlet.class);
   private static final Gson gson = new Gson();
@@ -45,25 +42,7 @@ public class DoctorKafkaActionsServlet extends HttpServlet {
   private static SimpleDateFormat dtFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
 
   @Override
-  protected void doGet(HttpServletRequest req, HttpServletResponse resp)
-      throws ServletException, IOException {
-
-    LOG.info("OperatorActionServlet starts halding get request");
-    resp.setStatus(HttpStatus.OK_200);
-
-    PrintWriter writer = resp.getWriter();
-    String contentType = req.getHeader("content-type");
-    if (contentType != null && contentType == "application/json") {
-	resp.setContentType("application/json");
-        renderJSON(writer);
-    } else {
-      resp.setContentType("text/html");
-      renderHTML(writer);
-    }
-  }
-
-
-  public void renderJSON(PrintWriter writer) {
+  public void renderJSON(PrintWriter writer, Map<String, String> params) {
     JsonArray json = new JsonArray();
 
     for (ConsumerRecord<byte[], byte[]> record : Lists.reverse(retrieveActionReportMessages())) {
@@ -84,13 +63,12 @@ public class DoctorKafkaActionsServlet extends HttpServlet {
 	LOG.info("Fail to decode an message", e);
       }
     }
-
     writer.print(json);
-    
   }
 
-  private void renderHTML(PrintWriter writer) {
-    DoctorKafkaServletUtil.printHeader(writer);
+  @Override
+  public void renderHTML(PrintWriter writer, Map<String, String> params) {
+    printHeader(writer);
     writer.print("<div> <p><a href=\"/\">Home</a> > doctorkafka action </p> </div>");
     writer.print("<table class=\"table table-hover\"> ");
     writer.print("<th class=\"active\"> Timestamp </th> ");
@@ -123,7 +101,7 @@ public class DoctorKafkaActionsServlet extends HttpServlet {
       e.printStackTrace(writer);
     }
     writer.print("</tbody> </table>");
-    DoctorKafkaServletUtil.printFooter(writer);
+    printFooter(writer);
   }
 
 

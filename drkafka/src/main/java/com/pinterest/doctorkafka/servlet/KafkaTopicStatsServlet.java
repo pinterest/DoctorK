@@ -7,11 +7,11 @@ import com.pinterest.doctorkafka.KafkaClusterManager;
 import com.pinterest.doctorkafka.replicastats.ReplicaStatsManager;
 import com.pinterest.doctorkafka.util.KafkaUtils;
 import com.pinterest.doctorkafka.errors.ClusterInfoError;
+import com.pinterest.doctorkafka.servlet.DoctorKafkaServletUtil;
 
 import org.apache.kafka.common.TopicPartition;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.eclipse.jetty.http.HttpStatus;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonArray;
@@ -20,39 +20,16 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Map;
 import java.util.TreeSet;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
-public class KafkaTopicStatsServlet extends HttpServlet {
+public class KafkaTopicStatsServlet extends DoctorKafkaServletUtil {
 
   private static final Logger LOG = LogManager.getLogger(KafkaTopicStatsServlet.class);
   private static final Gson gson = new Gson();
   
   @Override
-  protected void doGet(HttpServletRequest req, HttpServletResponse resp)
-      throws ServletException, IOException {
-
-    String queryString = req.getQueryString();
-    Map<String, String> params = DoctorKafkaServletUtil.parseQueryString(queryString);
+  public void renderJSON(PrintWriter writer, Map<String, String> params) {
     String clusterName = params.get("cluster");
     String topic = params.get("topic");
-
-    resp.setStatus(HttpStatus.OK_200);
-
-    PrintWriter writer = resp.getWriter();
-    String contentType = req.getHeader("content-type");
-    if (contentType != null && contentType == "application/json") {
-	resp.setContentType("application/json");
-        renderJSON(clusterName, topic, writer);
-    } else {
-      resp.setContentType("text/html");
-      renderHTML(clusterName, topic, writer);
-    }
-  }
-
-  private void renderJSON(String clusterName, String topic, PrintWriter writer) {
     JsonArray json = new JsonArray();
 
     KafkaClusterManager clusterMananger =
@@ -83,15 +60,17 @@ public class KafkaTopicStatsServlet extends HttpServlet {
 	json.add(jsonPartition);
       }
       writer.print(json);
-
     } catch (Exception e) {
       writer.print(gson.toJson(e));
     }
   }
 
-  private void renderHTML(String clusterName, String topic, PrintWriter writer) {
+  @Override
+  public void renderHTML(PrintWriter writer, Map<String, String> params) {
+    String clusterName = params.get("cluster");
+    String topic = params.get("topic");
     try {
-      DoctorKafkaServletUtil.printHeader(writer);
+      printHeader(writer);
       writer.print("<div> <p><a href=\"/\">Home</a> > "
           + "<a href=\"/servlet/clusterinfo?name=" + clusterName + "\"> " + clusterName
           + "</a> > " + topic + "</p> </div>");
@@ -106,13 +85,12 @@ public class KafkaTopicStatsServlet extends HttpServlet {
       writer.print("<div> <h4> Cluster : " + clusterName + "</h4> </div>");
       KafkaCluster cluster = clusterMananger.getCluster();
       printTopicPartitionInfo(cluster, writer, topic);
-      DoctorKafkaServletUtil.printFooter(writer);
+      printFooter(writer);
 
     } catch (Exception e) {
       e.printStackTrace(writer);
     }
   }
-
 
   private void printTopicPartitionInfo(KafkaCluster cluster, PrintWriter writer, String topic) {
 

@@ -6,11 +6,11 @@ import com.pinterest.doctorkafka.DoctorKafkaMain;
 import com.pinterest.doctorkafka.KafkaCluster;
 import com.pinterest.doctorkafka.KafkaClusterManager;
 import com.pinterest.doctorkafka.errors.ClusterInfoError;
+import com.pinterest.doctorkafka.servlet.DoctorKafkaServletUtil;
 
 import kafka.cluster.Broker;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.eclipse.jetty.http.HttpStatus;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -19,38 +19,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
-public class ClusterInfoServlet extends HttpServlet {
+public class ClusterInfoServlet extends DoctorKafkaServletUtil {
 
   private static final Logger LOG = LogManager.getLogger(DoctorKafkaServletUtil.class);
   private static final Gson gson = new Gson();
 
   @Override
-  public void doGet(HttpServletRequest req, HttpServletResponse resp)
-      throws ServletException, IOException {
-    String queryString = req.getQueryString();
-    if (queryString == null) {
-      resp.setStatus(HttpStatus.BAD_REQUEST_400);
-      return;
-    }
-    resp.setStatus(HttpStatus.OK_200);
-    PrintWriter writer = resp.getWriter();
-    String contentType = req.getHeader("content-type");
-    if (contentType != null && contentType == "application/json") {
-	resp.setContentType("application/json");
-        renderJSON(queryString, writer);
-    } else {
-	resp.setContentType("text/html");
-        renderHTML(queryString, writer);
-    }
-  }
-
-  public void renderJSON(String queryString, PrintWriter writer) {
-    Map<String, String> params = DoctorKafkaServletUtil.parseQueryString(queryString);
+  public void renderJSON(PrintWriter writer, Map<String, String> params) {
     String clusterName = params.get("name");
     KafkaClusterManager clusterManager = DoctorKafkaMain.doctorKafka.getClusterManager(clusterName);
 
@@ -62,10 +38,10 @@ public class ClusterInfoServlet extends HttpServlet {
     writer.print(gson.toJson(clusterManager.toJson()));
   }
 
-  public void renderHTML(String queryString, PrintWriter writer) {
-    DoctorKafkaServletUtil.printHeader(writer);
+  @Override
+  public void renderHTML(PrintWriter writer, Map<String, String> params) {
+    printHeader(writer);
     try {
-      Map<String, String> params = DoctorKafkaServletUtil.parseQueryString(queryString);
       String clusterName = params.get("name");
 
       KafkaClusterManager clusterMananger;
@@ -159,7 +135,7 @@ public class ClusterInfoServlet extends HttpServlet {
     } catch (Exception e) {
       LOG.error("Unexpected error", e);
     }
-    DoctorKafkaServletUtil.printFooter(writer);
+    printFooter(writer);
   }
 
   private void printTopicPartitionInfo(KafkaCluster cluster, PrintWriter writer) {
