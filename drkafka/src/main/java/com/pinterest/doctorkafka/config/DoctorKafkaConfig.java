@@ -32,7 +32,7 @@ public class DoctorKafkaConfig {
   private static final String ACTION_REPORT_ZKURL= "action.report.zkurl";
   private static final String ACTION_REPORT_TOPIC = "action.report.topic";
   private static final String BROKER_REPLACEMENT_INTERVAL_SECONDS =
-      "action.broker_relacement.interval.seconds";
+      "action.broker_replacement.interval.seconds";
   private static final String BROKER_REPLACEMENT_COMMAND = "action.broker_replacement.command";
   private static final String OSTRICH_PORT = "ostrich.port";
   private static final String RESTART_INTERVAL_SECONDS = "restart.interval.seconds";
