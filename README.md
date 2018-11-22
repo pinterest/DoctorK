@@ -24,7 +24,7 @@ cd doctorkafka
 
 ##### Build kafka stats collector and deployment it to kafka brokers 
 
-```aidl
+```sh
 mvn package -pl kafkastats -am 
 ```
 
