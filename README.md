@@ -45,7 +45,11 @@ to some kafka topic based on configuration. The following is the kafkastats usag
 The following is a sample command line for running kafkastats collector:
 
 ```
-java -server -cp /opt/kafkastats:/opt/kafkastats/*:/opt/kafkastats/lib/*   -Dlog4j.configuration= com.pinterest.doctorkafka.stats.KafkaStatsMain  -jmxport 9999 -topic brokerstats -zookeeper zookeeper001:2181/cluster1  -tsdhostport localhost:18126 -ostrichport 2051 -uptimeinseconds 3600  -pollingintervalinseconds 60 -kafka_config /etc/kafka/server.properties
+java -server -cp /opt/kafkastats:/opt/kafkastats/*:/opt/kafkastats/lib/*    \ 
+     -Dlog4j.configuration= com.pinterest.doctorkafka.stats.KafkaStatsMain  \
+     -jmxport 9999 -topic brokerstats -zookeeper zookeeper001:2181/cluster1 \
+     -tsdhostport localhost:18126 -ostrichport 2051 -uptimeinseconds 3600   \
+     -pollingintervalinseconds 60 -kafka_config /etc/kafka/server.properties
 ```
 
 Using the above command as an example, after the kafkastats process is up, we can check the process stats using ```curl -s ``` command, and view the logs under /var/log/kafkastats. 
@@ -88,7 +92,8 @@ The following is a sample upstart scripts for automatically restarting kafkastat
 
 ##### Customize doctorkafka configuration parameters
 
-Edit `drkafka/config/*.properties` files to specify parameters describing the environment. Those files contain comments describing the meaning of individual parameters.
+Edit `drkafka/config/*.properties` files to specify parameters describing the environment. Those files contain 
+comments describing the meaning of individual parameters.
 
 
 #### Create and install jars
@@ -99,21 +104,27 @@ mvn package -pl drkafka -am
 
 ```sh
 mvn package
-mkdir ${DOCTORKAFKA_INSTALL_DIR} # directory to place Secor binaries in.
-tar -zxvf target/doctorkafka-0.1.0-bin.tar.gz -C ${DOCTORKAFKA_INSTALL_DIR}
+mkdir ${DOCTORKAFKA_INSTALL_DIR} # directory to place DoctorKafka binaries in.
+tar -zxvf target/doctorkafka-0.2.4-bin.tar.gz -C ${DOCTORKAFKA_INSTALL_DIR}
 ```
 
 ##### Run DoctorKafka
 ```sh
 cd ${DOCTORKAFKA_INSTALL_DIR}
 
-java -server -cp lib/*:doctorkafka-0.1.0.jar  com.pinterest.doctorkafka.DoctorKafkaMain \
-  -config drkafka/config/doctorkafka.prod.properties -topic brokerstats  \
-  -zookeeper zookeeper001:2181/cluster1 -ostrichport 2052  \
-  -tsdhostport localhost:18261 -uptimeinseconds 86400
+java -server -cp lib/*:doctorkafka-0.2.4.jar  com.pinterest.doctorkafka.DoctorKafkaMain \
+  -config drkafka/config/doctorkafka.prod.properties \
+  server  dropwizard_yaml_file
+```  
+
+DoctorKafka only requires one line in [DropWizard](https://www.dropwizard.io/1.0.0/docs/manual/configuration.html) yaml file: 
+
+```
+config:  $your_kafka_config_properties_file
 ```
 
 ##### Customize configuration parameters
+
 Edit `src/main/config/*.properties` files to specify parameters describing the environment. 
 Those files contain comments describing the meaning of individual parameters.
 
