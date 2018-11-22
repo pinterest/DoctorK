@@ -6,6 +6,7 @@
         <groupId>com.github.pinterest</groupId>
         <artifactId>doctorkafka-parent</artifactId>
         <version>0.2.4</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
@@ -26,11 +27,19 @@
     </licenses>
 
     <developers>
-        <developer>
-            <id>yuyang08</id>
-            <name>Yu Yang</name>
-        </developer>
-    </developers>
+		<developer>
+			<id>yuyang08</id>
+			<name>Yu Yang</name>
+		</developer>
+		<developer>
+			<id>HenryCaiHaiying</id>
+			<name>Henry Cai</name>
+		</developer>
+		<developer>
+			<id>ambud</id>
+			<name>Ambud</name>
+		</developer>
+	</developers>
 
     <scm>
         <connection>https://github.com/pinterest/doctorkafka.git</connection>
@@ -103,7 +112,7 @@
                         </goals>
                         <configuration>
                             <sources>
-                                <source>target/generated-sources</source>
+                                <source>target/generated-sources/avro</source>
                             </sources>
                         </configuration>
                     </execution>

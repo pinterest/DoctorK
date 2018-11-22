@@ -33,7 +33,7 @@ public class ZookeeperClient implements Closeable {
 
   public ZookeeperClient(String zkUrl) {
     zookeeperConnection = zkUrl;
-    LOG.info("Initialize curator ");
+    LOG.info("Initialize curator with zkurl:" + zkUrl);
     curator = CuratorFrameworkFactory.newClient(zookeeperConnection, new RetryOneTime(3000));
     curator.start();
   }

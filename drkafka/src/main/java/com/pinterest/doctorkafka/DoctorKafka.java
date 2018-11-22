@@ -24,7 +24,7 @@ public class DoctorKafka {
 
   private DoctorKafkaActionReporter actionReporter = null;
 
-  private List<KafkaClusterManager> clusterManagers = new ArrayList();
+  private List<KafkaClusterManager> clusterManagers = new ArrayList<>();
 
   private Set<String> clusterZkUrls = null;
 
@@ -35,7 +35,7 @@ public class DoctorKafka {
     this.clusterZkUrls = drkafkaConf.getClusterZkUrls();
     this.zookeeperClient = new ZookeeperClient(drkafkaConf.getDoctorKafkaZkurl());
   }
-  
+
   public void start() {
     String brokerstatsZkurl = drkafkaConf.getBrokerstatsZkurl();
     String actionReportZkurl = drkafkaConf.getActionReportZkurl();

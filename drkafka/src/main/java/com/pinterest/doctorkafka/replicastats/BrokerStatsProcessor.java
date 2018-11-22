@@ -60,6 +60,7 @@ public class BrokerStatsProcessor implements Runnable {
     try {
       Properties properties = OperatorUtil.createKafkaConsumerProperties(
           zkUrl, BROKERSTATS_CONSUMER_GROUP, securityProtocol, consumerConfigs);
+      @SuppressWarnings("resource")
       KafkaConsumer<byte[], byte[]> consumer = new KafkaConsumer<>(properties);
 
       consumer.subscribe(Arrays.asList(topic));

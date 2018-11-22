@@ -1,6 +1,5 @@
 package com.pinterest.doctorkafka.servlet;
 
-
 import com.google.common.base.Charsets;
 import com.google.common.io.CharStreams;
 import org.apache.logging.log4j.LogManager;
@@ -47,16 +46,7 @@ public class DoctorKafkaWebServer implements Runnable {
 
       String warUrlString = warUrl.toExternalForm();
       WebAppContext webapp = new WebAppContext();
-      webapp.addServlet(ClusterInfoServlet.class, "/servlet/clusterinfo");
-      webapp.addServlet(KafkaTopicStatsServlet.class, "/servlet/topicstats");
-      webapp.addServlet(DoctorKafkaActionsServlet.class, "/servlet/actions");
-      webapp.addServlet(DoctorKafkaInfoServlet.class, "/servlet/info");
-      webapp.addServlet(DoctorKafkaBrokerStatsServlet.class, "/servlet/brokerstats");
-      webapp.addServlet(UnderReplicatedPartitionsServlet.class, "/servlet/urp");
-      webapp.addServlet(OperatorIndexServlet.class, "/");
-      webapp.setContextPath("/");
-      webapp.setServer(server);
-      webapp.setWar(warUrlString);
+      
 
       server.setHandler(webapp);
       server.start();
