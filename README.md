@@ -137,8 +137,13 @@ usage does not exceed the threshold.
 
 ## Maintainers
   * [Yu Yang](https://github.com/yuyang08)
+  * [Henry Cai](https://github.com/HenryCaiHaiying)
+  * [Ambud Sharma](https://github.com/ambud)
 
 ## Contributors
+  * [Jaakko Aro](https://github.com/jaakkoo)
+  * [Patrick Double](https://github.com/double16)
+  * [Georgios Andrianakis](https://github.com/geoand)
 
 ## License
 
