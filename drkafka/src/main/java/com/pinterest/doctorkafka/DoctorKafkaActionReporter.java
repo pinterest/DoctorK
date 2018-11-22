@@ -1,14 +1,12 @@
 package com.pinterest.doctorkafka;
 
 import com.pinterest.doctorkafka.util.OperatorUtil;
-import com.pinterest.doctorkafka.util.KafkaUtils;
 
 import java.util.Map;
 import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.commons.compress.utils.IOUtils;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -67,7 +65,8 @@ public class DoctorKafkaActionReporter {
         IOUtils.closeQuietly(stream);
 
         String key = Long.toString(System.currentTimeMillis());
-        ProducerRecord  producerRecord = new ProducerRecord(topic, key.getBytes(), stream.toByteArray());
+        ProducerRecord<byte[], byte[]>  producerRecord = 
+            new ProducerRecord<>(topic, key.getBytes(), stream.toByteArray());
         Future<RecordMetadata> future = kafkaProducer.send(producerRecord);
         future.get();
         LOG.info("Send an message {} to action report : ", message);

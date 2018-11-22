@@ -854,6 +854,10 @@ public class KafkaClusterManager implements Runnable {
     return noStatsBrokers;
   }
 
+  public List<KafkaBroker> getAllBrokers() {
+    return new ArrayList<>(kafkaCluster.brokers.values());
+  }
+
 
   private boolean checkAndReplaceDeadBrokers() {
     long now = System.currentTimeMillis();

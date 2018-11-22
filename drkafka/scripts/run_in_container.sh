@@ -7,7 +7,7 @@ ulimit -n 65536
 export SERVICENAME=${SERVICENAME:=kafkaoperator}
 export JAVA_MAIN=${JAVA_MAIN:=com.pinterest.doctorkafka.DoctorKafkaMain}
 export LOG4J_CONFIG_FILE=${LOG4J_CONFIG_FILE:=/opt/doctorkafka/log4j2.xml}
-export CONFIG_FILE=${CONFIG_FILE:=drkafka/config/doctorkafka.properties}
+export CONFIG_YAML=${CONFIG_FILE:=drkafka/config/doctorkafka.docker.yaml}
 HEAP_SIZE=${HEAP_SIZE:=2G}
 NEW_SIZE=${NEW_SIZE:=1G}
 
@@ -31,6 +31,4 @@ exec java -server -Xmx${HEAP_SIZE} -Xms${HEAP_SIZE}  -XX:NewSize=${NEW_SIZE} \
     -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.ssl=false \
     -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.port=10102 \
     -Dfile.encoding=UTF-8 \
-    ${JAVA_MAIN} -config operator/config/doctorkafka.${STAGE_NAME}.properties  \
-     -topic brokerstats -zookeeper datazk001:2181/data07  \
-     -ostrichport 2052 -tsdhostport localhost:18261 -uptimeinseconds 86400
+    ${JAVA_MAIN} server $CONFIG_YAML

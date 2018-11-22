@@ -5,7 +5,6 @@ import com.pinterest.doctorkafka.config.DoctorKafkaClusterConfig;
 import com.pinterest.doctorkafka.replicastats.ReplicaStatsManager;
 import com.pinterest.doctorkafka.util.OutOfSyncReplica;
 
-import org.apache.kafka.common.Node;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -327,7 +326,7 @@ public class KafkaCluster {
   @Override
   public String toString() {
     StringBuilder strBuilder = new StringBuilder();
-    TreeMap<Integer, KafkaBroker> treeMap = new TreeMap(brokers);
+    TreeMap<Integer, KafkaBroker> treeMap = new TreeMap<>(brokers);
     for (Map.Entry<Integer, KafkaBroker> entry : treeMap.entrySet()) {
       strBuilder.append("   " + entry.getKey() + " : ");
       strBuilder.append(entry.getValue() + "\n");

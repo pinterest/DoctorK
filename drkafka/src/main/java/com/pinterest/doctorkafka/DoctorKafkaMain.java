@@ -1,107 +1,138 @@
 package com.pinterest.doctorkafka;
 
-import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
-import com.pinterest.doctorkafka.replicastats.ReplicaStatsManager;
-import com.pinterest.doctorkafka.servlet.DoctorKafkaWebServer;
-import com.pinterest.doctorkafka.util.OperatorUtil;
+import java.util.Collections;
+import java.util.NoSuchElementException;
+import java.util.concurrent.Executors;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.HelpFormatter;
-import org.apache.commons.cli.Option;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.InputStream;
-import java.net.URL;
-import java.util.NoSuchElementException;
-import java.util.Properties;
+import com.google.common.collect.ImmutableList;
+import com.pinterest.doctorkafka.api.BrokerApi;
+import com.pinterest.doctorkafka.config.DoctorKafkaAppConfig;
+import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
+import com.pinterest.doctorkafka.replicastats.ReplicaStatsManager;
+import com.pinterest.doctorkafka.servlet.ClusterInfoServlet;
+import com.pinterest.doctorkafka.servlet.DoctorKafkaActionsServlet;
+import com.pinterest.doctorkafka.servlet.DoctorKafkaBrokerStatsServlet;
+import com.pinterest.doctorkafka.servlet.DoctorKafkaInfoServlet;
+import com.pinterest.doctorkafka.servlet.KafkaTopicStatsServlet;
+import com.pinterest.doctorkafka.servlet.UnderReplicatedPartitionsServlet;
+import com.pinterest.doctorkafka.util.OperatorUtil;
+
+import io.dropwizard.Application;
+import io.dropwizard.assets.AssetsBundle;
+import io.dropwizard.jetty.GzipHandlerFactory;
+import io.dropwizard.jetty.HttpConnectorFactory;
+import io.dropwizard.request.logging.LogbackAccessRequestLogFactory;
+import io.dropwizard.server.DefaultServerFactory;
+import io.dropwizard.setup.Bootstrap;
+import io.dropwizard.setup.Environment;
 
 /**
- *  DoctorKafka is the central service for managing kafka operation.
+ * DoctorKafka is the central service for managing kafka operation.
  *
  */
-public class DoctorKafkaMain {
+public class DoctorKafkaMain extends Application<DoctorKafkaAppConfig> {
 
   private static final Logger LOG = LogManager.getLogger(DoctorKafkaMain.class);
-  private static final String CONFIG_PATH = "config";
-  private static final String METRICS_TOPIC = "topic";
   private static final String OSTRICH_PORT = "ostrichport";
-  private static final String TSD_HOSTPORT = "tsdhostport";
-  private static final String UPTIME_IN_SECONDS = "uptimeinseconds";
-  private static final String ZOOKEEPER = "zookeeper";
-  private static final Options options = new Options();
 
-  public static  DoctorKafka doctorKafka = null;
+  public static DoctorKafka doctorKafka = null;
   private static DoctorKafkaWatcher operatorWatcher = null;
 
-  /**
-   *  Usage:  DoctorKafkaMain  --config config_file_path
-   */
-  private static CommandLine parseCommandLine(String[] args) {
-    Option configPath = new Option(CONFIG_PATH, true, "config file path");
-    Option zookeeper = new Option(ZOOKEEPER, true, "zk url for metrics topic");
-    zookeeper.setRequired(false);
-    Option topic = new Option(METRICS_TOPIC, true, "kafka topic for metric messages");
-    topic.setRequired(false);
-    Option tsdHostPort = new Option(TSD_HOSTPORT, true, "tsd host and port, e.g. localhost:18621");
-    tsdHostPort.setRequired(false);
-    Option ostrichPort = new Option(OSTRICH_PORT, true, "ostrich port");
-    ostrichPort.setRequired(false);
-    Option uptimeInSeconds = new Option(UPTIME_IN_SECONDS, true, "uptime in seconds");
-    uptimeInSeconds.setRequired(false);
-    options.addOption(configPath).addOption(zookeeper).addOption(topic)
-        .addOption(tsdHostPort).addOption(ostrichPort).addOption(uptimeInSeconds);
-
-    if (args.length < 1) {
-      printUsageAndExit();
-    }
-    CommandLineParser parser = new DefaultParser();
-    CommandLine cmd = null;
-    try {
-      cmd = parser.parse(options, args);
-    } catch (ParseException | NumberFormatException e) {
-      printUsageAndExit();
-    }
-    return cmd;
+  @Override
+  public void initialize(Bootstrap<DoctorKafkaAppConfig> bootstrap) {
+    bootstrap.addBundle(new AssetsBundle("/webapp/pages/", "/", "index.html"));
   }
 
-  private static void printUsageAndExit() {
-    HelpFormatter formatter = new HelpFormatter();
-    formatter.printHelp("DoctorKafka", options);
-    System.exit(1);
-  }
-
-
-  public static void main(String[] args) throws Exception {
+  @Override
+  public void run(DoctorKafkaAppConfig configuration, Environment environment) throws Exception {
     Runtime.getRuntime().addShutdownHook(new DoctorKafkaMain.OperatorCleanupThread());
-    CommandLine commandLine = parseCommandLine(args);
 
-    String configPath = commandLine.getOptionValue(CONFIG_PATH);
-    LOG.info("configuration path : {}", configPath);
+    LOG.info("Configuration path : {}", configuration.getConfig());
 
-    ReplicaStatsManager.config =  new DoctorKafkaConfig(configPath);
+    ReplicaStatsManager.config = new DoctorKafkaConfig(configuration.getConfig());
+
+    configureServerRuntime(configuration, ReplicaStatsManager.config);
+
     doctorKafka = new DoctorKafka(ReplicaStatsManager.config);
-    doctorKafka.start();
 
-    // start the web UI
-    int webPort = ReplicaStatsManager.config.getWebserverPort();
-    DoctorKafkaWebServer webServer = new DoctorKafkaWebServer(webPort);
-    webServer.start();
+    registerAPIs(environment);
+    registerServlets(environment);
 
+    Executors.newCachedThreadPool().submit(() -> {
+      doctorKafka.start();
+    });
+
+    startMetricsService();
+    LOG.info("DoctorKafka started.");
+  }
+
+  private void configureServerRuntime(DoctorKafkaAppConfig configuration, DoctorKafkaConfig config) {
+    DefaultServerFactory defaultServerFactory = 
+        (DefaultServerFactory) configuration.getServerFactory();
+
+    // Disable gzip compression for HTTP, this is required in-order to make
+    // Server-Sent-Events work, else due to GZIP the browser waits for entire chunks
+    // to arrive thereby the UI receiving no events
+    // We are programmatically disabling it here so it makes it easy to launch
+    // Firefly
+    GzipHandlerFactory gzipHandlerFactory = new GzipHandlerFactory();
+    gzipHandlerFactory.setEnabled(false);
+    defaultServerFactory.setGzipFilterFactory(gzipHandlerFactory);
+    // Note that if someone explicitly enables gzip in the Dropwizard config YAML
+    // then
+    // this setting will be over-ruled causing the UI to stop working
+
+    // Disable HTTP request logging
+    LogbackAccessRequestLogFactory accessRequestLogFactory = new LogbackAccessRequestLogFactory();
+    accessRequestLogFactory.setAppenders(ImmutableList.of());
+    defaultServerFactory.setRequestLogFactory(accessRequestLogFactory);
+
+    // Disable admin connector
+    defaultServerFactory.setAdminConnectors(ImmutableList.of());
+
+    // Configure bind host and port number
+    HttpConnectorFactory application = (HttpConnectorFactory) HttpConnectorFactory.application();
+    application.setPort(config.getWebserverPort());
+    defaultServerFactory.setApplicationConnectors(Collections.singletonList(application));
+  }
+
+  private void registerAPIs(Environment environment) {
+    environment.jersey().setUrlPattern("/api/*");
+    environment.jersey().register(new BrokerApi());
+  }
+
+  private void startMetricsService() {
     int ostrichPort = ReplicaStatsManager.config.getOstrichPort();
     String tsdHostPort = ReplicaStatsManager.config.getTsdHostPort();
     if (tsdHostPort == null && ostrichPort == 0) {
       LOG.info("OpenTSDB and Ostrich options missing, not starting Ostrich service");
     } else if (ostrichPort == 0) {
-      throw new NoSuchElementException(String.format("Key '%s' does not map to an existing object!", OSTRICH_PORT));
+      throw new NoSuchElementException(
+          String.format("Key '%s' does not map to an existing object!", OSTRICH_PORT));
     } else {
       OperatorUtil.startOstrichService(tsdHostPort, ostrichPort);
     }
-    LOG.info("DoctorKafka started.");
+  }
+
+  private void registerServlets(Environment environment) {
+    environment.getApplicationContext().addServlet(ClusterInfoServlet.class,
+        "/servlet/clusterinfo");
+    environment.getApplicationContext().addServlet(KafkaTopicStatsServlet.class,
+        "/servlet/topicstats");
+    environment.getApplicationContext().addServlet(DoctorKafkaActionsServlet.class,
+        "/servlet/actions");
+    environment.getApplicationContext().addServlet(DoctorKafkaInfoServlet.class, "/servlet/info");
+    environment.getApplicationContext().addServlet(DoctorKafkaBrokerStatsServlet.class,
+        "/servlet/brokerstats");
+    environment.getApplicationContext().addServlet(UnderReplicatedPartitionsServlet.class,
+        "/servlet/urp");
+  }
+
+  public static void main(String[] args) throws Exception {
+    new DoctorKafkaMain().run(args);
   }
 
   static class OperatorCleanupThread extends Thread {
@@ -125,4 +156,5 @@ public class DoctorKafkaMain {
       }
     }
   }
+
 }

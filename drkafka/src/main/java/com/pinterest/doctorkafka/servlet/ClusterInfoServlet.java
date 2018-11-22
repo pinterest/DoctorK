@@ -91,8 +91,8 @@ public class ClusterInfoServlet extends HttpServlet {
       writer.print("<table class=\"table table_stripped text-left\">");
       writer.print("<thead> <tr>");
       String thStr = String.format(
-          "<th>%s</th> <th>%s</th> <th>%s</th> <th>%s</th> <th>%s</th>",
-          "BrokerId", "BrokerName", "MaxIn (Mb/s)", "MaxOut (Mb/s)", "Last Update");
+          "<th>%s</th> <th>%s</th> <th>%s</th> <th>%s</th> <th>%s</th> <th>%s</th>",
+          "BrokerId", "BrokerName", "MaxIn (Mb/s)", "MaxOut (Mb/s)", "#Partitions", "Last Update");
       writer.print(thStr + "</tr> </thead>");
       writer.print("<tbody>");
 
@@ -106,18 +106,19 @@ public class ClusterInfoServlet extends HttpServlet {
         double maxMbInPerSec = broker.getMaxBytesIn() / 1024.0 / 1024.0;
         double maxMbOutPerSec = broker.getMaxBytesOut() / 1024.0 / 1024.0;
         double lastUpdateTime = (now - broker.lastStatsTimestamp()) / 1000.0;
-
+        
         String lastUpateTimeHtml =
             lastUpdateTime < 600
             ? String.format("<td> %.2f seconds ago </td>", lastUpdateTime)
             : String.format("<td class=\"text-danger\"> %.2f seconds ago </td>", lastUpdateTime);
 
+        int partitionCount = broker.getLatestStats().getNumLeaders()+broker.getLatestStats().getNumReplicas();
         String html = String.format(
-            "<td>%d</td> <td> %s </td> <td> %.2f</td> <td>%.2f</td> %s",
+            "<td>%d</td> <td> %s </td> <td> %.2f</td> <td>%.2f</td> <td>%d</td> %s",
             brokerEntry.getKey(),
             "<a href=\"/servlet/brokerstats?cluster=" + clusterName
                 + "&brokerid=" + broker.id() + "\">" + broker.name() + "</a>",
-            maxMbInPerSec, maxMbOutPerSec, lastUpateTimeHtml);
+            maxMbInPerSec, maxMbOutPerSec, partitionCount, lastUpateTimeHtml);
 
         writer.print(html);
         writer.print("</tr>");

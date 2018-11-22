@@ -42,7 +42,6 @@ public class DoctorKafkaConfig {
   private static final String NOTIFICATION_EMAILS = "emails.notification";
   private static final String ALERT_EMAILS = "emails.alert";
 
-
   private PropertiesConfiguration configuration = null;
   private AbstractConfiguration drkafkaConfiguration = null;
   private Map<String, DoctorKafkaClusterConfig> clusterConfigurations = null;
@@ -59,7 +58,7 @@ public class DoctorKafkaConfig {
   }
 
   private void initialize() {
-    Set<String> clusters = new HashSet();
+    Set<String> clusters = new HashSet<>();
     Iterator<String> keysIterator = configuration.getKeys();
     while (keysIterator.hasNext()) {
       String propertyName = keysIterator.next();
@@ -210,4 +209,3 @@ public class DoctorKafkaConfig {
     return emailsStr.split(",");
   }
 }
-

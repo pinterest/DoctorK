@@ -22,7 +22,7 @@ script
     exec $DAEMON $DAEMON_OPTS -Dlog4j.configuration=${LOG_PROPERTIES} \
                  com.pinterest.doctorkafka.stats.KafkaStatsMain \
                  -jmxport 9999  -topic brokerstats  \
-                 -zookeeper datazk001:2181/data07 \
+                 -zookeeper zookeeper01:2181 \
                  -tsdhostport localhost:18126 -ostrichport 2051 \
                  -uptimeinseconds 3600 -pollingintervalinseconds 60 \
                  -kafka_config  /etc/kafka/server.properties
