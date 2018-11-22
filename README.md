@@ -1,4 +1,4 @@
-# Pinterest DoctorKafka
+#  <img src="docs/doctorkafka_logo.svg" alt="DoctorKafka logo" width="32"> Pinterest DoctorKafka
 
 [![Build Status](https://travis-ci.org/pinterest/doctorkafka.svg)](https://travis-ci.org/pinterest/doctorkafka)
 
