@@ -62,11 +62,6 @@ The broker workload traffic usually varies throughout the day. Because of this, 
     execute leader movement and partition reassignment
 ```                     
 
-#### DoctorKafka UI 
-
-![doctorkafka UI](doctorkafka_ui.png)
-<img src="doctorkafka_ui.png" width="160">
-
 ***
 
 

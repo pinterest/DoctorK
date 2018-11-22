@@ -54,7 +54,7 @@ java -server -cp /opt/kafkastats:/opt/kafkastats/*:/opt/kafkastats/lib/*    \
 
 Using the above command as an example, after the kafkastats process is up, we can check the process stats using ```curl -s ``` command, and view the logs under /var/log/kafkastats. 
 
-```aidl
+```
 curl -s localhost:2051/stats.txt
 ```
 
@@ -144,6 +144,14 @@ java8 -Dlog4j.configurationFile=file:./log4j2.xml  -cp  lib/*:doctorkafka-0.1.0.
 ```
 Cluster load balancer balances the workload among brokers to make sure the broker network
 usage does not exceed the threshold. 
+
+
+## DoctorKafka UI 
+
+DoctorKafka uses an embedding Jetty server to provide a web UI. The following is the screenshot from a demo:
+
+![doctorkafka UI](docs/doctorkafka_ui.png)
+<img src="docs/doctorkafka_ui.png" width="160">
 
 
 ## Maintainers
