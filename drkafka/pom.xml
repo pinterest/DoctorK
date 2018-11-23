@@ -296,7 +296,7 @@
 			</plugin>
 			<plugin>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<version>2.19</version> <!-- Cannot use 2.20 - See http://junit.org/junit5/docs/current/user-guide/#running-tests-build-maven -->
+				<version>2.22.1</version> <!-- Cannot use 2.20 - See http://junit.org/junit5/docs/current/user-guide/#running-tests-build-maven -->
 				<dependencies>
 					<dependency>
 						<groupId>org.junit.platform</groupId>
