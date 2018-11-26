@@ -1,16 +1,10 @@
 package com.pinterest.doctorkafka.stats;
 
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import java.util.concurrent.Callable;
 import javax.management.MBeanServerConnection;
 import javax.management.ObjectName;
 
 public class KafkaMetricRetrievingTask implements Callable<KafkaMetricValue> {
-
-  private static final Logger LOG = LogManager.getLogger(KafkaMetricRetrievingTask.class);
 
   private MBeanServerConnection mbs;
   private String metricName;

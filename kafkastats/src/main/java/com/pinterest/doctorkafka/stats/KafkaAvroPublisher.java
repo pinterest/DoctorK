@@ -14,7 +14,6 @@ import org.apache.commons.compress.utils.IOUtils;
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
-import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
@@ -80,7 +79,7 @@ public class KafkaAvroPublisher {
       int partition = brokerStats.getId() % numPartitions;
 
       Future<RecordMetadata> future = kafkaProducer.send(
-          new ProducerRecord(destTopic, partition, key.getBytes(), stream.toByteArray()));
+          new ProducerRecord<>(destTopic, partition, key.getBytes(), stream.toByteArray()));
       future.get();
 
       OpenTsdbMetricConverter.incr("kafka.stats.collector.success", 1, "host=" + HOSTNAME);

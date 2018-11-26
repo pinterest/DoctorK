@@ -27,14 +27,16 @@ public class BrokerStatsReporter implements Runnable {
   private String kafkaConfigPath;
   private KafkaAvroPublisher avroPublisher;
   private long pollingIntervalInSeconds;
+  private String primaryNetworkInterfaceName;
 
   public BrokerStatsReporter(String kafkaConfigPath, String host, String jmxPort,
-                             KafkaAvroPublisher avroPublisher, long pollingIntervalInSeconds) {
+                             KafkaAvroPublisher avroPublisher, long pollingIntervalInSeconds, String primaryNetworkInterfaceName) {
     this.brokerHost = host;
     this.jmxPort = jmxPort;
     this.kafkaConfigPath = kafkaConfigPath;
     this.avroPublisher = avroPublisher;
     this.pollingIntervalInSeconds = pollingIntervalInSeconds;
+    this.primaryNetworkInterfaceName = primaryNetworkInterfaceName;
   }
 
 
@@ -50,7 +52,7 @@ public class BrokerStatsReporter implements Runnable {
 
   @Override
   public void run() {
-    BrokerStatsRetriever brokerStatsRetriever = new BrokerStatsRetriever(kafkaConfigPath);
+    BrokerStatsRetriever brokerStatsRetriever = new BrokerStatsRetriever(kafkaConfigPath, primaryNetworkInterfaceName);
     try {
       BrokerStats stats = brokerStatsRetriever.retrieveBrokerStats(brokerHost, jmxPort);
       avroPublisher.publish(stats);

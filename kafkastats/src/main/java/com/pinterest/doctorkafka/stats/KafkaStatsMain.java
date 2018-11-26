@@ -1,13 +1,8 @@
 package com.pinterest.doctorkafka.stats;
 
-import com.pinterest.doctorkafka.BrokerError;
-import com.pinterest.doctorkafka.util.MetricsPusher;
 import com.pinterest.doctorkafka.util.OperatorUtil;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.util.Properties;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
@@ -24,15 +19,18 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.CountDownLatch;
 
 /**
- * StatsCollectorMain collects all kafka operation related metrics from a kafka broker, and send
- * the metrics to a kafka topic. The following shows some sample metrics that we need to collect:
+ * StatsCollectorMain collects all kafka operation related metrics from a kafka
+ * broker, and send the metrics to a kafka topic. The following shows some
+ * sample metrics that we need to collect:
  *
- *  kafka.server:type=FetcherLagMetrics,name=ConsumerLag,clientId=ReplicaFetcherThread-0-6033, \
- *     topic=ems_processing_log,partition=4
+ * kafka.server:type=FetcherLagMetrics,name=ConsumerLag,clientId=ReplicaFetcherThread-0-6033,
+ * \ topic=ems_processing_log,partition=4
  *
  */
 public class KafkaStatsMain {
 
+  private static final String DEFAULT_PRIMARY_INTERFACE_NAME = "eth0";
+  private static final String PRIMARY_INTERFACE_NAME = "primary_network_ifacename";
   private static final Logger LOG = LogManager.getLogger(KafkaStatsMain.class);
   private static final String BROKER_NAME = "broker";
   private static final String JMX_PORT = "jmxport";
@@ -49,17 +47,14 @@ public class KafkaStatsMain {
 
   protected static final String hostName = OperatorUtil.getHostname();
   private static final Options options = new Options();
-  private static MetricsPusher metricsPusher = null;
-  private static final int TSDB_METRICS_PUSH_INTERVAL_IN_MILLISECONDS = 10 * 1000;
   private static final CountDownLatch shutdownLatch = new CountDownLatch(1);
 
   /**
-   *  Usage:  com.pinterest.kafka.KafkaStatsMain  --host kafkahost --port 9999
-   *             --zookeeper datazk001:2181/data05  --topic  kafka_metrics
-   *             --stats_producer_config  producer_config.properties
-   *             --tsdhost  localhost:18321  --ostrichport 2051
-   *             --uptimeinseconds 43200 --pollinginterval 15
-   *             --kafka_config  /etc/kafka/server.properties
+   * Usage: com.pinterest.kafka.KafkaStatsMain --host kafkahost --port 9999
+   * --zookeeper datazk001:2181/data05 --topic kafka_metrics
+   * --stats_producer_config producer_config.properties --tsdhost localhost:18321
+   * --ostrichport 2051 --uptimeinseconds 43200 --pollinginterval 15
+   * --kafka_config /etc/kafka/server.properties
    */
   private static CommandLine parseCommandLine(String[] args) {
 
@@ -75,11 +70,15 @@ public class KafkaStatsMain {
     Option uptimeInSeconds = new Option(UPTIME_IN_SECONDS, true, "uptime in seconds");
     Option pollingInterval = new Option(POLLING_INTERVAL, true, "polling interval in seconds");
     Option kafkaConfig = new Option(KAFKA_CONFIG, true, "kafka server properties file path");
-    Option statsProducerConfig = new Option(STATS_PRODUCER_CONFIG, true, "kafka_stats producer config");
+    Option statsProducerConfig = new Option(STATS_PRODUCER_CONFIG, true,
+        "kafka_stats producer config");
+    Option primaryNetworkInterfaceName = new Option(PRIMARY_INTERFACE_NAME, true,
+        "network interface used by kafka");
 
     options.addOption(jmxPort).addOption(host).addOption(zookeeper).addOption(topic)
         .addOption(tsdHostPort).addOption(ostrichPort).addOption(uptimeInSeconds)
-        .addOption(pollingInterval).addOption(kafkaConfig).addOption(statsProducerConfig);
+        .addOption(pollingInterval).addOption(kafkaConfig).addOption(statsProducerConfig)
+        .addOption(primaryNetworkInterfaceName);
 
     if (args.length < 6) {
       printUsageAndExit();
@@ -122,6 +121,8 @@ public class KafkaStatsMain {
     String kafkaConfigPath = commandLine.getOptionValue(KAFKA_CONFIG);
     long uptimeInSeconds = Long.parseLong(commandLine.getOptionValue(UPTIME_IN_SECONDS));
     long pollingInterval = Long.parseLong(commandLine.getOptionValue(POLLING_INTERVAL));
+    String primaryNetworkInterfaceName = commandLine.getOptionValue(PRIMARY_INTERFACE_NAME,
+        DEFAULT_PRIMARY_INTERFACE_NAME);
 
     String statsProducerPropertiesConfig = null;
     if (commandLine.hasOption(STATS_PRODUCER_CONFIG)) {
@@ -129,7 +130,8 @@ public class KafkaStatsMain {
     }
 
     avroPublisher = new KafkaAvroPublisher(zkUrl, destTopic, statsProducerPropertiesConfig);
-    brokerStatsReporter = new BrokerStatsReporter(kafkaConfigPath, host, jmxPort, avroPublisher, pollingInterval);
+    brokerStatsReporter = new BrokerStatsReporter(kafkaConfigPath, host, jmxPort, avroPublisher,
+        pollingInterval, primaryNetworkInterfaceName);
     brokerStatsReporter.start();
 
     collectorMonitor = new CollectorMonitor(uptimeInSeconds);
@@ -142,8 +144,7 @@ public class KafkaStatsMain {
     shutdownLatch.await(10, TimeUnit.SECONDS);
   }
 
-
-  public static class CollectorMonitor implements Runnable  {
+  public static class CollectorMonitor implements Runnable {
 
     private static final Logger LOG = LogManager.getLogger(CollectorMonitor.class);
     private static final int INITIAL_DELAY = 0;

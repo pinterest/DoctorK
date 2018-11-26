@@ -1,6 +1,5 @@
 package com.pinterest.doctorkafka.stats;
 
-
 import com.pinterest.doctorkafka.AvroTopicPartition;
 import com.pinterest.doctorkafka.BrokerError;
 import com.pinterest.doctorkafka.BrokerStats;
@@ -10,7 +9,6 @@ import com.pinterest.doctorkafka.util.KafkaUtils;
 
 import kafka.common.TopicAndPartition;
 import kafka.controller.ReassignedPartitionsContext;
-import kafka.server.BrokerConfigHandler;
 import kafka.utils.ZkUtils;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.Node;
@@ -25,6 +23,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -45,6 +44,7 @@ import javax.management.ReflectionException;
 
 public class BrokerStatsRetriever {
 
+  private static final String PROC_NET_DEV = "/proc/net/dev";
   private static final Logger LOG = LogManager.getLogger(BrokerStatsRetriever.class);
   private static final String VERSION = "0.1.15";
   private static String KAFKA_LOG = "kafka.log";
@@ -58,9 +58,13 @@ public class BrokerStatsRetriever {
   private String kafkaConfigPath;
   private BrokerStats brokerStats = null;
   private SecurityProtocol securityProtocol = SecurityProtocol.PLAINTEXT;
+  
+  private NetworkStats currentNetworkStats;
+  private String primaryNetworkInterfaceName;
 
-  public BrokerStatsRetriever(String kafkaConfigPath) {
+  public BrokerStatsRetriever(String kafkaConfigPath, String primaryNetworkInterfaceName) {
     this.kafkaConfigPath = kafkaConfigPath;
+    this.primaryNetworkInterfaceName = primaryNetworkInterfaceName;
   }
 
 
@@ -68,7 +72,7 @@ public class BrokerStatsRetriever {
                                                                 Set<String> topics,
                                                                 String metricTemplate,
                                                                 String attributeName) {
-    Map<String, Future<KafkaMetricValue>> futures = new HashMap();
+    Map<String, Future<KafkaMetricValue>> futures = new HashMap<>();
     for (String topic : topics) {
       String bytesInMetric = String.format(metricTemplate, topic);
       LOG.info(bytesInMetric);
@@ -83,7 +87,7 @@ public class BrokerStatsRetriever {
   private Map<String, Long> getTopicNetworkMetricFromFutures(
       Map<String, Future<KafkaMetricValue>> futures)
       throws ExecutionException, InterruptedException {
-    Map<String, Long> metricValues = new HashMap();
+    Map<String, Long> metricValues = new HashMap<>();
 
     for (Map.Entry<String, Future<KafkaMetricValue>> entry : futures.entrySet()) {
       Future<KafkaMetricValue> future = entry.getValue();
@@ -117,6 +121,43 @@ public class BrokerStatsRetriever {
     // returns a percentage value with 1 decimal point precision
     return ((int) (value * 1000) / 10.0);
   }
+  
+  /**
+   * Parse system network stats from /proc/net/dev and extract stats for each device
+   * 
+   * e.g. 
+   * Inter-|   Receive                                                |  Transmit
+   * face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
+   * eth0: 228953186524426 101855936261    0    0    0     0          0         0 243091098637101 104189136919    0    0    0     0       0          0
+   * lo: 2866497873928 6603763924    0    0    0     0          0         0 2866497873928 6603763924    0    0    0     0       0          0
+   * @return
+   */
+  public static Map<String, NetworkStats> getSystemNetworkStats() {
+    Map<String, NetworkStats> deviceNetworkStatsMap = new HashMap<>();
+    try {
+      List<String> lines = Files.readAllLines(new File(PROC_NET_DEV).toPath());
+      // ignore first two lines since they are header
+      for (int i = 2; i < lines.size(); i++) {
+        String line = lines.get(i);
+        String[] splits = line.split("\\s+");
+        String deviceName = splits[1].replace(":", "");
+        
+        NetworkStats deviceStats = new NetworkStats();
+        deviceStats.setTimestamp(System.currentTimeMillis());
+        
+        deviceStats.setRxBytes(Long.parseLong(splits[2]));
+        deviceStats.setRxPackets(Long.parseLong(splits[3]));
+        
+        deviceStats.setTxBytes(Long.parseLong(splits[10]));
+        deviceStats.setTxPackets(Long.parseLong(splits[11]));
+        
+        deviceNetworkStatsMap.put(deviceName, deviceStats);
+      }
+    } catch (IOException e) {
+      LOG.error("Failed to fetch system network stats", e);
+    }
+    return deviceNetworkStatsMap;
+  }
 
   /**
    *  Kafka jmx metrics only provides per topic network inbound/outbound traffic statis. We need
@@ -142,8 +183,8 @@ public class BrokerStatsRetriever {
       Map<String, Long> topicsBytesIn5Min, Map<String, Long> topicsBytesOut5Min,
       Map<String, Long> topicsBytesIn15Min, Map<String, Long> topicsBytesOut15Min) {
 
-    Map<String, List<ReplicaStat>> replicaStatsMap = new HashMap();
-    Map<String, List<ReplicaStat>> leaderReplicaStatsMap = new HashMap();
+    Map<String, List<ReplicaStat>> replicaStatsMap = new HashMap<>();
+    Map<String, List<ReplicaStat>> leaderReplicaStatsMap = new HashMap<>();
 
     for (ReplicaStat replicaStat : replicaStats) {
       String topic = replicaStat.getTopic();
@@ -604,8 +645,128 @@ public class BrokerStatsRetriever {
     double cpuLoad = getProcessCpuLoad(mbs);
     brokerStats.setCpuUsage(cpuLoad);
     computeTopicPartitionReplicaCpuUsage(cpuLoad, brokerStats.getLeaderReplicaStats());
-
+    
+    Map<String, NetworkStats> systemNetworkStats = getSystemNetworkStats();
+    NetworkStats networkStats = systemNetworkStats.get(primaryNetworkInterfaceName);
+    if (networkStats == null) {
+      brokerStats.setHasFailure(true);
+      return brokerStats;
+    }
+    computeNetworkStats(networkStats, brokerStats);
+    
     brokerStats.setHasFailure(false);
+    
     return brokerStats;
+  }
+  
+  private void computeNetworkStats(NetworkStats networkStats, BrokerStats brokerStats) {
+    if(this.currentNetworkStats == null) {
+      this.currentNetworkStats = networkStats;
+    }
+    // take delta of timestamp
+    long deltaT = networkStats.getTimestamp() - currentNetworkStats.getTimestamp();
+    // convert to seconds
+    deltaT = deltaT / 1000; 
+    
+    long rxRate = networkStats.getRxBytes() - currentNetworkStats.getRxBytes();
+    long txRate = networkStats.getTxBytes() - currentNetworkStats.getTxBytes();
+    
+    // per second average rate during the poll window
+    brokerStats.setSysBytesIn1MinRate(rxRate/deltaT);
+    brokerStats.setSysBytesOut1MinRate(txRate/deltaT);
+    
+    // update the current for next poll
+    currentNetworkStats = networkStats;
+  }
+
+  public static class NetworkStats {
+    
+    private long timestamp;
+    private long rxBytes;
+    private long rxPackets;
+    private long txBytes;
+    private long txPackets;
+    
+    public NetworkStats() {
+    }
+
+    public NetworkStats(long rxBytes, long rxPackets, long txBytes,
+        long txPackets) {
+      this.rxBytes = rxBytes;
+      this.rxPackets = rxPackets;
+      this.txBytes = txBytes;
+      this.txPackets = txPackets;
+    }
+
+    /**
+     * @return the timestamp
+     */
+    public long getTimestamp() {
+      return timestamp;
+    }
+
+    /**
+     * @param timestamp the timestamp to set
+     */
+    public void setTimestamp(long timestamp) {
+      this.timestamp = timestamp;
+    }
+
+    /**
+     * @return the rxBytes
+     */
+    public long getRxBytes() {
+      return rxBytes;
+    }
+
+    /**
+     * @param rxBytes the rxBytes to set
+     */
+    public void setRxBytes(long rxBytes) {
+      this.rxBytes = rxBytes;
+    }
+
+    /**
+     * @return the rxPackets
+     */
+    public long getRxPackets() {
+      return rxPackets;
+    }
+
+    /**
+     * @param rxPackets the rxPackets to set
+     */
+    public void setRxPackets(long rxPackets) {
+      this.rxPackets = rxPackets;
+    }
+
+    /**
+     * @return the txBytes
+     */
+    public long getTxBytes() {
+      return txBytes;
+    }
+
+    /**
+     * @param txBytes the txBytes to set
+     */
+    public void setTxBytes(long txBytes) {
+      this.txBytes = txBytes;
+    }
+
+    /**
+     * @return the txPackets
+     */
+    public long getTxPackets() {
+      return txPackets;
+    }
+
+    /**
+     * @param txPackets the txPackets to set
+     */
+    public void setTxPackets(long txPackets) {
+      this.txPackets = txPackets;
+    }
+    
   }
 }
