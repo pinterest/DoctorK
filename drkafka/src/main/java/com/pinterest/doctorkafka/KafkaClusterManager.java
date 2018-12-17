@@ -26,6 +26,8 @@ import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.zookeeper.data.ACL;
+
+import scala.Option;
 import scala.collection.JavaConverters;
 import scala.collection.Seq;
 
@@ -39,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 
@@ -79,7 +82,7 @@ public class KafkaClusterManager implements Runnable {
   private double bytesOutLimit;
 
   private Map<String, scala.collection.Map<Object, Seq<Object>>> topicPartitionAssignments = new HashMap<>();
-  private List<MutablePair<KafkaBroker, TopicPartition>> reassignmentFailures = new ArrayList();
+  private List<MutablePair<KafkaBroker, TopicPartition>> reassignmentFailures = new ArrayList<>();
   private BrokerReplacer brokerReplacer;
   private ZookeeperClient zookeeperClient;
 
@@ -88,6 +91,7 @@ public class KafkaClusterManager implements Runnable {
    */
   private Map<TopicPartition, ReassignmentInfo> reassignmentMap = new HashMap<>();
   private Map<TopicPartition, PreferredReplicaElectionInfo> preferredLeaders = new HashMap<>();
+  private AtomicBoolean maintenanceMode = new AtomicBoolean(false);
 
   public KafkaClusterManager(String zkUrl, KafkaCluster kafkaCluster,
                              DoctorKafkaClusterConfig clusterConfig,
@@ -913,6 +917,20 @@ public class KafkaClusterManager implements Runnable {
     return true;
   }
 
+  public void enableMaintenanceMode() {
+    maintenanceMode.set(true);
+    LOG.info("Enabled maintenace mode for:" + clusterConfig.getClusterName());
+    Email.notifyOnMaintenanceMode(drkafkaConfig.getNotificationEmails(), 
+        clusterConfig.getClusterName(), maintenanceMode.get());
+  }
+  
+  public void disableMaintenanceMode() {
+    maintenanceMode.set(false);
+    LOG.info("Disabled maintenace mode for:" + clusterConfig.getClusterName());
+    Email.notifyOnMaintenanceMode(drkafkaConfig.getNotificationEmails(), 
+        clusterConfig.getClusterName(), maintenanceMode.get());
+  }
+  
   /**
    *  KafkaClusterManager periodically check the health of the cluster. If it finds
    *  an under-replicated partitions, it will perform partition reassignment. It will also
@@ -931,6 +949,10 @@ public class KafkaClusterManager implements Runnable {
     while (!stopped) {
       try {
         Thread.sleep(checkIntervalInMs);
+        if (maintenanceMode.get()) {
+          LOG.debug("Cluster:" + clusterConfig.getClusterName() + " is in maintenace mode");
+          continue;
+        }
         ZkUtils zkUtils = KafkaUtils.getZkUtils(zkUrl);
 
         // check if there is any broker that do not have stats.
@@ -1001,5 +1023,9 @@ public class KafkaClusterManager implements Runnable {
         LOG.error("Unexpected failure in cluster manager for {}: ", zkUrl, e);
       }
     }
+  }
+
+  public boolean isMaintenanceModeEnabled() {
+    return maintenanceMode.get();
   }
 }
