@@ -147,11 +147,19 @@ usage does not exceed the threshold.
 
 ## DoctorKafka UI 
 
-DoctorKafka uses an embedding Jetty server to provide a web UI. The following is the screenshot from a demo:
+DoctorKafka uses [dropwizard-core module](https://www.dropwizard.io/1.3.5/docs/manual/core.html) and [serving assets](https://www.dropwizard.io/1.3.5/docs/manual/core.html#serving-assets) to provide a web UI. The following is the screenshot from a demo:
 
 ![doctorkafka UI](docs/doctorkafka_ui.png)
 <img src="docs/doctorkafka_ui.png" width="160">
 
+## DoctorKafka APIs
+
+The following APIs are available for DoctorKafka:
+
+	- List Cluster
+	- Maintenance Mode
+
+Detailed description of APIs can be found [docs/APIs.md](docs/APIs.md)
 
 ## Maintainers
   * [Yu Yang](https://github.com/yuyang08)

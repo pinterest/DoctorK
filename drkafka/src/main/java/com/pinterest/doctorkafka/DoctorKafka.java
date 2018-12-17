@@ -11,7 +11,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class DoctorKafka {
@@ -24,7 +27,7 @@ public class DoctorKafka {
 
   private DoctorKafkaActionReporter actionReporter = null;
 
-  private List<KafkaClusterManager> clusterManagers = new ArrayList<>();
+  private Map<String, KafkaClusterManager> clusterManagers = new HashMap<>();
 
   private Set<String> clusterZkUrls = null;
 
@@ -65,7 +68,7 @@ public class DoctorKafka {
       }
       KafkaClusterManager clusterManager = new KafkaClusterManager(
           clusterZkUrl, kafkaCluster, clusterConf, drkafkaConf, actionReporter, zookeeperClient);
-      clusterManagers.add(clusterManager);
+      clusterManagers.put(clusterConf.getClusterName(), clusterManager);
       clusterManager.start();
       LOG.info("Starting cluster manager for " + clusterZkUrl);
     }
@@ -74,7 +77,7 @@ public class DoctorKafka {
   public void stop() {
     brokerStatsProcessor.stop();
     zookeeperClient.close();
-    for (KafkaClusterManager clusterManager : clusterManagers) {
+    for (KafkaClusterManager clusterManager : clusterManagers.values()) {
       clusterManager.stop();
     }
   }
@@ -83,16 +86,15 @@ public class DoctorKafka {
     return drkafkaConf;
   }
 
-  public List<KafkaClusterManager> getClusterManagers() {
-    return clusterManagers;
+  public Collection<KafkaClusterManager> getClusterManagers() {
+    return clusterManagers.values();
   }
 
   public KafkaClusterManager getClusterManager(String clusterName) {
-    for (KafkaClusterManager clusterManager : clusterManagers) {
-      if (clusterManager.getClusterName().equals(clusterName)) {
-        return clusterManager;
-      }
-    }
-    return null;
+    return clusterManagers.get(clusterName);
+  }
+
+  public List<String> getClusterNames() {
+    return new ArrayList<>(clusterManagers.keySet());
   }
 }

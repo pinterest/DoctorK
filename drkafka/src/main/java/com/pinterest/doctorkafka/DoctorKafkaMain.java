@@ -8,7 +8,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.google.common.collect.ImmutableList;
+import com.pinterest.doctorkafka.api.MaintenanceApi;
 import com.pinterest.doctorkafka.api.BrokerApi;
+import com.pinterest.doctorkafka.api.ClusterApi;
 import com.pinterest.doctorkafka.config.DoctorKafkaAppConfig;
 import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
 import com.pinterest.doctorkafka.replicastats.ReplicaStatsManager;
@@ -58,15 +60,20 @@ public class DoctorKafkaMain extends Application<DoctorKafkaAppConfig> {
 
     doctorKafka = new DoctorKafka(ReplicaStatsManager.config);
 
-    registerAPIs(environment);
+    registerAPIs(environment, doctorKafka);
     registerServlets(environment);
 
     Executors.newCachedThreadPool().submit(() -> {
-      doctorKafka.start();
+      try {
+        doctorKafka.start();
+        LOG.info("DoctorKafka started");
+      } catch (Exception e) {
+        LOG.error("DoctorKafka start failed", e);
+      }
     });
 
     startMetricsService();
-    LOG.info("DoctorKafka started.");
+    LOG.info("DoctorKafka API server started");
   }
 
   private void configureServerRuntime(DoctorKafkaAppConfig configuration, DoctorKafkaConfig config) {
@@ -99,9 +106,11 @@ public class DoctorKafkaMain extends Application<DoctorKafkaAppConfig> {
     defaultServerFactory.setApplicationConnectors(Collections.singletonList(application));
   }
 
-  private void registerAPIs(Environment environment) {
+  private void registerAPIs(Environment environment, DoctorKafka doctorKafka) {
     environment.jersey().setUrlPattern("/api/*");
     environment.jersey().register(new BrokerApi());
+    environment.jersey().register(new ClusterApi(doctorKafka));
+    environment.jersey().register(new MaintenanceApi(doctorKafka));
   }
 
   private void startMetricsService() {

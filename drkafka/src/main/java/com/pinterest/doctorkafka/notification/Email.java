@@ -12,6 +12,7 @@ import org.apache.logging.log4j.Logger;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -78,6 +79,13 @@ public class Email {
   public static void notifyOnBrokerReplacement(String[] emails, String clusterName, String broker) {
     String title = clusterName + " broker replacement : " + broker;
     String content = "Replacing broker " + broker + " in cluster " + clusterName;
+    sendTo(emails, title, content);
+  }
+  
+  public static void notifyOnMaintenanceMode(String[] emails, String clusterName, boolean maintenanceMode) {
+    String title = maintenanceMode ? clusterName + " is in Maintenance mode" : " is out of Maintenance mode";
+    String content = "Cluster:" + clusterName + " was placed " + (maintenanceMode ? "in maintenance mode"
+        : "out of maintenance mode") + " at " + new Date();
     sendTo(emails, title, content);
   }
 

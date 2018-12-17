@@ -11,7 +11,7 @@ import org.eclipse.jetty.http.HttpStatus;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.management.ManagementFactory;
-import java.util.List;
+import java.util.Collection;
 import java.util.Map;
 import java.util.TreeMap;
 import javax.servlet.ServletException;
@@ -38,31 +38,23 @@ public class DoctorKafkaInfoServlet extends HttpServlet {
       writer.print("<p> Version: " + version + ", Uptime: " + jvmUpTimeInSeconds + " seconds </p>");
       writer.print("</div>");
 
-      List<KafkaClusterManager> clusterManagers = DoctorKafkaMain.doctorKafka.getClusterManagers();
+      Collection<KafkaClusterManager> clusterManagers = DoctorKafkaMain.doctorKafka.getClusterManagers();
       writer.print("<div> ");
       writer.print("<table class=\"table table-responsive\"> ");
       writer.print("<th> ClusterName </th> <th> Size </th> <th> Under-replicated Partitions</th>");
+      writer.print("<th> Maintenance Mode </th>");
       writer.print("<tbody>");
 
       Map<String, String>  clustersHtml = new TreeMap<>();
       for (KafkaClusterManager clusterManager : clusterManagers) {
         String clusterName = clusterManager.getClusterName();
         String htmlStr;
-        if (clusterManager.getCluster() != null) {
-          htmlStr = "<tr> <td> <a href=\"/servlet/clusterinfo?name=" + clusterName + "\">"
+        htmlStr = "<tr> <td> <a href=\"/servlet/clusterinfo?name=" + clusterName + "\">"
               + clusterName + "</a>"
-              + " </td> <td> " + clusterManager.getClusterSize()
+              + " </td> <td> " + ((clusterManager.getCluster()!=null)? clusterManager.getClusterSize() : "no brokerstats")
               + " </td> <td> <a href=\"/servlet/urp?cluster=" + clusterName + "\">"
-              + clusterManager.getUnderReplicatedPartitions().size() + "</a>"
-              + " </td> </tr>";
-        } else {
-          htmlStr = "<tr> <td> <a href=\"/servlet/clusterinfo?name=" + clusterName + "\">"
-              + clusterName + "</a>"
-              + " </td> <td>  no brokerstats </td> "
-              + " <td> <a href=\"/servlet/urp?cluster=" + clusterName + "\">"
-              + clusterManager.getUnderReplicatedPartitions().size() + "</a>"
-              + " </td> </tr>";
-        }
+              + clusterManager.getUnderReplicatedPartitions().size() + "</a> </td>"
+              + "<td>" + clusterManager.isMaintenanceModeEnabled() + " </td> </tr>";
 
         clustersHtml.put(clusterName, htmlStr);
       }
