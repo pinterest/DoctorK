@@ -81,7 +81,8 @@ public class ReplicaStatsRetriever {
 
     long startTime = System.currentTimeMillis();
     ReplicaStatsManager.config = new DoctorKafkaConfig(configFilePath);
-    ReplicaStatsManager.readPastReplicaStats(brokerStatsZk, SecurityProtocol.PLAINTEXT, brokerStatsTopic, seconds);
+    ReplicaStatsManager.readPastReplicaStats(brokerStatsZk, SecurityProtocol.PLAINTEXT, 
+        brokerStatsTopic, seconds);
     long endTime = System.currentTimeMillis();
     LOG.info("Spent time : {} seconds", (endTime - startTime) / 1000.0);
 

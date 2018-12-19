@@ -88,7 +88,8 @@ public class ClusterLoadBalancer {
     boolean onlyOne = commandLine.hasOption(ONLY_ONE);
 
     ReplicaStatsManager.config = new DoctorKafkaConfig(configFilePath);
-    ReplicaStatsManager.readPastReplicaStats(brokerStatsZk, SecurityProtocol.PLAINTEXT, brokerStatsTopic, seconds);
+    ReplicaStatsManager.readPastReplicaStats(brokerStatsZk, SecurityProtocol.PLAINTEXT, 
+        brokerStatsTopic, seconds);
     Set<String> zkUrls = ReplicaStatsManager.config.getClusterZkUrls();
     if (!zkUrls.contains(clusterZk)) {
       LOG.error("Failed to find zkurl {} in configuration", clusterZk);

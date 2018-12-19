@@ -13,6 +13,7 @@ import com.codahale.metrics.SlidingWindowReservoir;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
@@ -23,6 +24,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
@@ -178,6 +180,24 @@ public class ReplicaStatsManager {
   public static Map<TopicPartition, Histogram> getTopicsBytesOutStats(String zkUrl) {
     return bytesOutStats.get(zkUrl);
   }
+  
+  public static Map<TopicPartition, Long> getProcessingStartOffsetsNew(KafkaConsumer<?, ?> kafkaConsumer,
+                                                                    String brokerStatsTopic,
+                                                                    long startTimestampInMillis) {
+    List<TopicPartition> tpList = kafkaConsumer.partitionsFor(brokerStatsTopic).stream()
+                  .map(p->new TopicPartition(p.topic(), p.partition())).collect(Collectors.toList());
+    Map<TopicPartition, Long> partitionMap = new HashMap<>();
+    for (TopicPartition topicPartition : tpList) {
+      partitionMap.put(topicPartition, startTimestampInMillis);
+    }
+
+    Map<TopicPartition, OffsetAndTimestamp> offsetsForTimes = kafkaConsumer
+        .offsetsForTimes(partitionMap);
+    for (Entry<TopicPartition, OffsetAndTimestamp> entry : offsetsForTimes.entrySet()) {
+      partitionMap.put(entry.getKey(), entry.getValue().offset());
+    }
+    return partitionMap;
+  }
 
   /**
    * Find the start offsets for the processing windows. We uses kafka 0.10.1.1 that does not support
@@ -261,14 +281,17 @@ public class ReplicaStatsManager {
                                           long backtrackWindowInSeconds) {
     long startTime = System.currentTimeMillis();
 
-    KafkaConsumer kafkaConsumer = KafkaUtils.getKafkaConsumer(zkUrl,
+    KafkaConsumer<?, ?> kafkaConsumer = KafkaUtils.getKafkaConsumer(zkUrl,
         "org.apache.kafka.common.serialization.ByteArrayDeserializer",
         "org.apache.kafka.common.serialization.ByteArrayDeserializer",
         1, securityProtocol, null);
 
     long startTimestampInMillis = System.currentTimeMillis() - backtrackWindowInSeconds * 1000L;
-    Map<TopicPartition, Long> offsets = ReplicaStatsManager.getProcessingStartOffsets(
-        kafkaConsumer, brokerStatsTopic, startTimestampInMillis);
+    Map<TopicPartition, Long> offsets = null;
+    
+    offsets = ReplicaStatsManager.getProcessingStartOffsetsNew(
+          kafkaConsumer, brokerStatsTopic, startTimestampInMillis);
+
     kafkaConsumer.unsubscribe();
     kafkaConsumer.assign(offsets.keySet());
     Map<TopicPartition, Long> latestOffsets = kafkaConsumer.endOffsets(offsets.keySet());
