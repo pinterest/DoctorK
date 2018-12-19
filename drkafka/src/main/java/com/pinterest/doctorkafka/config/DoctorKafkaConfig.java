@@ -208,4 +208,5 @@ public class DoctorKafkaConfig {
     String emailsStr = drkafkaConfiguration.getString(ALERT_EMAILS);
     return emailsStr.split(",");
   }
+
 }
