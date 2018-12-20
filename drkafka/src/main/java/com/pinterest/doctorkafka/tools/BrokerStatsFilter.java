@@ -77,7 +77,7 @@ public class BrokerStatsFilter {
   public static List<BrokerStats> processOnePartition(String zkUrl, TopicPartition topicPartition,
                                                       long startOffset, long endOffset,
                                                       Set<String> brokerNames) {
-    KafkaConsumer kafkaConsumer = null;
+    KafkaConsumer<byte[], byte[]> kafkaConsumer = null;
     List<BrokerStats> result = new ArrayList<>();
     try {
       String brokers = KafkaUtils.getBrokers(zkUrl, SecurityProtocol.PLAINTEXT);
@@ -93,7 +93,7 @@ public class BrokerStatsFilter {
       props.put(KafkaUtils.MAX_POLL_RECORDS, 2000);
       props.put("max.partition.fetch.bytes", 1048576 * 4);
 
-      kafkaConsumer = new KafkaConsumer(props);
+      kafkaConsumer = new KafkaConsumer<>(props);
       Set<TopicPartition> topicPartitions = new HashSet<>();
       topicPartitions.add(topicPartition);
       kafkaConsumer.assign(topicPartitions);
@@ -130,7 +130,7 @@ public class BrokerStatsFilter {
     Set<String> brokerNames = new HashSet<>();
     brokerNames.add(brokerName);
 
-    KafkaConsumer kafkaConsumer = KafkaUtils.getKafkaConsumer(brokerStatsZk,
+    KafkaConsumer<byte[], byte[]> kafkaConsumer = KafkaUtils.getKafkaConsumer(brokerStatsZk,
         "org.apache.kafka.common.serialization.ByteArrayDeserializer",
         "org.apache.kafka.common.serialization.ByteArrayDeserializer", 1,
         SecurityProtocol.PLAINTEXT,

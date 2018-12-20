@@ -4,7 +4,6 @@ import org.apache.kafka.common.Node;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -64,7 +63,7 @@ public class OutOfSyncReplica {
     if (partitionInfo.inSyncReplicas().length == partitionInfo.replicas().length) {
       return new HashSet<>();
     }
-    Set<Node> nodes = new HashSet(Arrays.asList(partitionInfo.replicas()));
+    Set<Node> nodes = new HashSet<>(Arrays.asList(partitionInfo.replicas()));
     for (Node node : partitionInfo.inSyncReplicas()) {
       nodes.remove(node);
     }

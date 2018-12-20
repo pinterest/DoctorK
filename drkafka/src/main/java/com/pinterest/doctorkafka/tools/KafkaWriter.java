@@ -66,7 +66,7 @@ public class KafkaWriter {
 
     Random random = new Random();
     Properties props = OperatorUtil.createKafkaProducerProperties(zkUrl, SecurityProtocol.PLAINTEXT);
-    KafkaProducer kafkaProducer = new KafkaProducer<>(props);
+    KafkaProducer<byte[], byte[]> kafkaProducer = new KafkaProducer<>(props);
 
     byte[] key = new byte[16];
     byte[] data = new byte[1024];
@@ -74,7 +74,7 @@ public class KafkaWriter {
       for (int j = 0; j < data.length; j++) {
         data[j] = (byte)random.nextInt();
       }
-      ProducerRecord<byte[], byte[]> producerRecord = new ProducerRecord(
+      ProducerRecord<byte[], byte[]> producerRecord = new ProducerRecord<>(
           topic, 0, System.currentTimeMillis(), key, data);
       Future<RecordMetadata> future = kafkaProducer.send(producerRecord);
       future.get();
@@ -82,5 +82,6 @@ public class KafkaWriter {
         System.out.println("Have wrote " + i + " messages to kafka");
       }
     }
+    kafkaProducer.close();
   }
 }
