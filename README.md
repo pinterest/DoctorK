@@ -113,14 +113,13 @@ tar -zxvf target/doctorkafka-0.2.4.1-bin.tar.gz -C ${DOCTORKAFKA_INSTALL_DIR}
 cd ${DOCTORKAFKA_INSTALL_DIR}
 
 java -server -cp lib/*:doctorkafka-0.2.4.1.jar  com.pinterest.doctorkafka.DoctorKafkaMain \
-  -config drkafka/config/doctorkafka.prod.properties \
-  server  dropwizard_yaml_file
+     server  dropwizard_yaml_file
 ```  
 
 DoctorKafka only requires one line in [DropWizard](https://www.dropwizard.io/1.0.0/docs/manual/configuration.html) yaml file: 
 
 ```
-config:  $your_kafka_config_properties_file
+config:  $doctorkafka_config_properties_file_path
 ```
 
 ##### Customize configuration parameters
