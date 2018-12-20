@@ -41,8 +41,8 @@ public class KafkaUtils {
   public static final String ReassignPartitionsPath = AdminPath + "/reassign_partitions";
   public static final String PreferredReplicaLeaderElectionPath = AdminPath + "/preferred_replica_election";
 
-  private static Map<String, KafkaConsumer> kafkaConsumers = new HashMap();
-  private static Map<String, ZkUtils> zkUtilsMap = new HashMap();
+  private static Map<String, KafkaConsumer<byte[], byte[]>> kafkaConsumers = new HashMap<>();
+  private static Map<String, ZkUtils> zkUtilsMap = new HashMap<>();
 
   public static ZkUtils getZkUtils(String zkUrl) {
     if (!zkUtilsMap.containsKey(zkUrl)) {
@@ -57,7 +57,7 @@ public class KafkaUtils {
 
 
   public static List<ACL> getZookeeperAcls(boolean isSecure) {
-    List<ACL> acls = new java.util.ArrayList();
+    List<ACL> acls = new java.util.ArrayList<>();
     if (isSecure) {
       acls.addAll(ZooDefs.Ids.CREATOR_ALL_ACL);
       acls.addAll(ZooDefs.Ids.READ_ACL_UNSAFE);
@@ -79,7 +79,7 @@ public class KafkaUtils {
     if (partitionInfo.inSyncReplicas().length == partitionInfo.replicas().length) {
       return new HashSet<>();
     }
-    Set<Node> nodes = new HashSet(Arrays.asList(partitionInfo.replicas()));
+    Set<Node> nodes = new HashSet<>(Arrays.asList(partitionInfo.replicas()));
     for (Node node : partitionInfo.inSyncReplicas()) {
       nodes.remove(node);
     }
@@ -87,7 +87,7 @@ public class KafkaUtils {
   }
 
 
-  public static KafkaConsumer getKafkaConsumer(String zkUrl,
+  public static KafkaConsumer<byte[], byte[]> getKafkaConsumer(String zkUrl,
                                                String keyDeserializer,
                                                String valueDeserializer,
                                                int maxPoolRecords,
@@ -111,19 +111,19 @@ public class KafkaUtils {
           props.put(entry.getKey(), entry.getValue());
         }
       }
-      kafkaConsumers.put(key, new KafkaConsumer(props));
+      kafkaConsumers.put(key, new KafkaConsumer<>(props));
     }
     return kafkaConsumers.get(key);
   }
 
-  public static KafkaConsumer getKafkaConsumer(String zkUrl,
+  public static KafkaConsumer<?, ?> getKafkaConsumer(String zkUrl,
                                                String keyDeserializer, String valueDeserializer) {
     return getKafkaConsumer(zkUrl, keyDeserializer, valueDeserializer,
         DEFAULT_MAX_POOL_RECORDS, SecurityProtocol.PLAINTEXT, null);
   }
 
 
-  public static KafkaConsumer getKafkaConsumer(String zkUrl,
+  public static KafkaConsumer<byte[], byte[]> getKafkaConsumer(String zkUrl,
       SecurityProtocol securityProtocol,
       Map<String, String> consumerConfigs) {
     return getKafkaConsumer(zkUrl,

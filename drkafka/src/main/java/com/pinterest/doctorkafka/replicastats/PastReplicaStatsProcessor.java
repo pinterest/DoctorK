@@ -50,7 +50,7 @@ public class PastReplicaStatsProcessor implements Runnable {
   }
 
   public void run() {
-    KafkaConsumer kafkaConsumer = null;
+    KafkaConsumer<byte[], byte[]> kafkaConsumer = null;
     try {
       String brokers = KafkaUtils.getBrokers(zkUrl, securityProtocol);
       LOG.info("ZkUrl: {}, Brokers: {}", zkUrl, brokers);
@@ -65,7 +65,7 @@ public class PastReplicaStatsProcessor implements Runnable {
       props.put(KafkaUtils.MAX_POLL_RECORDS, 2000);
       props.put("max.partition.fetch.bytes", 1048576 * 4);
 
-      kafkaConsumer = new KafkaConsumer(props);
+      kafkaConsumer = new KafkaConsumer<>(props);
       Set<TopicPartition> topicPartitions = new HashSet<>();
       topicPartitions.add(topicPartition);
       kafkaConsumer.assign(topicPartitions);
