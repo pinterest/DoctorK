@@ -28,7 +28,6 @@ public class ReplicaStatsRetriever {
   private static final String BROKERSTATS_ZOOKEEPER = "brokerstatszk";
   private static final String BROKERSTATS_TOPIC = "brokerstatstopic";
   private static final String CLUSTER_ZOOKEEPER = "clusterzk";
-  private static final String TOPIC = "topic";
   private static final String SECONDS = "seconds";
   private static final Options options = new Options();
 

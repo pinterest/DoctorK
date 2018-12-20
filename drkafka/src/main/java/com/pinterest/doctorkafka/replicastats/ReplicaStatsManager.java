@@ -1,25 +1,5 @@
 package com.pinterest.doctorkafka.replicastats;
 
-import com.pinterest.doctorkafka.BrokerStats;
-import com.pinterest.doctorkafka.KafkaCluster;
-import com.pinterest.doctorkafka.ReplicaStat;
-import com.pinterest.doctorkafka.config.DoctorKafkaClusterConfig;
-import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
-import com.pinterest.doctorkafka.util.KafkaUtils;
-import com.pinterest.doctorkafka.util.OperatorUtil;
-
-import com.codahale.metrics.Histogram;
-import com.codahale.metrics.SlidingWindowReservoir;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
-import org.apache.kafka.common.PartitionInfo;
-import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.security.auth.SecurityProtocol;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -28,6 +8,22 @@ import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
+
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
+import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import com.codahale.metrics.Histogram;
+import com.codahale.metrics.SlidingWindowReservoir;
+import com.pinterest.doctorkafka.BrokerStats;
+import com.pinterest.doctorkafka.KafkaCluster;
+import com.pinterest.doctorkafka.ReplicaStat;
+import com.pinterest.doctorkafka.config.DoctorKafkaClusterConfig;
+import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
+import com.pinterest.doctorkafka.util.KafkaUtils;
 
 public class ReplicaStatsManager {
 
@@ -181,7 +177,7 @@ public class ReplicaStatsManager {
     return bytesOutStats.get(zkUrl);
   }
   
-  public static Map<TopicPartition, Long> getProcessingStartOffsetsNew(KafkaConsumer<?, ?> kafkaConsumer,
+  public static Map<TopicPartition, Long> getProcessingStartOffsets(KafkaConsumer<?, ?> kafkaConsumer,
                                                                     String brokerStatsTopic,
                                                                     long startTimestampInMillis) {
     List<TopicPartition> tpList = kafkaConsumer.partitionsFor(brokerStatsTopic).stream()
@@ -198,78 +194,6 @@ public class ReplicaStatsManager {
     }
     return partitionMap;
   }
-
-  /**
-   * Find the start offsets for the processing windows. We uses kafka 0.10.1.1 that does not support
-   * KafkaConsumer.
-   */
-  public static Map<TopicPartition, Long> getProcessingStartOffsets(KafkaConsumer kafkaConsumer,
-                                                                    String brokerStatsTopic,
-                                                                    long startTimestampInMillis) {
-    List<PartitionInfo> partitionInfos = kafkaConsumer.partitionsFor(brokerStatsTopic);
-    LOG.info("Get partition info for {} : {} partitions", brokerStatsTopic, partitionInfos.size());
-    List<TopicPartition> topicPartitions = partitionInfos.stream()
-        .map(partitionInfo -> new TopicPartition(partitionInfo.topic(), partitionInfo.partition()))
-        .collect(Collectors.toList());
-
-    Map<TopicPartition, Long> endOffsets = kafkaConsumer.endOffsets(topicPartitions);
-    Map<TopicPartition, Long> beginningOffsets = kafkaConsumer.beginningOffsets(topicPartitions);
-    Map<TopicPartition, Long> offsets = new HashMap<>();
-
-    for (TopicPartition tp : topicPartitions) {
-      kafkaConsumer.unsubscribe();
-      LOG.info("assigning {} to kafkaconsumer", tp);
-      List<TopicPartition> tps = new ArrayList<>();
-      tps.add(tp);
-
-      kafkaConsumer.assign(tps);
-      long endOffset = endOffsets.get(tp);
-      long beginningOffset = beginningOffsets.get(tp);
-      long offset = Math.max(endOffsets.get(tp) - 10, beginningOffset);
-      ConsumerRecord<byte[], byte[]> record = retrieveOneMessage(kafkaConsumer, tp, offset);
-      BrokerStats brokerStats = OperatorUtil.deserializeBrokerStats(record);
-      if (brokerStats != null) {
-        long timestamp = brokerStats.getTimestamp();
-        while (timestamp > startTimestampInMillis) {
-          offset = Math.max(beginningOffset, offset - 5000);
-          record = retrieveOneMessage(kafkaConsumer, tp, offset);
-          brokerStats = OperatorUtil.deserializeBrokerStats(record);
-          if (brokerStats == null) {
-            break;
-          }
-          timestamp = brokerStats.getTimestamp();
-        }
-      }
-      offsets.put(tp, offset);
-      LOG.info("{}: offset = {}, endOffset = {}, # of to-be-processed messages = {}",
-          tp, offset, endOffset, endOffset - offset);
-    }
-    return offsets;
-  }
-
-
-  private static ConsumerRecord<byte[], byte[]> retrieveOneMessage(KafkaConsumer kafkaConsumer,
-                                                                   TopicPartition topicPartition,
-                                                                   long offset) {
-    kafkaConsumer.seek(topicPartition, offset);
-    ConsumerRecords<byte[], byte[]> records;
-    ConsumerRecord<byte[], byte[]> record = null;
-    while (record == null) {
-      records = kafkaConsumer.poll(100);
-      if (!records.isEmpty()) {
-        LOG.debug("records.count() = {}", records.count());
-        List<ConsumerRecord<byte[], byte[]>> reclist = records.records(topicPartition);
-        if (reclist != null && !reclist.isEmpty()) {
-          record = reclist.get(0);
-          break;
-        } else {
-          LOG.info("recList is null or empty");
-        }
-      }
-    }
-    return record;
-  }
-
 
   /**
    * Read the replica stats in the past 24 - 48 hours, based on the configuration setting.
@@ -289,7 +213,7 @@ public class ReplicaStatsManager {
     long startTimestampInMillis = System.currentTimeMillis() - backtrackWindowInSeconds * 1000L;
     Map<TopicPartition, Long> offsets = null;
     
-    offsets = ReplicaStatsManager.getProcessingStartOffsetsNew(
+    offsets = ReplicaStatsManager.getProcessingStartOffsets(
           kafkaConsumer, brokerStatsTopic, startTimestampInMillis);
 
     kafkaConsumer.unsubscribe();

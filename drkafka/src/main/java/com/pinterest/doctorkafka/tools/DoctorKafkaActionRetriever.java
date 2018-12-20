@@ -23,7 +23,6 @@ import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -99,7 +98,6 @@ public class DoctorKafkaActionRetriever {
 
     ConsumerRecords<byte[], byte[]> records = consumer.poll(100);
     List<ConsumerRecord<byte[], byte[]>> recordList = new ArrayList<>();
-    SimpleDateFormat dtFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
 
     while (!records.isEmpty()) {
       for (ConsumerRecord<byte[], byte[]> record : records) {
@@ -123,5 +121,6 @@ public class DoctorKafkaActionRetriever {
       }
       records = consumer.poll(100);
     }
+    consumer.close();
   }
 }
