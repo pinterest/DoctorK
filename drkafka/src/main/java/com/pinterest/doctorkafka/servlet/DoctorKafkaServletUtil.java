@@ -87,8 +87,10 @@ public class DoctorKafkaServletUtil extends HttpServlet {
 
   private static Map<String, String> parseQueryString(String queryString) {
     Map<String, String> result = new HashMap<>();
-    Arrays.stream(queryString.split("&")).map(s -> s.split("=")).collect(toList())
-        .forEach(arr -> result.put(arr[0], arr[1]));
+    if (queryString != null) {
+      Arrays.stream(queryString.split("&")).map(s -> s.split("=")).collect(toList())
+	.forEach(arr -> result.put(arr[0], arr[1]));
+    }
     return result;
   }
 
@@ -114,7 +116,7 @@ public class DoctorKafkaServletUtil extends HttpServlet {
   public void renderHTML(PrintWriter writer, Map<String, String> params){};
 
   @Override
-  protected void doGet(HttpServletRequest req, HttpServletResponse resp)
+  public void doGet(HttpServletRequest req, HttpServletResponse resp)
       throws ServletException, IOException {
 
     LOG.info("Start working on get request");
