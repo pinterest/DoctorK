@@ -78,7 +78,6 @@ public class DoctorKafkaActionsServlet extends DoctorKafkaServletUtil {
     writer.print("<th class=\"active\"> Action </th>");
 
     try {
-      
       for (ConsumerRecord<byte[], byte[]> record : Lists.reverse(retrieveActionReportMessages())) {
 	try {
 	  BinaryDecoder binaryDecoder = avroDecoderFactory.binaryDecoder(record.value(), null);
@@ -140,9 +139,7 @@ public class DoctorKafkaActionsServlet extends DoctorKafkaServletUtil {
       }
       records = consumer.poll(CONSUMER_POLL_TIMEOUT_MS);
     }
-
     LOG.info("Read {} messages", recordList.size());
     return recordList;
-
   }
 }
