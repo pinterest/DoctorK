@@ -27,23 +27,26 @@ public class ClusterInfoServlet extends DoctorKafkaServletUtil {
 
   @Override
   public void renderJSON(PrintWriter writer, Map<String, String> params) {
-    String clusterName = params.get("name");
-    KafkaClusterManager clusterManager = DoctorKafkaMain.doctorKafka.getClusterManager(clusterName);
-
-    if (clusterManager == null) {
-      ClusterInfoError error = new ClusterInfoError("Failed to find cluster manager for " + clusterName);
-      writer.print(gson.toJson(error));
-      return ;
+    try {
+      String clusterName = params.get("name");
+      KafkaClusterManager clusterManager = DoctorKafkaMain.doctorKafka.getClusterManager(clusterName);
+      if (clusterManager == null) {
+	ClusterInfoError error = new ClusterInfoError("Failed to find cluster manager for " + clusterName);
+	writer.print(gson.toJson(error));
+	return ;
+      }
+      writer.print(gson.toJson(clusterManager.toJson()));
+    } catch (Exception e) {
+      LOG.error("'name' parameter not found", e);
+      throw(e);
     }
-    writer.print(gson.toJson(clusterManager.toJson()));
   }
 
   @Override
   public void renderHTML(PrintWriter writer, Map<String, String> params) {
-    printHeader(writer);
     try {
+      printHeader(writer);
       String clusterName = params.get("name");
-
       KafkaClusterManager clusterMananger;
       clusterMananger = DoctorKafkaMain.doctorKafka.getClusterManager(clusterName);
       if (clusterMananger == null) {
