@@ -78,6 +78,10 @@ public class DoctorKafkaActionsServlet extends DoctorKafkaServletUtil {
     writer.print("<th class=\"active\"> Action </th>");
 
     try {
+<<<<<<< HEAD
+=======
+      
+>>>>>>> 4138394a60cecfd76cff958644bf2ab0499bf49c
       for (ConsumerRecord<byte[], byte[]> record : Lists.reverse(retrieveActionReportMessages())) {
 	try {
 	  BinaryDecoder binaryDecoder = avroDecoderFactory.binaryDecoder(record.value(), null);
@@ -107,9 +111,15 @@ public class DoctorKafkaActionsServlet extends DoctorKafkaServletUtil {
 
 
   private List<ConsumerRecord<byte[], byte[]>> retrieveActionReportMessages() {
+<<<<<<< HEAD
     DoctorKafkaConfig doctorKafkaConfig = DoctorKafkaMain.doctorKafka.getDoctorKafkaConfig();
     String zkUrl = doctorKafkaConfig.getBrokerstatsZkurl();
     String actionReportTopic = doctorKafkaConfig.getActionReportTopic();
+=======
+    String zkUrl = DoctorKafkaMain.doctorKafka.getOperatorConfig().getBrokerstatsZkurl();
+    String actionReportTopic =
+        DoctorKafkaMain.doctorKafka.getOperatorConfig().getActionReportTopic();
+>>>>>>> 4138394a60cecfd76cff958644bf2ab0499bf49c
     Properties properties =
         OperatorUtil.createKafkaConsumerProperties(zkUrl, OPERATOR_ACTIONS_CONSUMER_GROUP,
             doctorKafkaConfig.getActionReportProducerSecurityProtocol(),
