@@ -17,16 +17,6 @@ import java.io.StringWriter;
 public class ClusterInfoServletTest extends Mockito {
 
   @Test
-  public void clusterInfoNoClusterName() throws Exception {
-    HttpServletRequest request = mock(HttpServletRequest.class);
-    HttpServletResponse response = mock(HttpServletResponse.class);
-
-    new ClusterInfoServlet().doGet(request, response);
-    verify(request, atLeastOnce()).getQueryString();
-    verify(response).setStatus(HttpStatus.BAD_REQUEST_400);
-  }
-
-  @Test
   public void clusterInfoJSONResponse() throws Exception {
     String clusterName = "cluster1";
     HttpServletRequest request = mock(HttpServletRequest.class);
