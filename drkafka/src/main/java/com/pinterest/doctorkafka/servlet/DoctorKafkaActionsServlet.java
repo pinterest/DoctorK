@@ -78,10 +78,6 @@ public class DoctorKafkaActionsServlet extends DoctorKafkaServletUtil {
     writer.print("<th class=\"active\"> Action </th>");
 
     try {
-<<<<<<< HEAD
-=======
-      
->>>>>>> 4138394a60cecfd76cff958644bf2ab0499bf49c
       for (ConsumerRecord<byte[], byte[]> record : Lists.reverse(retrieveActionReportMessages())) {
 	try {
 	  BinaryDecoder binaryDecoder = avroDecoderFactory.binaryDecoder(record.value(), null);
