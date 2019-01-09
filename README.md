@@ -105,14 +105,14 @@ mvn package -pl drkafka -am
 ```sh
 mvn package
 mkdir ${DOCTORKAFKA_INSTALL_DIR} # directory to place DoctorKafka binaries in.
-tar -zxvf target/doctorkafka-0.2.4.1-bin.tar.gz -C ${DOCTORKAFKA_INSTALL_DIR}
+tar -zxvf target/doctorkafka-0.2.4.2-bin.tar.gz -C ${DOCTORKAFKA_INSTALL_DIR}
 ```
 
 ##### Run DoctorKafka
 ```sh
 cd ${DOCTORKAFKA_INSTALL_DIR}
 
-java -server -cp lib/*:doctorkafka-0.2.4.1.jar  com.pinterest.doctorkafka.DoctorKafkaMain \
+java -server -cp lib/*:doctorkafka-0.2.4.2.jar  com.pinterest.doctorkafka.DoctorKafkaMain \
      server  dropwizard_yaml_file
 ```  
 

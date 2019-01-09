@@ -1,10 +1,9 @@
 package com.pinterest.doctorkafka.util;
 
 
+import com.google.common.net.HostAndPort;
 import com.pinterest.doctorkafka.BrokerStats;
 
-import com.google.common.net.HostAndPort;
-import java.util.ArrayList;
 import org.apache.commons.lang3.tuple.MutablePair;
 
 import kafka.api.FetchRequest;
@@ -26,9 +25,6 @@ import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.common.config.ConfigException;
-import org.apache.kafka.common.config.SslConfigs;
-import org.apache.kafka.common.config.internals.BrokerSecurityConfigs;
 import org.apache.kafka.common.network.ListenerName;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.logging.log4j.LogManager;
@@ -47,7 +43,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
@@ -287,7 +282,7 @@ public class OperatorUtil {
       try {
         HostAndPort pushHostPort = HostAndPort.fromString(tsdbHostPort);
         MetricsPusher metricsPusher = new MetricsPusher(
-            pushHostPort.getHostText(),
+            pushHostPort.getHost(),
             pushHostPort.getPort(),
             new OpenTsdbMetricConverter("KafkaOperator", HostName),
             TSDB_METRICS_PUSH_INTERVAL_IN_MILLISECONDS);
