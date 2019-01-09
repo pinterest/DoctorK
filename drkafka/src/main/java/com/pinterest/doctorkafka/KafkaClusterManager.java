@@ -136,7 +136,7 @@ public class KafkaClusterManager implements Runnable {
   public JsonElement toJson() {
     // Return a JSON representation of a Kafka Cluster.
     JsonObject json = new JsonObject();
-    KafkaConsumer kafkaConsumer = KafkaUtils.getKafkaConsumer(zkUrl);
+    KafkaConsumer kafkaConsumer = KafkaUtils.getKafkaConsumer(zkUrl, securityProtocol, consumerConfigs);
     json.addProperty("zkUrl", zkUrl);
     json.add("bytesInLimit", gson.toJsonTree(bytesInLimit));
     json.add("bytesOutLimit", gson.toJsonTree(bytesOutLimit));

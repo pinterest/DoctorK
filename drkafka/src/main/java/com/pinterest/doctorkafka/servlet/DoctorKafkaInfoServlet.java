@@ -32,7 +32,7 @@ public class DoctorKafkaInfoServlet extends DoctorKafkaServletUtil {
     JsonArray jsonClusters = new JsonArray();
     json.add("clusters", jsonClusters);
 
-    List<KafkaClusterManager> clusterManagers = DoctorKafkaMain.doctorKafka.getClusterManagers();
+    Collection<KafkaClusterManager> clusterManagers = DoctorKafkaMain.doctorKafka.getClusterManagers();
 
     for (KafkaClusterManager clusterManager : clusterManagers) {
       JsonObject cluster = new JsonObject();
