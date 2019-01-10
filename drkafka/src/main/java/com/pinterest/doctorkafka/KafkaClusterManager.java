@@ -30,6 +30,9 @@ import org.apache.zookeeper.data.ACL;
 import scala.Option;
 import scala.collection.JavaConverters;
 import scala.collection.Seq;
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 
 import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
@@ -54,6 +57,7 @@ import java.util.stream.Collectors;
 public class KafkaClusterManager implements Runnable {
 
   private static final Logger LOG = LogManager.getLogger(KafkaClusterManager.class);
+  private static final Gson gson = new Gson();
   /**
    * The time-out for machine reboot etc.
    */
@@ -129,8 +133,30 @@ public class KafkaClusterManager implements Runnable {
     stopped = true;
   }
 
+  public JsonElement toJson() {
+    // Return a JSON representation of a Kafka Cluster.
+    JsonObject json = new JsonObject();
+    KafkaConsumer kafkaConsumer = KafkaUtils.getKafkaConsumer(zkUrl, securityProtocol, consumerConfigs);
+    json.addProperty("zkUrl", zkUrl);
+    json.add("bytesInLimit", gson.toJsonTree(bytesInLimit));
+    json.add("bytesOutLimit", gson.toJsonTree(bytesOutLimit));
+    json.add("underReplicatedPartitions", gson.toJsonTree(underReplicatedPartitions));
+    json.add("topicPartitionAssignments", gson.toJsonTree(topicPartitionAssignments));
+    json.add("kafkaCluster", gson.toJsonTree(kafkaCluster.toJson()));
+    json.add("topics", gson.toJsonTree(kafkaConsumer.listTopics()));
+    return json;
+  }
+
   public String getClusterName() {
     return clusterConfig.getClusterName();
+  }
+
+  public String getZkUrl() {
+    return zkUrl;
+  }
+
+  public Map<String, scala.collection.Map<Object, Seq<Object>>>  getTopicPartitionAssignments() {
+    return topicPartitionAssignments;
   }
 
   public int getClusterSize() {
