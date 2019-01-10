@@ -1,14 +1,16 @@
 package com.pinterest.doctorkafka.servlet;
 
+import com.google.gson.Gson;
 import com.pinterest.doctorkafka.KafkaBroker;
 import com.pinterest.doctorkafka.DoctorKafkaMain;
 import com.pinterest.doctorkafka.KafkaCluster;
 import com.pinterest.doctorkafka.KafkaClusterManager;
+import com.pinterest.doctorkafka.errors.ClusterInfoError;
+import com.pinterest.doctorkafka.servlet.DoctorKafkaServletUtil;
 
 import kafka.cluster.Broker;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.eclipse.jetty.http.HttpStatus;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -17,27 +19,34 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
-public class ClusterInfoServlet extends HttpServlet {
+public class ClusterInfoServlet extends DoctorKafkaServletUtil {
 
   private static final Logger LOG = LogManager.getLogger(DoctorKafkaServletUtil.class);
+  private static final Gson gson = new Gson();
 
   @Override
-  protected void doGet(HttpServletRequest req, HttpServletResponse resp)
-      throws ServletException, IOException {
-    String queryString = req.getQueryString();
-    resp.setStatus(HttpStatus.OK_200);
-    PrintWriter writer = resp.getWriter();
-
-    DoctorKafkaServletUtil.printHeader(writer);
+  public void renderJSON(PrintWriter writer, Map<String, String> params) {
     try {
-      Map<String, String> params = DoctorKafkaServletUtil.parseQueryString(queryString);
       String clusterName = params.get("name");
+      KafkaClusterManager clusterManager = DoctorKafkaMain.doctorKafka.getClusterManager(clusterName);
+      if (clusterManager == null) {
+	ClusterInfoError error = new ClusterInfoError("Failed to find cluster manager for " + clusterName);
+	writer.print(gson.toJson(error));
+	return ;
+      }
+      writer.print(gson.toJson(clusterManager.toJson()));
+    } catch (Exception e) {
+      LOG.error("'name' parameter not found", e);
+      throw(e);
+    }
+  }
 
+  @Override
+  public void renderHTML(PrintWriter writer, Map<String, String> params) {
+    try {
+      printHeader(writer);
+      String clusterName = params.get("name");
       KafkaClusterManager clusterMananger;
       clusterMananger = DoctorKafkaMain.doctorKafka.getClusterManager(clusterName);
       if (clusterMananger == null) {
@@ -130,7 +139,7 @@ public class ClusterInfoServlet extends HttpServlet {
     } catch (Exception e) {
       LOG.error("Unexpected error", e);
     }
-    DoctorKafkaServletUtil.printFooter(writer);
+    printFooter(writer);
   }
 
   private void printTopicPartitionInfo(KafkaCluster cluster, PrintWriter writer) {
