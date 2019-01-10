@@ -46,7 +46,6 @@ public class DoctorKafkaWebServer implements Runnable {
 
       String warUrlString = warUrl.toExternalForm();
       WebAppContext webapp = new WebAppContext();
-      
 
       server.setHandler(webapp);
       server.start();

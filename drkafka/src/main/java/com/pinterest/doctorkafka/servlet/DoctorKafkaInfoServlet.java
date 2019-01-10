@@ -3,23 +3,20 @@ package com.pinterest.doctorkafka.servlet;
 
 import com.pinterest.doctorkafka.KafkaClusterManager;
 import com.pinterest.doctorkafka.DoctorKafkaMain;
-import com.pinterest.doctorkafka.servlet.DoctorKafkaServletUtil;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.google.gson.Gson;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonArray;
 
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.management.ManagementFactory;
 import java.util.Collection;
 import java.util.Map;
 import java.util.TreeMap;
 
-public class DoctorKafkaInfoServlet extends DoctorKafkaServletUtil {
+public class DoctorKafkaInfoServlet extends DoctorKafkaServlet {
 
   private static final Logger LOG = LogManager.getLogger(DoctorKafkaInfoServlet.class);
   private static final Gson gson = new Gson();

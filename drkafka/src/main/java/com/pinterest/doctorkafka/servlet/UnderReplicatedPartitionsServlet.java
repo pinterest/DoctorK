@@ -4,21 +4,18 @@ package com.pinterest.doctorkafka.servlet;
 import com.pinterest.doctorkafka.DoctorKafkaMain;
 import com.pinterest.doctorkafka.KafkaClusterManager;
 import com.pinterest.doctorkafka.errors.ClusterInfoError;
-import com.pinterest.doctorkafka.servlet.DoctorKafkaServletUtil;
 
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.google.gson.Gson;
-import com.google.gson.JsonObject;
 import com.google.gson.JsonArray;
 
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.List;
 import java.util.Map;
 
-public class UnderReplicatedPartitionsServlet extends DoctorKafkaServletUtil {
+public class UnderReplicatedPartitionsServlet extends DoctorKafkaServlet {
 
   private static final Logger LOG = LogManager.getLogger(UnderReplicatedPartitionsServlet.class);
   private static final Gson gson = new Gson();

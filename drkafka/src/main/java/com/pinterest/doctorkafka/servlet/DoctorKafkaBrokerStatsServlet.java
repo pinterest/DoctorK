@@ -8,14 +8,12 @@ import com.pinterest.doctorkafka.KafkaClusterManager;
 import com.pinterest.doctorkafka.ReplicaStat;
 import com.pinterest.doctorkafka.util.KafkaUtils;
 import com.pinterest.doctorkafka.errors.ClusterInfoError;
-import com.pinterest.doctorkafka.servlet.DoctorKafkaServletUtil;
 
 import org.apache.kafka.common.TopicPartition;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.google.gson.Gson;
 
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.NumberFormat;
 import java.util.Date;
@@ -24,7 +22,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
 
-public class DoctorKafkaBrokerStatsServlet extends DoctorKafkaServletUtil {
+public class DoctorKafkaBrokerStatsServlet extends DoctorKafkaServlet {
 
   private static final Logger LOG = LogManager.getLogger(DoctorKafkaBrokerStatsServlet.class);
   private static final Gson gson = new Gson();

@@ -105,14 +105,14 @@ mvn package -pl drkafka -am
 ```sh
 mvn package
 mkdir ${DOCTORKAFKA_INSTALL_DIR} # directory to place DoctorKafka binaries in.
-tar -zxvf target/doctorkafka-0.2.4.2-bin.tar.gz -C ${DOCTORKAFKA_INSTALL_DIR}
+tar -zxvf target/doctorkafka-0.2.4.3-bin.tar.gz -C ${DOCTORKAFKA_INSTALL_DIR}
 ```
 
 ##### Run DoctorKafka
 ```sh
 cd ${DOCTORKAFKA_INSTALL_DIR}
 
-java -server -cp lib/*:doctorkafka-0.2.4.2.jar  com.pinterest.doctorkafka.DoctorKafkaMain \
+java -server -cp lib/*:doctorkafka-0.2.4.3.jar  com.pinterest.doctorkafka.DoctorKafkaMain \
      server  dropwizard_yaml_file
 ```  
 
@@ -167,9 +167,10 @@ Detailed description of APIs can be found [docs/APIs.md](docs/APIs.md)
   * [Ambud Sharma](https://github.com/ambud)
 
 ## Contributors
+  * [Brian Gallew](https://github.com/BrianGallew)
+  * [Georgios Andrianakis](https://github.com/geoand)
   * [Jaakko Aro](https://github.com/jaakkoo)
   * [Patrick Double](https://github.com/double16)
-  * [Georgios Andrianakis](https://github.com/geoand)
 
 ## License
 

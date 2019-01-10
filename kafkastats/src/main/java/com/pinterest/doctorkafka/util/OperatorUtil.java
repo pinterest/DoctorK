@@ -164,7 +164,11 @@ public class OperatorUtil {
     } catch (IOException e) {
       LOG.warn("For host: " + host + " Unexpected exception", e);
     } finally {
-      consumer.close();
+      try {
+        consumer.close();
+      } catch (Exception e) {
+        LOG.error("Unexpected exception in closing consumer", e);
+      }
     }
     LOG.warn("Failed Fetching data from host {}, topic {}, parttion {}", host, topic, partition);
     return false;

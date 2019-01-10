@@ -7,7 +7,6 @@ import com.pinterest.doctorkafka.KafkaClusterManager;
 import com.pinterest.doctorkafka.replicastats.ReplicaStatsManager;
 import com.pinterest.doctorkafka.util.KafkaUtils;
 import com.pinterest.doctorkafka.errors.ClusterInfoError;
-import com.pinterest.doctorkafka.servlet.DoctorKafkaServletUtil;
 
 import org.apache.kafka.common.TopicPartition;
 import org.apache.logging.log4j.LogManager;
@@ -16,12 +15,11 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonArray;
 
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Map;
 import java.util.TreeSet;
 
-public class KafkaTopicStatsServlet extends DoctorKafkaServletUtil {
+public class KafkaTopicStatsServlet extends DoctorKafkaServlet {
 
   private static final Logger LOG = LogManager.getLogger(KafkaTopicStatsServlet.class);
   private static final Gson gson = new Gson();

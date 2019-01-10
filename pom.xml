@@ -6,7 +6,7 @@
 	<name>doctorkafka-parent</name>
 	<groupId>com.github.pinterest</groupId>
 	<artifactId>doctorkafka-parent</artifactId>
-	<version>0.2.4.2</version>
+	<version>0.2.4.3</version>
 	<packaging>pom</packaging>
 	<url>https://github.com/pinterest/doctorkafka</url>
 
@@ -79,6 +79,12 @@
 			<groupId>org.apache.avro</groupId>
 			<artifactId>avro</artifactId>
 			<version>1.8.2</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-api</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.kafka</groupId>

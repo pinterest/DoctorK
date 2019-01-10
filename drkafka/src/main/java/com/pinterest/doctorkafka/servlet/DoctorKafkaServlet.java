@@ -13,7 +13,6 @@ import org.eclipse.jetty.http.HttpStatus;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -26,7 +25,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-public class DoctorKafkaServletUtil extends HttpServlet {
+public class DoctorKafkaServlet extends HttpServlet {
   private static final Logger LOG = LogManager.getLogger(DoctorKafkaWebServer.class);
 
   public static String getVersion() {

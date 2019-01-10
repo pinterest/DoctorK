@@ -6,13 +6,11 @@ import com.pinterest.doctorkafka.DoctorKafkaMain;
 import com.pinterest.doctorkafka.KafkaCluster;
 import com.pinterest.doctorkafka.KafkaClusterManager;
 import com.pinterest.doctorkafka.errors.ClusterInfoError;
-import com.pinterest.doctorkafka.servlet.DoctorKafkaServletUtil;
 
 import kafka.cluster.Broker;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Collections;
 import java.util.List;
@@ -20,9 +18,9 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
-public class ClusterInfoServlet extends DoctorKafkaServletUtil {
+public class ClusterInfoServlet extends DoctorKafkaServlet {
 
-  private static final Logger LOG = LogManager.getLogger(DoctorKafkaServletUtil.class);
+  private static final Logger LOG = LogManager.getLogger(ClusterInfoServlet.class);
   private static final Gson gson = new Gson();
 
   @Override

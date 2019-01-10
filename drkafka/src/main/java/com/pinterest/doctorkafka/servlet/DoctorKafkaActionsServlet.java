@@ -4,7 +4,6 @@ import com.pinterest.doctorkafka.DoctorKafkaMain;
 import com.pinterest.doctorkafka.OperatorAction;
 import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
 import com.pinterest.doctorkafka.util.OperatorUtil;
-import com.pinterest.doctorkafka.servlet.DoctorKafkaServletUtil;
 
 import com.google.common.collect.Lists;
 import org.apache.avro.Schema;
@@ -21,7 +20,6 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonArray;
 
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -29,10 +27,9 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import javax.servlet.ServletException;
 
 
-public class DoctorKafkaActionsServlet extends DoctorKafkaServletUtil {
+public class DoctorKafkaActionsServlet extends DoctorKafkaServlet {
 
   private static final Logger LOG = LogManager.getLogger(DoctorKafkaActionsServlet.class);
   private static final Gson gson = new Gson();

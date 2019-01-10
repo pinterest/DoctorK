@@ -5,7 +5,7 @@
 	<parent>
 		<artifactId>doctorkafka-parent</artifactId>
 		<groupId>com.github.pinterest</groupId>
-		<version>0.2.4.2</version>
+		<version>0.2.4.3</version>
 		<relativePath>../pom.xml</relativePath>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
@@ -107,6 +107,12 @@
 			<groupId>io.dropwizard.metrics</groupId>
 			<artifactId>metrics-core</artifactId>
 			<version>3.2.3</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-api</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.curator</groupId>
