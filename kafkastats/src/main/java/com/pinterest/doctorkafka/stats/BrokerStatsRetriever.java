@@ -506,7 +506,8 @@ public class BrokerStatsRetriever {
       zkUrl = properties.getProperty(ZOOKEEPER_CONNECT);
       brokerStats.setZkUrl(zkUrl);
 
-      String securityProtocolStr = properties.getProperty(SECURITY_INTER_BROKER_PROTOCOL);
+      String securityProtocolStr = properties.containsKey(SECURITY_INTER_BROKER_PROTOCOL) ? properties.getProperty(SECURITY_INTER_BROKER_PROTOCOL)
+	                                                                                  : "PLAINTEXT";
       securityProtocol = Enum.valueOf(SecurityProtocol.class, securityProtocolStr);
 
       // log.dirs specifies the directories in which the log data is kept.
