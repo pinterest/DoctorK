@@ -99,7 +99,7 @@ public class DoctorKafkaBrokerStatsServlet extends DoctorKafkaServlet {
     printHtmlTableRow(writer, "BrokerId", stats.getId());
     printHtmlTableRow(writer, "Name", stats.getName());
     printHtmlTableRow(writer, "HasFailure", stats.getHasFailure());
-    printHtmlTableRow(writer, "KafkaVersioin", stats.getKafkaVersion());
+    printHtmlTableRow(writer, "KafkaVersion", stats.getKafkaVersion());
     printHtmlTableRow(writer, "KafkaStatsVersion", stats.getStatsVersion());
     printHtmlTableRow(writer, "LeadersIn1MinRate",
         NumberFormat.getNumberInstance(Locale.US).format(stats.getLeadersBytesIn1MinRate()));
