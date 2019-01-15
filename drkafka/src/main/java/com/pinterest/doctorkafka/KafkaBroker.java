@@ -64,6 +64,8 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
     json.add("rackId", gson.toJsonTree(rackId));
     json.add("bytesInPerSecLimit", gson.toJsonTree(bytesInPerSecLimit));
     json.add("bytesOutPerSecLimit", gson.toJsonTree(bytesOutPerSecLimit));
+    json.add("maxBytesOut", gson.toJsonTree(getMaxBytesOut()));
+    json.add("maxBytesIn", gson.toJsonTree(getMaxBytesIn()));
     return json;
   }
 
