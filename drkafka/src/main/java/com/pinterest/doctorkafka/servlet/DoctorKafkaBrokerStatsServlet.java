@@ -13,6 +13,7 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 import java.io.PrintWriter;
 import java.text.NumberFormat;
@@ -25,7 +26,7 @@ import java.util.TreeMap;
 public class DoctorKafkaBrokerStatsServlet extends DoctorKafkaServlet {
 
   private static final Logger LOG = LogManager.getLogger(DoctorKafkaBrokerStatsServlet.class);
-  private static final Gson gson = new Gson();
+  private static final Gson gson = (new GsonBuilder()).serializeSpecialFloatingPointValues().create();
 
   public BrokerStats getLatestStats(String clusterName, int brokerId)
     throws ClusterInfoError {
@@ -54,7 +55,6 @@ public class DoctorKafkaBrokerStatsServlet extends DoctorKafkaServlet {
     try {
       int brokerId = Integer.parseInt(params.get("brokerid"));
       String clusterName = params.get("cluster");
-
       BrokerStats latestStats = getLatestStats(clusterName, brokerId);
       writer.print(gson.toJson(latestStats));
     } catch (Exception e) {
@@ -99,7 +99,7 @@ public class DoctorKafkaBrokerStatsServlet extends DoctorKafkaServlet {
     printHtmlTableRow(writer, "BrokerId", stats.getId());
     printHtmlTableRow(writer, "Name", stats.getName());
     printHtmlTableRow(writer, "HasFailure", stats.getHasFailure());
-    printHtmlTableRow(writer, "KafkaVersioin", stats.getKafkaVersion());
+    printHtmlTableRow(writer, "KafkaVersion", stats.getKafkaVersion());
     printHtmlTableRow(writer, "KafkaStatsVersion", stats.getStatsVersion());
     printHtmlTableRow(writer, "LeadersIn1MinRate",
         NumberFormat.getNumberInstance(Locale.US).format(stats.getLeadersBytesIn1MinRate()));
