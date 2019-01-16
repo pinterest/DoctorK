@@ -55,8 +55,11 @@ public class DoctorKafkaBrokerStatsServlet extends DoctorKafkaServlet {
     try {
       int brokerId = Integer.parseInt(params.get("brokerid"));
       String clusterName = params.get("cluster");
-      BrokerStats latestStats = getLatestStats(clusterName, brokerId);
-      writer.print(gson.toJson(latestStats));
+      KafkaClusterManager clusterMananger =
+	DoctorKafkaMain.doctorKafka.getClusterManager(clusterName);
+      KafkaCluster cluster = clusterMananger.getCluster();
+      KafkaBroker broker = cluster.brokers.get(brokerId);
+      writer.print(broker.toJson());
     } catch (Exception e) {
       LOG.error("Unable to find cluster : {}", e.toString());
       writer.print(gson.toJson(e));
