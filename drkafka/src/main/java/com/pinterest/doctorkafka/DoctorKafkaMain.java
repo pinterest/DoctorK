@@ -21,6 +21,7 @@ import com.pinterest.doctorkafka.servlet.DoctorKafkaInfoServlet;
 import com.pinterest.doctorkafka.servlet.KafkaTopicStatsServlet;
 import com.pinterest.doctorkafka.servlet.UnderReplicatedPartitionsServlet;
 import com.pinterest.doctorkafka.util.OperatorUtil;
+import com.pinterest.doctorkafka.DoctorKafkaWatcher;
 
 import io.dropwizard.Application;
 import io.dropwizard.assets.AssetsBundle;
@@ -55,6 +56,9 @@ public class DoctorKafkaMain extends Application<DoctorKafkaAppConfig> {
     LOG.info("Configuration path : {}", configuration.getConfig());
 
     ReplicaStatsManager.config = new DoctorKafkaConfig(configuration.getConfig());
+
+    operatorWatcher = new DoctorKafkaWatcher(ReplicaStatsManager.config.getRestartIntervalInSeconds());
+    operatorWatcher.start();
 
     configureServerRuntime(configuration, ReplicaStatsManager.config);
 
