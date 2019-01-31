@@ -34,6 +34,7 @@ to some kafka topic based on configuration. The following is the kafkastats usag
 ```sh
 usage: KafkaMetricsCollector
  -broker <arg>                      kafka broker
+ -disable_ec2metadata               Disable the collection of host information using ec2metadata
  -jmxport <kafka jmx port number>   kafka jmx port number
  -kafka_config <arg>                kafka server properties file path
  -ostrichport <arg>                 ostrich port
