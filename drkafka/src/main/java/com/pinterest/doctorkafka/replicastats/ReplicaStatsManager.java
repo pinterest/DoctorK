@@ -190,7 +190,12 @@ public class ReplicaStatsManager {
     Map<TopicPartition, OffsetAndTimestamp> offsetsForTimes = kafkaConsumer
         .offsetsForTimes(partitionMap);
     for (Entry<TopicPartition, OffsetAndTimestamp> entry : offsetsForTimes.entrySet()) {
-      partitionMap.put(entry.getKey(), entry.getValue().offset());
+      if (entry.getValue() == null) {
+	LOG.info("Faking a zero for {}", entry.getKey());
+	partitionMap.put(entry.getKey(), 0L);
+      } else {
+	partitionMap.put(entry.getKey(), entry.getValue().offset());
+      }
     }
     return partitionMap;
   }
