@@ -4,6 +4,7 @@ import com.pinterest.doctorkafka.AvroTopicPartition;
 import com.pinterest.doctorkafka.BrokerError;
 import com.pinterest.doctorkafka.BrokerStats;
 import com.pinterest.doctorkafka.ReplicaStat;
+import com.pinterest.doctorkafka.stats.HostStats;
 import com.pinterest.doctorkafka.util.OperatorUtil;
 import com.pinterest.doctorkafka.util.KafkaUtils;
 
@@ -57,14 +58,16 @@ public class BrokerStatsRetriever {
   private String zkUrl = null;
   private String kafkaConfigPath;
   private BrokerStats brokerStats = null;
+  private HostStats hostStats = null;
   private SecurityProtocol securityProtocol = SecurityProtocol.PLAINTEXT;
   
   private NetworkStats currentNetworkStats;
   private String primaryNetworkInterfaceName;
 
-  public BrokerStatsRetriever(String kafkaConfigPath, String primaryNetworkInterfaceName) {
+  public BrokerStatsRetriever(String kafkaConfigPath, String primaryNetworkInterfaceName, HostStats hostStats) {
     this.kafkaConfigPath = kafkaConfigPath;
     this.primaryNetworkInterfaceName = primaryNetworkInterfaceName;
+    this.hostStats = hostStats;
   }
 
 
@@ -404,43 +407,10 @@ public class BrokerStatsRetriever {
    *  set information on availability zone, instance type, ami-id, hostname etc.
    */
   private void setBrokerInstanceInfo() {
-    BufferedReader input = null;
-    try {
-      Process process = Runtime.getRuntime().exec("ec2metadata");
-      input = new BufferedReader(new InputStreamReader(process.getInputStream()));
-
-      String outputLine;
-      while ((outputLine = input.readLine()) != null) {
-        String[] elements = outputLine.split(":");
-        if (elements.length != 2) {
-          continue;
-        }
-        if (elements[0].equals("availability-zone")) {
-          brokerStats.setAvailabilityZone(elements[1].trim());
-        } else if (elements[0].equals("instance-type")) {
-          brokerStats.setInstanceType(elements[1].trim());
-        } else if (elements[0].equals("ami-id")) {
-          brokerStats.setAmiId(elements[1].trim());
-        } else if (elements[0].equals("hostname")) { // This only works if the hostname is explicitly set in AWS
-          brokerStats.setName(elements[1].trim());
-        }
-      }
-    } catch (Exception e) {
-      LOG.error("Failed to get ec2 metadata", e);
-    } finally {
-      if (input != null) {
-        try {
-          input.close();
-        } catch (IOException e) {
-          LOG.error("Failed to close bufferReader", e);
-        }
-      }
-    }
-    // Not every Kafka cluster lives in AWS
-    if (brokerStats.getName() == null) {
-	brokerStats.setName(OperatorUtil.getHostname());
-    }
-    LOG.info("set hostname to {}", brokerStats.getName());
+    brokerStats.setAvailabilityZone(hostStats.getAvailabilityZone());
+    brokerStats.setInstanceType(hostStats.getInstanceType());
+    brokerStats.setAmiId(hostStats.getAmiId());
+    brokerStats.setName(hostStats.getHostname());
   }
 
   /**

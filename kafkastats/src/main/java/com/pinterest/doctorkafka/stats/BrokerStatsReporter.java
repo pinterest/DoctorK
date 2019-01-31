@@ -1,6 +1,7 @@
 package com.pinterest.doctorkafka.stats;
 
 import com.pinterest.doctorkafka.BrokerStats;
+import com.pinterest.doctorkafka.stats.HostStats;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.logging.log4j.LogManager;
@@ -28,6 +29,7 @@ public class BrokerStatsReporter implements Runnable {
   private KafkaAvroPublisher avroPublisher;
   private long pollingIntervalInSeconds;
   private String primaryNetworkInterfaceName;
+  private HostStats hostStats;
 
   public BrokerStatsReporter(String kafkaConfigPath, String host, String jmxPort,
                              KafkaAvroPublisher avroPublisher, long pollingIntervalInSeconds, String primaryNetworkInterfaceName) {
@@ -37,6 +39,7 @@ public class BrokerStatsReporter implements Runnable {
     this.avroPublisher = avroPublisher;
     this.pollingIntervalInSeconds = pollingIntervalInSeconds;
     this.primaryNetworkInterfaceName = primaryNetworkInterfaceName;
+    this.hostStats = new HostStats();
   }
 
 
@@ -52,7 +55,7 @@ public class BrokerStatsReporter implements Runnable {
 
   @Override
   public void run() {
-    BrokerStatsRetriever brokerStatsRetriever = new BrokerStatsRetriever(kafkaConfigPath, primaryNetworkInterfaceName);
+    BrokerStatsRetriever brokerStatsRetriever = new BrokerStatsRetriever(kafkaConfigPath, primaryNetworkInterfaceName, hostStats);
     try {
       BrokerStats stats = brokerStatsRetriever.retrieveBrokerStats(brokerHost, jmxPort);
       avroPublisher.publish(stats);
