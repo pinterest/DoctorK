@@ -28,15 +28,17 @@ public class BrokerStatsReporter implements Runnable {
   private KafkaAvroPublisher avroPublisher;
   private long pollingIntervalInSeconds;
   private String primaryNetworkInterfaceName;
+  private boolean disableEc2metadata;
 
   public BrokerStatsReporter(String kafkaConfigPath, String host, String jmxPort,
-                             KafkaAvroPublisher avroPublisher, long pollingIntervalInSeconds, String primaryNetworkInterfaceName) {
+                             KafkaAvroPublisher avroPublisher, long pollingIntervalInSeconds, String primaryNetworkInterfaceName, boolean disableEc2metadata) {
     this.brokerHost = host;
     this.jmxPort = jmxPort;
     this.kafkaConfigPath = kafkaConfigPath;
     this.avroPublisher = avroPublisher;
     this.pollingIntervalInSeconds = pollingIntervalInSeconds;
     this.primaryNetworkInterfaceName = primaryNetworkInterfaceName;
+    this.disableEc2metadata = disableEc2metadata;
   }
 
 
@@ -52,7 +54,7 @@ public class BrokerStatsReporter implements Runnable {
 
   @Override
   public void run() {
-    BrokerStatsRetriever brokerStatsRetriever = new BrokerStatsRetriever(kafkaConfigPath, primaryNetworkInterfaceName);
+    BrokerStatsRetriever brokerStatsRetriever = new BrokerStatsRetriever(kafkaConfigPath, primaryNetworkInterfaceName, disableEc2metadata);
     try {
       BrokerStats stats = brokerStatsRetriever.retrieveBrokerStats(brokerHost, jmxPort);
       avroPublisher.publish(stats);

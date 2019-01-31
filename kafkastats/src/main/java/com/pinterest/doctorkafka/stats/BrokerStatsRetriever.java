@@ -61,10 +61,12 @@ public class BrokerStatsRetriever {
   
   private NetworkStats currentNetworkStats;
   private String primaryNetworkInterfaceName;
+  private boolean disableEc2metadata;
 
-  public BrokerStatsRetriever(String kafkaConfigPath, String primaryNetworkInterfaceName) {
+  public BrokerStatsRetriever(String kafkaConfigPath, String primaryNetworkInterfaceName, boolean disableEc2metadata) {
     this.kafkaConfigPath = kafkaConfigPath;
     this.primaryNetworkInterfaceName = primaryNetworkInterfaceName;
+    this.disableEc2metadata = disableEc2metadata;
   }
 
 
@@ -405,6 +407,13 @@ public class BrokerStatsRetriever {
    */
   private void setBrokerInstanceInfo() {
     BufferedReader input = null;
+
+    // out quick if we don't want to use ec2metadata command.
+    if (disableEc2metadata) {
+      brokerStats.setName(OperatorUtil.getHostname());
+      return;
+    }
+    
     try {
       Process process = Runtime.getRuntime().exec("ec2metadata");
       input = new BufferedReader(new InputStreamReader(process.getInputStream()));
@@ -436,11 +445,6 @@ public class BrokerStatsRetriever {
         }
       }
     }
-    // Not every Kafka cluster lives in AWS
-    if (brokerStats.getName() == null) {
-	brokerStats.setName(OperatorUtil.getHostname());
-    }
-    LOG.info("set hostname to {}", brokerStats.getName());
   }
 
   /**
