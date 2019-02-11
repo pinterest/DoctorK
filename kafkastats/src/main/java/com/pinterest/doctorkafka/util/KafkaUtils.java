@@ -115,6 +115,10 @@ public class KafkaUtils {
     }
     return kafkaConsumers.get(key);
   }
+  
+  public static KafkaConsumer<?, ?> getCachedConsumer(String zkUrl) {
+    return kafkaConsumers.get(zkUrl);
+  }
 
   public static KafkaConsumer<?, ?> getKafkaConsumer(String zkUrl,
                                                String keyDeserializer, String valueDeserializer) {

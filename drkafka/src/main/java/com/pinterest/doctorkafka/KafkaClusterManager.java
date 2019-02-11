@@ -96,6 +96,7 @@ public class KafkaClusterManager implements Runnable {
   private Map<TopicPartition, ReassignmentInfo> reassignmentMap = new HashMap<>();
   private Map<TopicPartition, PreferredReplicaElectionInfo> preferredLeaders = new HashMap<>();
   private AtomicBoolean maintenanceMode = new AtomicBoolean(false);
+  private AtomicBoolean slowBalancerEnabled = new AtomicBoolean(false);
 
   public KafkaClusterManager(String zkUrl, KafkaCluster kafkaCluster,
                              DoctorKafkaClusterConfig clusterConfig,
@@ -114,6 +115,7 @@ public class KafkaClusterManager implements Runnable {
     this.bytesInLimit = clusterConfig.getNetworkInLimitInBytes();
     this.bytesOutLimit = clusterConfig.getNetworkOutLimitInBytes();
     this.zookeeperClient = zookeeperClient;
+    this.slowBalancerEnabled.set(clusterConfig.isSlowBalancerEnabled());
     if (clusterConfig.enabledDeadbrokerReplacement()) {
       this.brokerReplacer = new BrokerReplacer(drkafkaConfig.getBrokerReplacementCommand());
     }
@@ -136,7 +138,7 @@ public class KafkaClusterManager implements Runnable {
   public JsonElement toJson() {
     // Return a JSON representation of a Kafka Cluster.
     JsonObject json = new JsonObject();
-    KafkaConsumer kafkaConsumer = KafkaUtils.getKafkaConsumer(zkUrl, securityProtocol, consumerConfigs);
+    KafkaConsumer<byte[], byte[]> kafkaConsumer = KafkaUtils.getKafkaConsumer(zkUrl, securityProtocol, consumerConfigs);
     json.addProperty("zkUrl", zkUrl);
     json.add("bytesInLimit", gson.toJsonTree(bytesInLimit));
     json.add("bytesOutLimit", gson.toJsonTree(bytesOutLimit));
@@ -339,13 +341,11 @@ public class KafkaClusterManager implements Runnable {
     }
   }
 
-
   private Map<String, List<PartitionInfo>> getTopicPartitionInfoMap() {
-    KafkaConsumer kafkaConsumer = KafkaUtils.getKafkaConsumer(zkUrl, securityProtocol, consumerConfigs);
+    KafkaConsumer<byte[], byte[]> kafkaConsumer = KafkaUtils.getKafkaConsumer(zkUrl, securityProtocol, consumerConfigs);
     Map<String, List<PartitionInfo>> topicPartitonInfoMap = kafkaConsumer.listTopics();
     return topicPartitonInfoMap;
   }
-
 
   public List<KafkaBroker> getHighTrafficBroker() {
     List<KafkaBroker> highTrafficBrokers = kafkaCluster.getHighTrafficBrokers();
@@ -357,7 +357,6 @@ public class KafkaClusterManager implements Runnable {
     }
     return highTrafficBrokers;
   }
-
 
   /**
    * Generate the workload balancing plan in json.
@@ -414,6 +413,22 @@ public class KafkaClusterManager implements Runnable {
       }
     }
 
+    Map<String, Map<Integer, PartitionInfo>> tpInfoMap = buildTopicPartitionInfoMap(topicPartitonInfoMap);
+
+    Map<TopicPartition, Integer[]> assignmentPlan = new HashMap<>();
+    populateReassignmentMap(tpInfoMap, assignmentPlan);
+    if (assignmentPlan.size() > 0) {
+      scala.collection.Map<TopicAndPartition, Seq<Object>> proposedAssignment =
+          getAssignmentPlan(assignmentPlan);
+      String jsonReassignmentData = ZkUtils.formatAsReassignmentJson(proposedAssignment);
+      return jsonReassignmentData;
+    } else {
+      return "";
+    }
+  }
+
+  private Map<String, Map<Integer, PartitionInfo>> buildTopicPartitionInfoMap(
+      Map<String, List<PartitionInfo>> topicPartitonInfoMap) {
     Map<String, Map<Integer, PartitionInfo>> tpInfoMap = new HashMap<>();
     for (String topic : topicPartitonInfoMap.keySet()) {
       List<PartitionInfo> partitionInfos = topicPartitonInfoMap.get(topic);
@@ -423,27 +438,85 @@ public class KafkaClusterManager implements Runnable {
         partitionInfoMap.put(partitionInfo.partition(), partitionInfo);
       }
     }
+    return tpInfoMap;
+  }
 
-    Map<TopicPartition, Integer[]> assignmentPlan = new HashMap<>();
+  private void populateReassignmentMap(Map<String, Map<Integer, PartitionInfo>> tpInfoMap,
+      Map<TopicPartition, Integer[]> assignmentPlan) {
     // limit to reassign one partition per broker at a time to reduce congestion
     Set<Integer> sourceBrokerId = new HashSet<>();
-
     for (TopicPartition tp : reassignmentMap.keySet()) {
       ReassignmentInfo reassign = reassignmentMap.get(tp);
       PartitionInfo partitionInfo = tpInfoMap.get(tp.topic()).get(tp.partition());
 
-      Node[] replicas = partitionInfo.replicas();
-      Integer[] newReplicas = new Integer[partitionInfo.replicas().length];
-      for (int i = 0; i < replicas.length; i++) {
-        if (replicas[i].id() == reassign.source.id()) {
-          newReplicas[i] = reassign.dest.id();
-        } else {
-          newReplicas[i] = replicas[i].id();
-        }
-      }
+      Integer[] newReplicas = replaceBrokerPerReassignmentInfo(reassign, partitionInfo);
       assignmentPlan.put(tp, newReplicas);
       sourceBrokerId.add(reassign.source.id());
     }
+  }
+
+  private Integer[] replaceBrokerPerReassignmentInfo(ReassignmentInfo reassign, PartitionInfo partitionInfo) {
+    Node[] replicas = partitionInfo.replicas();
+    Integer[] newReplicas = new Integer[partitionInfo.replicas().length];
+    for (int i = 0; i < replicas.length; i++) {
+      if (replicas[i].id() == reassign.source.id()) {
+        newReplicas[i] = reassign.dest.id();
+      } else {
+        newReplicas[i] = replicas[i].id();
+      }
+    }
+    return newReplicas;
+  }
+  
+  
+  /**
+   * Generate the slow balancer plan in json.
+   */
+  public synchronized String getSlowBalancerFollowerReassignmentPlanInJson(List<KafkaBroker> highTrafficBrokers) {
+    kafkaCluster.clearResourceAllocationCounters();
+    reassignmentFailures.clear();
+
+    Map<String, List<PartitionInfo>> topicPartitonInfoMap = getTopicPartitionInfoMap();
+    double averageBytesIn = kafkaCluster.getMaxBytesIn() / (double) kafkaCluster.size();
+    double averageBytesOut = kafkaCluster.getMaxBytesOut() / (double) kafkaCluster.size();
+    LOG.info("Cluster {}: bytesInAvg={}, bytesOutAvg={}", zkUrl, averageBytesIn, averageBytesOut);
+
+    PartitionInfo candidatePartition = null;
+    for (KafkaBroker broker : highTrafficBrokers) {
+      try {
+        if (broker.getMaxBytesIn() > clusterConfig.getNetworkInLimitInBytes()) {
+          // only select 1 broker and 1 partition from that broker
+          // find the highest load partitions on this broker
+          List<TopicPartition> tpList = kafkaCluster.getHighestTrafficFollowerPartitionsForBroker(broker);
+          for (int i = 0; i < tpList.size(); i++) {
+            TopicPartition tp = tpList.get(i);
+            KafkaBroker leader = getLeaderBrokerForTopicPartition(tp, topicPartitonInfoMap);
+            if (leader.getMaxBytesOut() < clusterConfig.getNetworkInLimitInBytes()) {
+              // select topic partition if the leader has sufficient bandwidth available
+              KafkaBroker alternativeBroker = kafkaCluster.getAlternativeBroker(tp, 
+                  ReplicaStatsManager.getMaxBytesIn(getZkUrl(), tp), ReplicaStatsManager.getMaxBytesOut(getZkUrl(), tp));
+              // NOTE: bandwidth reservation is done by getAlternativeBroker method
+              candidatePartition = topicPartitonInfoMap.get(tp.topic()).get(tp.partition());
+              ReassignmentInfo reassign = new ReassignmentInfo(tp, broker, alternativeBroker);
+              reassignmentMap.put(tp, reassign);
+              // break out of the loop since we only want to rebalance one Topic Partition at a time
+              break;
+            }
+          }
+          break;
+        }
+      } catch (Exception e) {
+        LOG.info("Exception in generating assignment plan for {}", broker.name(), e);
+      }
+    }
+    // quit we don't have any broker to rebalance
+    if (candidatePartition == null) {
+      return "";
+    }
+
+    Map<String, Map<Integer, PartitionInfo>> tpInfoMap = buildTopicPartitionInfoMap(topicPartitonInfoMap);
+    Map<TopicPartition, Integer[]> assignmentPlan = new HashMap<>();
+    populateReassignmentMap(tpInfoMap, assignmentPlan);
     if (assignmentPlan.size() > 0) {
       scala.collection.Map<TopicAndPartition, Seq<Object>> proposedAssignment =
           getAssignmentPlan(assignmentPlan);
@@ -452,6 +525,16 @@ public class KafkaClusterManager implements Runnable {
     } else {
       return "";
     }
+  }
+  
+  
+  public KafkaBroker getLeaderBrokerForTopicPartition(TopicPartition tp, Map<String, List<PartitionInfo>> topicPartitonInfoMap) {
+    PartitionInfo partitionInfo = topicPartitonInfoMap.get(tp.topic()).get(tp.partition());
+    if (partitionInfo.partition() != tp.partition()) {
+      LOG.error("Partition idx mismatch for:" + tp);
+      return null;
+    }
+    return kafkaCluster.getBroker(partitionInfo.leader().id());
   }
 
 
@@ -608,7 +691,7 @@ public class KafkaClusterManager implements Runnable {
         success = false;
         for (int oosBrokerId : oosReplica.outOfSyncBrokers) {
           KafkaBroker broker = kafkaCluster.getBroker(oosBrokerId);
-          reassignmentFailures.add(new MutablePair(broker, oosReplica.topicPartition));
+          reassignmentFailures.add(new MutablePair<>(broker, oosReplica.topicPartition));
         }
         break;
       } else {
@@ -695,7 +778,6 @@ public class KafkaClusterManager implements Runnable {
         .entrySet()) {
       UnderReplicatedReason reason = entry.getValue();
       followerFailureOnly &= (reason == UnderReplicatedReason.FOLLOWER_FAILURE);
-      MutablePair<Integer, Integer> pair = entry.getKey();
     }
     LOG.info("Down brokers: " + downBrokers);
 
@@ -828,8 +910,8 @@ public class KafkaClusterManager implements Runnable {
       scala.collection.mutable.Map<String, scala.collection.Map<Object, Seq<Object>>> partitionAssignments,
       Map<String, Integer> replicationFactors,
       Map<String, Integer> partitionCounts) {
-    List<PartitionInfo> underReplicated = new ArrayList();
-    KafkaConsumer kafkaConsumer = KafkaUtils.getKafkaConsumer(zkUrl, securityProtocol, consumerConfigs);
+    List<PartitionInfo> underReplicated = new ArrayList<>();
+    KafkaConsumer<byte[], byte[]> kafkaConsumer = KafkaUtils.getKafkaConsumer(zkUrl, securityProtocol, consumerConfigs);
     for (String topic : topics) {
       List<PartitionInfo> partitionInfoList = kafkaConsumer.partitionsFor(topic);
       if (partitionInfoList == null) {

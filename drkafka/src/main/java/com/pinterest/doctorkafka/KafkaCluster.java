@@ -13,6 +13,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonArray;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -350,5 +351,21 @@ public class KafkaCluster {
       strBuilder.append(entry.getValue() + "\n");
     }
     return strBuilder.toString();
+  }
+
+  /**
+   * @param broker
+   * @return topic partition with highest In traffic
+   */
+  public List<TopicPartition> getHighestTrafficFollowerPartitionsForBroker(KafkaBroker broker) {
+    List<TopicPartition> sortedTopicByTraffic = new ArrayList<>(broker.getFollowerTopicPartitions());
+    sortedTopicByTraffic.sort(new Comparator<TopicPartition>() {
+
+      @Override
+      public int compare(TopicPartition o1, TopicPartition o2) {
+        return Double.compare(ReplicaStatsManager.getMaxBytesIn(zkUrl, o2), ReplicaStatsManager.getMaxBytesIn(zkUrl, o1));
+      }
+    });
+    return sortedTopicByTraffic;
   }
 }

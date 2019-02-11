@@ -7,10 +7,13 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
+import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.logging.log4j.LogManager;
@@ -18,12 +21,17 @@ import org.apache.logging.log4j.Logger;
 
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.SlidingWindowReservoir;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.pinterest.doctorkafka.BrokerStats;
 import com.pinterest.doctorkafka.KafkaCluster;
 import com.pinterest.doctorkafka.ReplicaStat;
 import com.pinterest.doctorkafka.config.DoctorKafkaClusterConfig;
 import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
 import com.pinterest.doctorkafka.util.KafkaUtils;
+
+import kafka.utils.ZkUtils;
 
 public class ReplicaStatsManager {
 
@@ -49,9 +57,25 @@ public class ReplicaStatsManager {
 
   public static ConcurrentHashMap<String, ConcurrentHashMap<TopicPartition, Long>>
       replicaReassignmentTimestamps = new ConcurrentHashMap<>();
+  
+  private static LoadingCache<String, Map<String, List<PartitionInfo>>> partitionInfoMap;
 
   public static void initialize(DoctorKafkaConfig conf) {
     config = conf;
+    partitionInfoMap = CacheBuilder.newBuilder().expireAfterWrite(10, TimeUnit.SECONDS)
+        .build(new CacheLoader<String, Map<String, List<PartitionInfo>>>(){
+
+      @Override
+      public Map<String, List<PartitionInfo>> load(String key) throws Exception {
+        return KafkaUtils.getCachedConsumer(key).listTopics();
+      }
+      
+    });
+  }
+  
+  public static Map<String, List<PartitionInfo>> 
+                    getPartitionInfoMapForCluster(String zkUrl) throws ExecutionException {
+    return partitionInfoMap.get(zkUrl);
   }
 
   public static void updateReplicaReassignmentTimestamp(String brokerZkUrl,

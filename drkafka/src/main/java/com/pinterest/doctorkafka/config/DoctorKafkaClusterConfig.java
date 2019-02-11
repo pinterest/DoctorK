@@ -34,6 +34,7 @@ public class DoctorKafkaClusterConfig {
   private static final String SECURITY_PROTOCOL = "security.protocol";
   private static final String NOTIFICATION_EMAIL = "notification.email";
   private static final String NOTIFICATION_PAGER = "notificatino.pager";
+  private static final String SLOW_BALANCER = "slow_balancer.enabled";
 
   private static final int DEFAULT_DEADBROKER_REPLACEMENT_NO_STATS_SECONDS = 1200;
   private static final int DEFAULT_UNDER_REPLICTED_ALERT_IN_SECS = 7200;
@@ -64,6 +65,10 @@ public class DoctorKafkaClusterConfig {
       result = clusterConfiguration.getBoolean(ENABLE_WORLOAD_BALANCING);
     }
     return result;
+  }
+  
+  public boolean isSlowBalancerEnabled() {
+    return clusterConfiguration.getBoolean(SLOW_BALANCER, false);
   }
 
   public double getNetworkInLimitInMb() {

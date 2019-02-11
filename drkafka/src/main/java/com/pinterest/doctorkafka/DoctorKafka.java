@@ -4,6 +4,7 @@ import com.pinterest.doctorkafka.config.DoctorKafkaClusterConfig;
 import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
 import com.pinterest.doctorkafka.replicastats.BrokerStatsProcessor;
 import com.pinterest.doctorkafka.replicastats.ReplicaStatsManager;
+import com.pinterest.doctorkafka.util.KafkaUtils;
 import com.pinterest.doctorkafka.util.ZookeeperClient;
 
 import org.apache.kafka.common.security.auth.SecurityProtocol;
@@ -46,6 +47,13 @@ public class DoctorKafka {
     SecurityProtocol statsSecurityProtocol = drkafkaConf.getBrokerStatsConsumerSecurityProtocol();
     String actionReportTopic = drkafkaConf.getActionReportTopic();
     SecurityProtocol actionReportSecurityProtocol = drkafkaConf.getActionReportProducerSecurityProtocol();
+    
+    // Pre-warm consumers cache for clusters
+    for (String zkUrl : clusterZkUrls) {
+      DoctorKafkaClusterConfig clusterConf = drkafkaConf.getClusterConfigByZkUrl(zkUrl);
+      KafkaUtils.getKafkaConsumer(zkUrl, 
+          clusterConf.getSecurityProtocol(), clusterConf.getConsumerConfigurations());
+    }
 
     LOG.info("Start rebuilding the replica stats by reading the past 24 hours brokerstats");
     ReplicaStatsManager.readPastReplicaStats(brokerstatsZkurl, statsSecurityProtocol,

@@ -3,6 +3,7 @@ package com.pinterest.doctorkafka;
 import com.pinterest.doctorkafka.config.DoctorKafkaClusterConfig;
 import com.pinterest.doctorkafka.replicastats.ReplicaStatsManager;
 
+import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -15,7 +16,9 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 public class KafkaBroker implements Comparable<KafkaBroker> {
@@ -80,11 +83,23 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
     return result;
   }
 
-
   public long getMaxBytesOut() {
+    Map<String, List<PartitionInfo>> partitionInfoMap = null;
+    try {
+      partitionInfoMap = ReplicaStatsManager.getPartitionInfoMapForCluster(zkUrl);
+    } catch (ExecutionException e) {
+      LOG.error("Failed to get partition info map for cluster", e);
+    }
     long result = 0L;
     for (TopicPartition topicPartition : leaderReplicas) {
       result += ReplicaStatsManager.getMaxBytesOut(zkUrl, topicPartition);
+      // calculate replication traffic
+      if (partitionInfoMap != null) {
+        PartitionInfo partitionInfo = partitionInfoMap.get(topicPartition.topic())
+            .get(topicPartition.partition());
+        long maxBytesIn = ReplicaStatsManager.getMaxBytesIn(zkUrl, topicPartition);
+        result += partitionInfo.replicas().length * maxBytesIn;
+      }
     }
     return result;
   }
