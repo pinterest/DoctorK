@@ -25,8 +25,15 @@ public class ClusterInfoServlet extends DoctorKafkaServlet {
 
   @Override
   public void renderJSON(PrintWriter writer, Map<String, String> params) {
+    String clusterName;
     try {
-      String clusterName = params.get("name");
+      clusterName = params.get("name");
+    } catch (Exception e) {
+      LOG.error("'name' parameter not found");
+      return ;
+    }
+
+    try {
       KafkaClusterManager clusterManager = DoctorKafkaMain.doctorKafka.getClusterManager(clusterName);
       if (clusterManager == null) {
 	ClusterInfoError error = new ClusterInfoError("Failed to find cluster manager for " + clusterName);
@@ -35,7 +42,7 @@ public class ClusterInfoServlet extends DoctorKafkaServlet {
       }
       writer.print(gson.toJson(clusterManager.toJson()));
     } catch (Exception e) {
-      LOG.error("'name' parameter not found", e);
+      LOG.error("Unexpected error: {}", e);
       throw(e);
     }
   }

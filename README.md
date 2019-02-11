@@ -8,7 +8,7 @@ DoctorKafka is a service for [Kafka] cluster auto healing and workload balancing
 
  * Automated cluster healing by moving partitions on failed brokers to other brokers
  * Workload balancing among brokers
- * Centralized management of multiple kafka clusters 
+ * Centralized management of multiple kafka clusters
 
 #### Detailed design
 
@@ -25,34 +25,50 @@ cd doctorkafka
 ##### Build kafka stats collector and deployment it to kafka brokers 
 
 ```sh
-mvn package -pl kafkastats -am 
+mvn package -pl kafkastats -am
 ```
 
-Kafkastats is a kafka broker stats collector that runs on kafka brokers and reports broker stats 
+Kafkastats is a kafka broker stats collector that runs on kafka brokers and reports broker stats
 to some kafka topic based on configuration. The following is the kafkastats usage.
 
-```usage: KafkaMetricsCollector
-    -jmxport <kafka jmx port number>   kafka process jmx port number
-    -kafka_config <arg>                kafka server properties file path
-    -ostrichport <arg>                 ostrich port
-    -pollingintervalinseconds <arg>    kafka broker stats polling interval in seconds
-    -topic <arg>                       the kafka topic that metric messages are sent to
-    -tsdhostport <arg>                 tsd host and port for tsdb
-    -uptimeinseconds <arg>             how often kafkastats should restart itself. 
-    -zookeeper <arg>                   zookeeper url for the metrics topic
+```sh
+usage: KafkaMetricsCollector
+ -broker <arg>                      kafka broker
+ -disable_ec2metadata               Disable the collection of host information using ec2metadata
+ -jmxport <kafka jmx port number>   kafka jmx port number
+ -kafka_config <arg>                kafka server properties file path
+ -ostrichport <arg>                 ostrich port
+ -pollingintervalinseconds <arg>    polling interval in seconds
+ -primary_network_ifacename <arg>   network interface used by kafka
+ -producer_config <arg>             kafka_stats producer config
+ -topic <arg>                       kafka topic for metric messages
+ -tsdhostport <arg>                 tsd host and port, e.g.
+                                    localhost:18621
+ -uptimeinseconds <arg>             uptime in seconds
+ -zookeeper <arg>                   zk url for metrics topic
 ```
 
 The following is a sample command line for running kafkastats collector:
 
 ```
-java -server -cp /opt/kafkastats:/opt/kafkastats/*:/opt/kafkastats/lib/*    \ 
-     -Dlog4j.configuration= com.pinterest.doctorkafka.stats.KafkaStatsMain  \
-     -jmxport 9999 -topic brokerstats -zookeeper zookeeper001:2181/cluster1 \
-     -tsdhostport localhost:18126 -ostrichport 2051 -uptimeinseconds 3600   \
-     -pollingintervalinseconds 60 -kafka_config /etc/kafka/server.properties
+java -server \
+    -Dlog4j.configurationFile=file:./log4j2.xml \
+    -cp lib/*:kafkastats-0.2.4.3.jar \
+    com.pinterest.doctorkafka.stats.kafkastatsmain \
+        -broker 127.0.0.1 \
+        -jmxport 9999 \
+        -topic brokerstats \
+        -zookeeper zookeeper001:2181/cluster1 \
+        -uptimeinseconds 3600 \
+        -pollingintervalinseconds 60 \
+        -ostrichport 2051 \
+        -tsdhostport localhost:18126 \
+        -kafka_config /etc/kafka/server.properties \
+        -producer_config /etc/kafka/producer.properties \
+        -primary_network_ifacename eth0
 ```
 
-Using the above command as an example, after the kafkastats process is up, we can check the process stats using ```curl -s ``` command, and view the logs under /var/log/kafkastats. 
+Using the above command as an example, after the kafkastats process is up, we can check the process stats using ```curl -s ``` command, and view the logs under /var/log/kafkastats.
 
 ```
 curl -s localhost:2051/stats.txt
@@ -64,13 +80,13 @@ The following is a sample upstart scripts for automatically restarting kafkastat
    start on runlevel [2345]
    respawn
    respawn limit 20 5
-   
+
    env NAME=kafkastats
    env JAVA_HOME=/usr/lib/jvm/java-8-oracle
    env STATSCOLLECTOR_HOME=/opt/kafkastats
    env LOG_DIR=/var/log/kafkastats
    env HOSTNAME=$(hostname)
-   
+
    script
        DAEMON=$JAVA_HOME/bin/java
        CLASSPATH=$STATSCOLLECTOR_HOME:$STATSCOLLECTOR_HOME/*:$STATSCOLLECTOR_HOME/lib/*
@@ -81,18 +97,24 @@ The following is a sample upstart scripts for automatically restarting kafkastat
        -XX:ErrorFile=$LOG_DIR/jvm_error.log \
        -cp $CLASSPATH"
        exec $DAEMON $DAEMON_OPTS -Dlog4j.configuration=${LOG_PROPERTIES} \
-                    com.pinterest.kafka.stats.KafkaStatsMain \
-                    -jmxport 9999  -topic brokerstats  \
+                    com.pinterest.doctorkafka.stats.kafkastatsmain \
+                    -broker 127.0.0.1 \
+                    -jmxport 9999 \
+                    -topic brokerstats \
                     -zookeeper zookeeper001:2181/cluster1 \
-                    -tsdhostport localhost:18126 -ostrichport 2051 \
-                    -uptimeinseconds 3600 -pollingintervalinseconds 60 \
-                    -kafka_config  /etc/kafka/server.properties
+                    -uptimeinseconds 3600 \
+                    -pollingintervalinseconds 60 \
+                    -ostrichport 2051 \
+                    -tsdhostport localhost:18126 \
+                    -kafka_config /etc/kafka/server.properties \
+                    -producer_config /etc/kafka/producer.properties \
+                    -primary_network_ifacename eth0
 ```
 
 
 ##### Customize doctorkafka configuration parameters
 
-Edit `drkafka/config/*.properties` files to specify parameters describing the environment. Those files contain 
+Edit `drkafka/config/*.properties` files to specify parameters describing the environment. Those files contain
 comments describing the meaning of individual parameters.
 
 
@@ -112,11 +134,14 @@ tar -zxvf target/doctorkafka-0.2.4.3-bin.tar.gz -C ${DOCTORKAFKA_INSTALL_DIR}
 ```sh
 cd ${DOCTORKAFKA_INSTALL_DIR}
 
-java -server -cp lib/*:doctorkafka-0.2.4.3.jar  com.pinterest.doctorkafka.DoctorKafkaMain \
-     server  dropwizard_yaml_file
-```  
+java -server \
+    -cp lib/*:doctorkafka-0.2.4.3.jar \
+    com.pinterest.doctorkafka.DoctorKafkaMain \
+        server dropwizard_yaml_file
+```
 
-DoctorKafka only requires one line in [DropWizard](https://www.dropwizard.io/1.0.0/docs/manual/configuration.html) yaml file: 
+The above `dropwizard_yaml_file` is the path to a standard [DropWizard configuration file ](https://www.dropwizard.io/1.0.0/docs/manual/configuration.html)
+that only requires the following line pointing to your `doctorkafka.properties` path.
 
 ```
 config:  $doctorkafka_config_properties_file_path
@@ -124,7 +149,7 @@ config:  $doctorkafka_config_properties_file_path
 
 ##### Customize configuration parameters
 
-Edit `src/main/config/*.properties` files to specify parameters describing the environment. 
+Edit `src/main/config/*.properties` files to specify parameters describing the environment.
 Those files contain comments describing the meaning of individual parameters.
 
 
@@ -135,14 +160,18 @@ DoctorKafka comes with a number of tools implementing interactions with the envi
 
 ```bash
 cd ${DOCTORKAFKA_INSTALL_DIR}
-java8 -Dlog4j.configurationFile=file:./log4j2.xml  -cp  lib/*:doctorkafka-0.1.0.jar \
-      com.pinterest.doctorkafka.tools.ClusterLoadBalancer \
-      -brokerstatstopic  brokerstats -brokerstatszk  zookeeper001:2181/cluster1  \
-      -clusterzk  zookeeper001:2181,zookeeper002:2181,zookeeper003:2181/cluster2 \
-      -config  ./drkafka/config/doctorkafka.prod.properties
+java -server \
+    -Dlog4j.configurationFile=file:drkafka/config/log4j2.xml \
+    -cp drkafka/target/lib/*:drkafka/target/doctorkafka-0.2.4.3.jar \
+    com.pinterest.doctorkafka.tools.ClusterLoadBalancer \
+        -brokerstatstopic  brokerstats \
+        -brokerstatszk zookeeper001:2181/cluster1 \
+        -clusterzk zookeeper001:2181,zookeeper002:2181,zookeeper003:2181/cluster2 \
+        -config ./drkafka/config/doctorkafka.properties \
+        -seconds 3600
 ```
 Cluster load balancer balances the workload among brokers to make sure the broker network
-usage does not exceed the threshold. 
+usage does not exceed the threshold.
 
 
 ## DoctorKafka UI 
@@ -156,8 +185,8 @@ DoctorKafka uses [dropwizard-core module](https://www.dropwizard.io/1.3.5/docs/m
 
 The following APIs are available for DoctorKafka:
 
-	- List Cluster
-	- Maintenance Mode
+    - List Cluster
+    - Maintenance Mode
 
 Detailed description of APIs can be found [docs/APIs.md](docs/APIs.md)
 

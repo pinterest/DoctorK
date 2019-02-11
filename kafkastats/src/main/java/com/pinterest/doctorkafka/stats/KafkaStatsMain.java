@@ -41,6 +41,7 @@ public class KafkaStatsMain {
   private static final String UPTIME_IN_SECONDS = "uptimeinseconds";
   private static final String POLLING_INTERVAL = "pollingintervalinseconds";
   private static final String KAFKA_CONFIG = "kafka_config";
+  private static final String DISABLE_EC2METADATA = "disable_ec2metadata";
 
   // The producer configuration for writing to the kafkastats topic
   private static final String STATS_PRODUCER_CONFIG = "producer_config";
@@ -70,6 +71,7 @@ public class KafkaStatsMain {
     Option uptimeInSeconds = new Option(UPTIME_IN_SECONDS, true, "uptime in seconds");
     Option pollingInterval = new Option(POLLING_INTERVAL, true, "polling interval in seconds");
     Option kafkaConfig = new Option(KAFKA_CONFIG, true, "kafka server properties file path");
+    Option disableEc2metadata = new Option(DISABLE_EC2METADATA, false, "Disable collecting host information via ec2metadata");
     Option statsProducerConfig = new Option(STATS_PRODUCER_CONFIG, true,
         "kafka_stats producer config");
     Option primaryNetworkInterfaceName = new Option(PRIMARY_INTERFACE_NAME, true,
@@ -78,7 +80,7 @@ public class KafkaStatsMain {
     options.addOption(jmxPort).addOption(host).addOption(zookeeper).addOption(topic)
         .addOption(tsdHostPort).addOption(ostrichPort).addOption(uptimeInSeconds)
         .addOption(pollingInterval).addOption(kafkaConfig).addOption(statsProducerConfig)
-        .addOption(primaryNetworkInterfaceName);
+        .addOption(primaryNetworkInterfaceName).addOption(disableEc2metadata);
 
     if (args.length < 6) {
       printUsageAndExit();
@@ -123,6 +125,7 @@ public class KafkaStatsMain {
     long pollingInterval = Long.parseLong(commandLine.getOptionValue(POLLING_INTERVAL));
     String primaryNetworkInterfaceName = commandLine.getOptionValue(PRIMARY_INTERFACE_NAME,
         DEFAULT_PRIMARY_INTERFACE_NAME);
+    boolean disableEc2metadata = commandLine.hasOption(DISABLE_EC2METADATA);
 
     String statsProducerPropertiesConfig = null;
     if (commandLine.hasOption(STATS_PRODUCER_CONFIG)) {
@@ -131,7 +134,7 @@ public class KafkaStatsMain {
 
     avroPublisher = new KafkaAvroPublisher(zkUrl, destTopic, statsProducerPropertiesConfig);
     brokerStatsReporter = new BrokerStatsReporter(kafkaConfigPath, host, jmxPort, avroPublisher,
-        pollingInterval, primaryNetworkInterfaceName);
+	pollingInterval, primaryNetworkInterfaceName, disableEc2metadata);
     brokerStatsReporter.start();
 
     collectorMonitor = new CollectorMonitor(uptimeInSeconds);

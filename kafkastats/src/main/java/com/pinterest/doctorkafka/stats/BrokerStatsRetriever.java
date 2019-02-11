@@ -61,10 +61,12 @@ public class BrokerStatsRetriever {
   
   private NetworkStats currentNetworkStats;
   private String primaryNetworkInterfaceName;
+  private boolean disableEc2metadata;
 
-  public BrokerStatsRetriever(String kafkaConfigPath, String primaryNetworkInterfaceName) {
+  public BrokerStatsRetriever(String kafkaConfigPath, String primaryNetworkInterfaceName, boolean disableEc2metadata) {
     this.kafkaConfigPath = kafkaConfigPath;
     this.primaryNetworkInterfaceName = primaryNetworkInterfaceName;
+    this.disableEc2metadata = disableEc2metadata;
   }
 
 
@@ -405,6 +407,13 @@ public class BrokerStatsRetriever {
    */
   private void setBrokerInstanceInfo() {
     BufferedReader input = null;
+
+    // out quick if we don't want to use ec2metadata command.
+    if (disableEc2metadata) {
+      brokerStats.setName(OperatorUtil.getHostname());
+      return;
+    }
+    
     try {
       Process process = Runtime.getRuntime().exec("ec2metadata");
       input = new BufferedReader(new InputStreamReader(process.getInputStream()));
@@ -436,11 +445,6 @@ public class BrokerStatsRetriever {
         }
       }
     }
-    // Not every Kafka cluster lives in AWS
-    if (brokerStats.getName() == null) {
-	brokerStats.setName(OperatorUtil.getHostname());
-    }
-    LOG.info("set hostname to {}", brokerStats.getName());
   }
 
   /**
@@ -647,37 +651,29 @@ public class BrokerStatsRetriever {
     brokerStats.setCpuUsage(cpuLoad);
     computeTopicPartitionReplicaCpuUsage(cpuLoad, brokerStats.getLeaderReplicaStats());
     
-    Map<String, NetworkStats> systemNetworkStats = getSystemNetworkStats();
-    NetworkStats networkStats = systemNetworkStats.get(primaryNetworkInterfaceName);
-    if (networkStats == null) {
-      brokerStats.setHasFailure(true);
-      return brokerStats;
-    }
-    computeNetworkStats(networkStats, brokerStats);
-    
     brokerStats.setHasFailure(false);
-    
     return brokerStats;
   }
   
   private void computeNetworkStats(NetworkStats networkStats, BrokerStats brokerStats) {
     if(this.currentNetworkStats == null) {
       this.currentNetworkStats = networkStats;
+    } else {
+      // take delta of timestamp
+      long deltaT = networkStats.getTimestamp() - currentNetworkStats.getTimestamp();
+      // convert to seconds
+      deltaT = deltaT / 1000;
+
+      if (deltaT > 0) {
+        long rxRate = networkStats.getRxBytes() - currentNetworkStats.getRxBytes();
+        long txRate = networkStats.getTxBytes() - currentNetworkStats.getTxBytes();
+        // per second average rate during the poll window
+        brokerStats.setSysBytesIn1MinRate(rxRate / deltaT);
+        brokerStats.setSysBytesOut1MinRate(txRate / deltaT);
+      }
+      // update the current for next poll
+      currentNetworkStats = networkStats;
     }
-    // take delta of timestamp
-    long deltaT = networkStats.getTimestamp() - currentNetworkStats.getTimestamp();
-    // convert to seconds
-    deltaT = deltaT / 1000; 
-    
-    long rxRate = networkStats.getRxBytes() - currentNetworkStats.getRxBytes();
-    long txRate = networkStats.getTxBytes() - currentNetworkStats.getTxBytes();
-    
-    // per second average rate during the poll window
-    brokerStats.setSysBytesIn1MinRate(rxRate/deltaT);
-    brokerStats.setSysBytesOut1MinRate(txRate/deltaT);
-    
-    // update the current for next poll
-    currentNetworkStats = networkStats;
   }
 
   public static class NetworkStats {
