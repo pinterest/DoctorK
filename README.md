@@ -97,7 +97,7 @@ The following is a sample upstart scripts for automatically restarting kafkastat
        -XX:ErrorFile=$LOG_DIR/jvm_error.log \
        -cp $CLASSPATH"
        exec $DAEMON $DAEMON_OPTS -Dlog4j.configuration=${LOG_PROPERTIES} \
-                    com.pinterest.doctorkafka.stats.kafkastatsmain \
+                    com.pinterest.doctorkafka.stats.KafkaStatsMain \
                     -broker 127.0.0.1 \
                     -jmxport 9999 \
                     -topic brokerstats \
