@@ -276,7 +276,6 @@ public class KafkaCluster {
         }
       }
       unusableBrokers.stream().forEach(broker -> brokerQueue.add(broker));
-      brokerQueue.add(leastUsedBroker);
     }
     return success ? result : null;
   }
