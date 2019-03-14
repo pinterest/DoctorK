@@ -83,7 +83,7 @@ public class Email {
   }
   
   public static void notifyOnMaintenanceMode(String[] emails, String clusterName, boolean maintenanceMode) {
-    String title = maintenanceMode ? clusterName + " is in Maintenance mode" : " is out of Maintenance mode";
+    String title = clusterName + (maintenanceMode ? " is in Maintenance mode" : " is out of Maintenance mode");
     String content = "Cluster:" + clusterName + " was placed " + (maintenanceMode ? "in maintenance mode"
         : "out of maintenance mode") + " at " + new Date();
     sendTo(emails, title, content);
