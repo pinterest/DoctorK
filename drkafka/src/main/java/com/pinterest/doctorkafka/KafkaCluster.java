@@ -251,8 +251,8 @@ public class KafkaCluster {
 
     boolean success = true;
     Map<Integer, KafkaBroker> result = new HashMap<>();
+    List<KafkaBroker> unusableBrokers = new ArrayList<>();
     for (int oosBrokerId : oosReplica.outOfSyncBrokers) {
-      List<KafkaBroker> unusableBrokers = new ArrayList<>();
       // we will get the broker with the least network usage
       KafkaBroker leastUsedBroker = brokerQueue.poll();
       while (leastUsedBroker != null && oosReplica.replicaBrokers.contains(leastUsedBroker.id())) {
@@ -270,14 +270,16 @@ public class KafkaCluster {
         }
         if (success) {
           result.put(oosBrokerId, leastUsedBroker);
+          // the broker should not be used again for this topic partition.
+          unusableBrokers.add(leastUsedBroker);
         } else {
           LOG.error("Failed to allocate resource to replace {}:{}", oosReplica, oosBrokerId);
           success = false;
         }
       }
-      unusableBrokers.stream().forEach(broker -> brokerQueue.add(broker));
-      brokerQueue.add(leastUsedBroker);
     }
+    // push the brokers back to brokerQueue to keep invariant true
+    brokerQueue.addAll(unusableBrokers);
     return success ? result : null;
   }
 
