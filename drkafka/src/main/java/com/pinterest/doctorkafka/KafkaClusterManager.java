@@ -599,9 +599,10 @@ public class KafkaClusterManager implements Runnable {
       List<OutOfSyncReplica> outOfSyncReplicas) {
     Map<TopicPartition, Integer[]> replicasMap = new HashMap<>();
     boolean success = true;
-
-    PriorityQueue<KafkaBroker> brokerQueue = kafkaCluster.getBrokerQueue();
+    PriorityQueue<KafkaBroker> brokerQueue;
     for (OutOfSyncReplica oosReplica : outOfSyncReplicas) {
+      // rebuild broker queue each time to get up-to-date results
+      brokerQueue = kafkaCluster.getBrokerQueue();
       Map<Integer, KafkaBroker> replacedNodes =
           kafkaCluster.getAlternativeBrokers(brokerQueue, oosReplica);
       if (replacedNodes == null) {
