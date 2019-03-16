@@ -80,6 +80,7 @@
 			<artifactId>commons-validator</artifactId>
 			<version>1.6</version>
 		</dependency>
+		<!--Use aggregated junit-jupiter to fix previous mismatch of multiple junit dependencies-->
 		<dependency>
 			<groupId>org.junit.jupiter</groupId>
 			<artifactId>junit-jupiter</artifactId>

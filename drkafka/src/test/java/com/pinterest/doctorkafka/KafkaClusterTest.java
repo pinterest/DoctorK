@@ -24,11 +24,18 @@ class KafkaClusterTest {
   private static final String TOPIC = "test_topic";
   private static final String ZOOKEEPER_URL = "zk001/cluster1";
 
+  /**
+   * This test assures that getAlternativeBrokers does not return a many-to-one reassignment
+   * We want to make sure that multiple out-of-sync replicas of the same topic partition will not
+   * map to the same replacement broker, or duplicate reassigments will happen leading to invalid
+   * reassignment plans.
+   */
   @Test
   void getAlternativeBrokersDuplicateReassignmentTest() throws Exception{
     DoctorKafkaConfig config = new DoctorKafkaConfig("./config/doctorkafka.properties");
     DoctorKafkaClusterConfig doctorKafkaClusterConfig = config.getClusterConfigByName("cluster1");
 
+     // create histogram maps to mock network stats per topic partition
     ConcurrentMap<String, ConcurrentMap<TopicPartition, Histogram>> oldBytesInStats = ReplicaStatsManager.bytesInStats;
     ConcurrentMap<String, ConcurrentMap<TopicPartition, Histogram>> oldBytesOutStats = ReplicaStatsManager.bytesOutStats;
 
@@ -98,16 +105,19 @@ class KafkaClusterTest {
 
     int beforeSize = brokerQueue.size();
 
-    /**
-     * Since the BytesInStats/BytesOutStats are not set,
+    /*
      * getMaxBytesIn() and getMaxBytesOut() will return 0 for each broker,
-     * so brokerQueue won't change
-     **/
+     * so the ordering of the brokers will not change after reassignment
+     */
     Map<Integer, KafkaBroker> altBrokers = kafkaCluster.getAlternativeBrokers(brokerQueue, oosReplica);
 
+    // There should be a valid reassignment for this scenario
     assertNotNull(altBrokers);
+    // Broker 0 should not be reassigned since it is still in sync
     assertNull(altBrokers.get(0));
+    // The reassignment of broker 1 and 2 should be different brokers
     assertNotEquals(altBrokers.get(1), altBrokers.get(2));
+    // The broker queue should contain the same amount of brokers
     assertEquals(beforeSize, brokerQueue.size());
 
     ReplicaStatsManager.bytesInStats = oldBytesInStats;
