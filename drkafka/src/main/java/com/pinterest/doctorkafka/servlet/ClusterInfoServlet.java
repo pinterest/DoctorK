@@ -126,7 +126,7 @@ public class ClusterInfoServlet extends DoctorKafkaServlet {
             ? String.format("<td> %.2f seconds ago </td>", lastUpdateTime)
             : String.format("<td class=\"text-danger\"> %.2f seconds ago </td>", lastUpdateTime);
 
-        int partitionCount = broker.getLatestStats().getNumLeaders()+broker.getLatestStats().getNumReplicas();
+        int partitionCount = broker.getLatestStats().getNumReplicas();
         String html = String.format(
             "<td>%d</td> <td> %s </td> <td> %.2f</td> <td>%.2f</td> <td>%d</td> %s",
             brokerEntry.getKey(),
