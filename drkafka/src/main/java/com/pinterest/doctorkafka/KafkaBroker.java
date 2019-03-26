@@ -181,7 +181,7 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
    *
    *  @param stats the broker stats
    */
-  public void update(BrokerStats stats) {
+  public synchronized void update(BrokerStats stats) {
     if (stats == null
         || (latestStats != null && latestStats.getTimestamp() > stats.getTimestamp())
         || stats.getHasFailure()) {

@@ -2,9 +2,11 @@ package com.pinterest.doctorkafka.replicastats;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
@@ -50,6 +52,8 @@ public class ReplicaStatsManager {
   public static ConcurrentHashMap<String, ConcurrentHashMap<TopicPartition, Long>>
       replicaReassignmentTimestamps = new ConcurrentHashMap<>();
 
+  public static Set<String> clusterZkUrls = null;
+
   public static void initialize(DoctorKafkaConfig conf) {
     config = conf;
   }
@@ -90,29 +94,18 @@ public class ReplicaStatsManager {
   public static void update(BrokerStats brokerStats) {
     String brokerZkUrl = brokerStats.getZkUrl();
     // ignore the brokerstats from clusters that are not enabled operation automation.
-    if (!config.getClusterZkUrls().contains(brokerZkUrl)) {
+    if (clusterZkUrls == null) {
+      clusterZkUrls = config.getClusterZkUrls();
+    }
+    if (brokerZkUrl == null || !clusterZkUrls.contains(brokerZkUrl)) {
       return;
     }
 
-    KafkaCluster cluster;
-    synchronized (clusters) {
-      if (brokerZkUrl != null && !clusters.containsKey(brokerZkUrl)) {
-        DoctorKafkaClusterConfig clusterConfig = config.getClusterConfigByZkUrl(brokerZkUrl);
-        assert clusterConfig != null;
-
-        cluster = new KafkaCluster(brokerZkUrl, clusterConfig);
-        clusters.put(brokerZkUrl, cluster);
-      }
-      cluster = clusters.get(brokerZkUrl);
-    }
+    KafkaCluster cluster = clusters.computeIfAbsent(brokerZkUrl, url -> new KafkaCluster(url, config.getClusterConfigByZkUrl(url)));
     cluster.recordBrokerStats(brokerStats);
 
-    if (!bytesInStats.containsKey(brokerZkUrl)) {
-      bytesInStats.put(brokerZkUrl, new ConcurrentHashMap<>());
-    }
-    if (!bytesOutStats.containsKey(brokerZkUrl)) {
-      bytesOutStats.put(brokerZkUrl, new ConcurrentHashMap<>());
-    }
+    bytesInStats.putIfAbsent(brokerZkUrl, new ConcurrentHashMap<>());
+    bytesOutStats.putIfAbsent(brokerZkUrl, new ConcurrentHashMap<>());
 
     if (brokerStats.getLeaderReplicaStats() != null) {
       ConcurrentMap<TopicPartition, Histogram> bytesInHistograms = bytesInStats.get(brokerZkUrl);
@@ -130,15 +123,8 @@ public class ReplicaStatsManager {
           continue;
         }
 
-        if (!bytesInHistograms.containsKey(topicPartition)) {
-          Histogram histogram = new Histogram(new SlidingWindowReservoir(SLIDING_WINDOW_SIZE));
-          bytesInHistograms.putIfAbsent(topicPartition, histogram);
-        }
-
-        if (!bytesOutHistograms.containsKey(topicPartition)) {
-          Histogram histogram = new Histogram(new SlidingWindowReservoir(SLIDING_WINDOW_SIZE));
-          bytesOutHistograms.putIfAbsent(topicPartition, histogram);
-        }
+        bytesInHistograms.computeIfAbsent(topicPartition, k -> new Histogram(new SlidingWindowReservoir(SLIDING_WINDOW_SIZE)));
+        bytesOutHistograms.computeIfAbsent(topicPartition, k -> new Histogram(new SlidingWindowReservoir(SLIDING_WINDOW_SIZE)));
 
         bytesInHistograms.get(topicPartition).update(replicaStat.getBytesIn15MinMeanRate());
         bytesOutHistograms.get(topicPartition).update(replicaStat.getBytesOut15MinMeanRate());

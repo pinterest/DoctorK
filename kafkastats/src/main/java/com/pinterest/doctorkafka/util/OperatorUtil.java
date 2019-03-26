@@ -62,6 +62,8 @@ public class OperatorUtil {
   private static final int FETCH_BUFFER_SIZE = 4 * 1024 * 1024;
   private static final int FETCH_RETRIES = 3;
   private static final int FETCH_MAX_WAIT_MS = 1; // this is the same wait as simmpleConsumerShell
+  // Reuse the reader to improve performance
+  private static final SpecificDatumReader<BrokerStats> brokerStatsReader = new SpecificDatumReader<>(BrokerStats.getClassSchema());
 
   public static String getHostname() {
     String hostName;
@@ -264,11 +266,8 @@ public class OperatorUtil {
   public static BrokerStats deserializeBrokerStats(ConsumerRecord<byte[], byte[]> record) {
     try {
       BinaryDecoder binaryDecoder = avroDecoderFactory.binaryDecoder(record.value(), null);
-      Schema schema = BrokerStats.getClassSchema();
-
-      SpecificDatumReader<BrokerStats> reader = new SpecificDatumReader<>(schema);
       BrokerStats stats = new BrokerStats();
-      reader.read(stats, binaryDecoder);
+      brokerStatsReader.read(stats, binaryDecoder);
       return stats;
     } catch (Exception e) {
       LOG.debug("Fail to decode an message", e);
