@@ -3,6 +3,7 @@ package com.pinterest.doctorkafka;
 import com.pinterest.doctorkafka.config.DoctorKafkaClusterConfig;
 import com.pinterest.doctorkafka.replicastats.ReplicaStatsManager;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -28,6 +29,7 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
   private int brokerPort = 9092;
   private String rackId;
   private BrokerStats latestStats;
+
   private Set<TopicPartition> leaderReplicas;
   private Set<TopicPartition> followerReplicas;
 
@@ -115,7 +117,35 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
     return latestStats == null ? 0 : latestStats.getTimestamp();
   }
 
+  public boolean reserveBandwidth(TopicPartition tp, double inBound, double outBound){
+    if (bytesInPerSecLimit > getMaxBytesIn() + reservedBytesIn + inBound &&
+        bytesOutPerSecLimit > getMaxBytesOut() + reservedBytesOut + outBound) {
+      reservedBytesIn += inBound;
+      reservedBytesOut += outBound;
+      toBeAddedReplicas.add(tp);
+      return true;
+    }
+    return false;
+  }
 
+  /**
+   * cancels reservation of bandwidth for a TopicPartition
+   * @param tp TopicPartition to cancel reservation
+   * @param inBound amount of in-bound traffic to remove from broker
+   * @param outBound amount of out-bound traffic to remove from broker
+   * @return if reserved bandwidth has been successfully removed from broker
+   */
+  public boolean removeReservedBandwidth(TopicPartition tp, double inBound, double outBound){
+    if ( toBeAddedReplicas.contains(tp) ){
+      reservedBytesIn -= inBound;
+      reservedBytesOut -= outBound;
+      toBeAddedReplicas.remove(tp);
+      return true;
+    }
+    return false;
+  }
+
+  @Deprecated
   public boolean reserveInBoundBandwidth(TopicPartition tp, double inBound) {
     if (bytesInPerSecLimit > getMaxBytesIn() + reservedBytesIn + inBound) {
       reservedBytesIn += inBound;
@@ -138,6 +168,7 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
    * @param outBound  the outbound bandwidth requirements in bytes/second
    * @return whether the reservation is successful or not.
    */
+  @Deprecated
   public boolean reserveOutBoundBandwidth(TopicPartition tp, double outBound) {
     if (bytesOutPerSecLimit > getMaxBytesOut() + reservedBytesOut + outBound) {
       reservedBytesOut += outBound;
@@ -178,6 +209,14 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
     this.toBeAddedReplicas.clear();
   }
 
+  protected void setLeaderReplicas(Set<TopicPartition> leaderReplicas) {
+    this.leaderReplicas = leaderReplicas;
+  }
+
+  protected void setFollowerReplicas(Set<TopicPartition> followerReplicas) {
+    this.followerReplicas= followerReplicas;
+  }
+
   /**
    *  Record the stats, and update the topic partition list based on the stats
    *
@@ -196,12 +235,21 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
       rackId = stats.getRackId() != null ? stats.getRackId() : stats.getAvailabilityZone();
     }
 
-    // TODO: handle null poniter expceiton properly
-    leaderReplicas = stats.getLeaderReplicas().stream().map(tps ->
-        new TopicPartition(tps.getTopic(), tps.getPartition())).collect(Collectors.toSet());
+    if (stats.getLeaderReplicas() != null) {
+      setLeaderReplicas(stats.getLeaderReplicas()
+          .stream()
+          .map(tps -> new TopicPartition(tps.getTopic(), tps.getPartition()))
+          .collect(Collectors.toSet())
+      );
+    }
 
-    followerReplicas = stats.getFollowerReplicas().stream().map(tps ->
-        new TopicPartition(tps.getTopic(), tps.getPartition())).collect(Collectors.toSet());
+    if (stats.getFollowerReplicas() != null ) {
+      setFollowerReplicas(stats.getFollowerReplicas()
+          .stream()
+          .map(tps -> new TopicPartition(tps.getTopic(), tps.getPartition()))
+          .collect(Collectors.toSet())
+      );
+    }
   }
 
   /**
@@ -218,6 +266,20 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
 
   public BrokerStats getLatestStats() {
     return latestStats;
+  }
+
+  @VisibleForTesting
+  protected void setLatestStats(BrokerStats brokerStats){
+    this.latestStats = brokerStats;
+  }
+
+  public String getRackId(){
+    return rackId;
+  }
+
+  @VisibleForTesting
+  protected void setRackId(String rackId){
+    this.rackId = rackId;
   }
 
 
