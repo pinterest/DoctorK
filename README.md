@@ -54,7 +54,7 @@ The following is a sample command line for running kafkastats collector:
 java -server \
     -Dlog4j.configurationFile=file:./log4j2.xml \
     -cp lib/*:kafkastats-0.2.4.4.jar \
-    com.pinterest.doctorkafka.stats.kafkastatsmain \
+    com.pinterest.doctorkafka.stats.KafkaStatsMain \
         -broker 127.0.0.1 \
         -jmxport 9999 \
         -topic brokerstats \
