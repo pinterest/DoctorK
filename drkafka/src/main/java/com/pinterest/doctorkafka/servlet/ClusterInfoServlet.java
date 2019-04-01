@@ -152,7 +152,7 @@ public class ClusterInfoServlet extends DoctorKafkaServlet {
     writer.print("<div> <h4> Topics </h4> </div>");
     writer.print("<div> <table class=\"table\"> <tbody>");
     int topicId = 1;
-    TreeSet<String> topics = new TreeSet<>(cluster.topics);
+    TreeSet<String> topics = new TreeSet<>(cluster.topicPartitions.keySet());
     for (String topic : topics) {
       writer.print("<tr> <td> " + topicId + "</td> <td>");
       writer.print("<a href=\"/servlet/topicstats?cluster=" + cluster.name()
