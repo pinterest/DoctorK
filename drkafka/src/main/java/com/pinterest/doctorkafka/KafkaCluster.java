@@ -22,6 +22,7 @@ import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 
 /**
@@ -42,19 +43,15 @@ public class KafkaCluster {
 
   private DoctorKafkaClusterConfig clusterConfig;
   public String zkUrl;
-  public Map<Integer, KafkaBroker> brokers;
-
-  private Map<Integer, LinkedList<BrokerStats>> brokerStatsMap;
-
-  public Map<String, Set<TopicPartition>> topicPartitions = new HashMap<>();
-
-  public Set<String> topics = new HashSet<>();
+  public ConcurrentMap<Integer, KafkaBroker> brokers;
+  private ConcurrentMap<Integer, LinkedList<BrokerStats>> brokerStatsMap;
+  public ConcurrentMap<String, Set<TopicPartition>> topicPartitions = new ConcurrentHashMap<>();
 
   public KafkaCluster(String zookeeper, DoctorKafkaClusterConfig clusterConfig) {
     this.zkUrl = zookeeper;
     this.brokers = new ConcurrentHashMap<>();
     this.clusterConfig = clusterConfig;
-    this.brokerStatsMap = new HashMap<>();
+    this.brokerStatsMap = new ConcurrentHashMap<>();
   }
 
   public int size() {
@@ -71,24 +68,23 @@ public class KafkaCluster {
    *
    * @param brokerStats  the broker stats
    */
-  public synchronized void recordBrokerStats(BrokerStats brokerStats) {
+  public void recordBrokerStats(BrokerStats brokerStats) {
     try {
       int brokerId = brokerStats.getId();
-      if (!brokerStatsMap.containsKey(brokerId)) {
-        brokerStatsMap.put(brokerId, new LinkedList<>());
+      LinkedList<BrokerStats> brokerStatsList = brokerStatsMap.computeIfAbsent(brokerId, i -> new LinkedList<>());
+
+      // multiple PastReplicaStatsProcessor/BrokerStatsProcessor may be processing BrokerStats
+      // for the same broker simultaneously, thus enforcing single writes here
+      synchronized (brokerStatsList){
+        if (brokerStatsList.size() == MAX_NUM_STATS) {
+          brokerStatsList.removeFirst();
+        }
+        brokerStatsList.addLast(brokerStats);
       }
-      LinkedList<BrokerStats> brokerStatsList = brokerStatsMap.get(brokerId);
-      if (brokerStatsList.size() == MAX_NUM_STATS) {
-        brokerStatsList.removeFirst();
-      }
-      brokerStatsList.addLast(brokerStats);
 
       if (!brokerStats.getHasFailure()) {
         // only record brokerstat when there is no failure on that broker.
-        if (!brokers.containsKey(brokerId)) {
-          brokers.put(brokerId, new KafkaBroker(clusterConfig, brokerId));
-        }
-        KafkaBroker broker = brokers.get(brokerId);
+        KafkaBroker broker = brokers.computeIfAbsent(brokerId, i -> new KafkaBroker(clusterConfig, i));
         broker.update(brokerStats);
       }
 
@@ -96,11 +92,9 @@ public class KafkaCluster {
         for (AvroTopicPartition atp : brokerStats.getLeaderReplicas()) {
           String topic = atp.getTopic();
           TopicPartition tp = new TopicPartition(topic, atp.getPartition());
-          topics.add(topic);
-          if (!topicPartitions.containsKey(topic)) {
-            topicPartitions.put(topic, new HashSet<>());
-          }
-          topicPartitions.get(topic).add(tp);
+          topicPartitions
+              .computeIfAbsent(topic, t -> new HashSet<>())
+              .add(tp);
         }
       }
     } catch (Exception e) {

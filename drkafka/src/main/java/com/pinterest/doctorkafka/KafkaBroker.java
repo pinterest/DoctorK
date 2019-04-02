@@ -9,7 +9,6 @@ import org.apache.logging.log4j.Logger;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonArray;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -181,7 +180,7 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
    *
    *  @param stats the broker stats
    */
-  public void update(BrokerStats stats) {
+  public synchronized void update(BrokerStats stats) {
     if (stats == null
         || (latestStats != null && latestStats.getTimestamp() > stats.getTimestamp())
         || stats.getHasFailure()) {
