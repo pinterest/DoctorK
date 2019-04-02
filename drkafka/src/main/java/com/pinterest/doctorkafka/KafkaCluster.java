@@ -73,6 +73,8 @@ public class KafkaCluster {
       int brokerId = brokerStats.getId();
       LinkedList<BrokerStats> brokerStatsList = brokerStatsMap.computeIfAbsent(brokerId, i -> new LinkedList<>());
 
+      // multiple PastReplicaStatsProcessor/BrokerStatsProcessor may be processing BrokerStats
+      // for the same broker simultaneously, thus enforcing single writes here
       synchronized (brokerStatsList){
         if (brokerStatsList.size() == MAX_NUM_STATS) {
           brokerStatsList.removeFirst();
