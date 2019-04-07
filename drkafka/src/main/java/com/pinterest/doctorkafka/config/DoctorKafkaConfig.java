@@ -35,6 +35,7 @@ public class DoctorKafkaConfig {
       "action.broker_replacement.interval.seconds";
   private static final String BROKER_REPLACEMENT_COMMAND = "action.broker_replacement.command";
   private static final String OSTRICH_PORT = "ostrich.port";
+  private static final String RESTART_DISABLE = "restart.disabled";
   private static final String RESTART_INTERVAL_SECONDS = "restart.interval.seconds";
   private static final String DOCTORKAFKA_ZKURL = "zkurl";
   private static final String TSD_HOSTPORT = "tsd.hostport";
@@ -207,5 +208,9 @@ public class DoctorKafkaConfig {
   public String[] getAlertEmails() {
     String emailsStr = drkafkaConfiguration.getString(ALERT_EMAILS);
     return emailsStr.split(",");
+  }
+
+  public boolean getRestartDisabled(){
+    return drkafkaConfiguration.getBoolean(RESTART_DISABLE, false);
   }
 }
