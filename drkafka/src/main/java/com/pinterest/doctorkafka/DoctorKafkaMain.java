@@ -57,7 +57,7 @@ public class DoctorKafkaMain extends Application<DoctorKafkaAppConfig> {
 
     ReplicaStatsManager.config = new DoctorKafkaConfig(configuration.getConfig());
 
-    if (ReplicaStatsManager.config.getRestartDisabled()){
+    if (!ReplicaStatsManager.config.getRestartDisabled()){
       operatorWatcher = new DoctorKafkaWatcher(ReplicaStatsManager.config.getRestartIntervalInSeconds());
       operatorWatcher.start();
     }
