@@ -1,7 +1,9 @@
 package com.pinterest.doctorkafka.replicastats;
 
 import com.pinterest.doctorkafka.BrokerStats;
+import com.pinterest.doctorkafka.DoctorKafkaMetrics;
 import com.pinterest.doctorkafka.util.KafkaUtils;
+import com.pinterest.doctorkafka.util.OpenTsdbMetricConverter;
 import com.pinterest.doctorkafka.util.OperatorUtil;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -77,6 +79,7 @@ public class PastReplicaStatsProcessor implements Runnable {
         for (ConsumerRecord<byte[], byte[]> record : records) {
           BrokerStats brokerStats = OperatorUtil.deserializeBrokerStats(record);
           if (brokerStats == null || brokerStats.getName() == null) {
+            OpenTsdbMetricConverter.incr(DoctorKafkaMetrics.MESSAGE_DESERIALIZE_ERROR, 1);
             continue;
           }
           ReplicaStatsManager.update(brokerStats);

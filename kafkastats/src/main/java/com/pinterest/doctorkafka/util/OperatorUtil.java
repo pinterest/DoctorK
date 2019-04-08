@@ -276,7 +276,7 @@ public class OperatorUtil {
   }
 
 
-  public static void startOstrichService(String tsdbHostPort, int ostrichPort) {
+  public static void startOstrichService(String serviceName, String tsdbHostPort, int ostrichPort) {
     final int TSDB_METRICS_PUSH_INTERVAL_IN_MILLISECONDS = 10 * 1000;
     OstrichAdminService ostrichService = new OstrichAdminService(ostrichPort);
     ostrichService.startAdminHttpService();
@@ -287,7 +287,7 @@ public class OperatorUtil {
         MetricsPusher metricsPusher = new MetricsPusher(
             pushHostPort.getHost(),
             pushHostPort.getPort(),
-            new OpenTsdbMetricConverter("KafkaOperator", HostName),
+            new OpenTsdbMetricConverter(serviceName, HostName),
             TSDB_METRICS_PUSH_INTERVAL_IN_MILLISECONDS);
         metricsPusher.start();
         LOG.info("OpenTsdb metrics pusher started!");

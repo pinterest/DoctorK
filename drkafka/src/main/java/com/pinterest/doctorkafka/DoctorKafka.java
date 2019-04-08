@@ -33,6 +33,8 @@ public class DoctorKafka {
 
   private ZookeeperClient zookeeperClient = null;
 
+  private DoctorKafkaHeartbeat heartbeat = null;
+
   public DoctorKafka(DoctorKafkaConfig drkafkaConf) {
     this.drkafkaConf = drkafkaConf;
     this.clusterZkUrls = drkafkaConf.getClusterZkUrls();
@@ -72,11 +74,15 @@ public class DoctorKafka {
       clusterManager.start();
       LOG.info("Starting cluster manager for " + clusterZkUrl);
     }
+
+    heartbeat = new DoctorKafkaHeartbeat();
+    heartbeat.start();
   }
 
   public void stop() {
     brokerStatsProcessor.stop();
     zookeeperClient.close();
+    heartbeat.stop();
     for (KafkaClusterManager clusterManager : clusterManagers.values()) {
       clusterManager.stop();
     }
@@ -97,4 +103,5 @@ public class DoctorKafka {
   public List<String> getClusterNames() {
     return new ArrayList<>(clusterManagers.keySet());
   }
+
 }
