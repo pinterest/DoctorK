@@ -21,7 +21,6 @@ import com.pinterest.doctorkafka.servlet.DoctorKafkaInfoServlet;
 import com.pinterest.doctorkafka.servlet.KafkaTopicStatsServlet;
 import com.pinterest.doctorkafka.servlet.UnderReplicatedPartitionsServlet;
 import com.pinterest.doctorkafka.util.OperatorUtil;
-import com.pinterest.doctorkafka.DoctorKafkaWatcher;
 
 import io.dropwizard.Application;
 import io.dropwizard.assets.AssetsBundle;
@@ -128,7 +127,7 @@ public class DoctorKafkaMain extends Application<DoctorKafkaAppConfig> {
       throw new NoSuchElementException(
           String.format("Key '%s' does not map to an existing object!", OSTRICH_PORT));
     } else {
-      OperatorUtil.startOstrichService(tsdHostPort, ostrichPort);
+      OperatorUtil.startOstrichService("doctorkafka", tsdHostPort, ostrichPort);
     }
   }
 

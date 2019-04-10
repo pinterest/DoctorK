@@ -1,6 +1,7 @@
 package com.pinterest.doctorkafka.replicastats;
 
 import com.pinterest.doctorkafka.BrokerStats;
+import com.pinterest.doctorkafka.DoctorKafka;
 import com.pinterest.doctorkafka.DoctorKafkaMetrics;
 import com.pinterest.doctorkafka.util.OpenTsdbMetricConverter;
 import com.pinterest.doctorkafka.util.OperatorUtil;
@@ -72,6 +73,7 @@ public class BrokerStatsProcessor implements Runnable {
             BrokerStats brokerStats = OperatorUtil.deserializeBrokerStats(record);
             if (brokerStats == null || brokerStats.getName() == null) {
               // ignore the messages that the operator fails to deserialize
+              OpenTsdbMetricConverter.incr(DoctorKafkaMetrics.MESSAGE_DESERIALIZE_ERROR, 1);
               continue;
             }
 

@@ -142,7 +142,7 @@ public class KafkaStatsMain {
     if (tsdHostPort == null && ostrichPort == null) {
       LOG.info("OpenTSDB and Ostrich options missing, not starting Ostrich service");
     } else {
-      OperatorUtil.startOstrichService(tsdHostPort, Integer.parseInt(ostrichPort));
+      OperatorUtil.startOstrichService("kafkastats", tsdHostPort, Integer.parseInt(ostrichPort));
     }
     shutdownLatch.await(10, TimeUnit.SECONDS);
   }
