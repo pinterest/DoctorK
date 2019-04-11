@@ -194,12 +194,16 @@ Detailed description of APIs can be found [docs/APIs.md](docs/APIs.md)
   * [Yu Yang](https://github.com/yuyang08)
   * [Henry Cai](https://github.com/HenryCaiHaiying)
   * [Ambud Sharma](https://github.com/ambud)
+  * [Ping-Min Lin](https://github.com/kabochya)
 
 ## Contributors
   * [Brian Gallew](https://github.com/BrianGallew)
   * [Georgios Andrianakis](https://github.com/geoand)
   * [Jaakko Aro](https://github.com/jaakkoo)
   * [Patrick Double](https://github.com/double16)
+  * [Paul Kiernan](https://github.com/paulkiernan)
+  * [Brian Sang](https://github.com/Baisang)
+  * [Nitin Agrawal](https://github.com/nitin456)
 
 ## License
 

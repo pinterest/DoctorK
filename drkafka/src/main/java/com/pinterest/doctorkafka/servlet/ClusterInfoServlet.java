@@ -36,9 +36,9 @@ public class ClusterInfoServlet extends DoctorKafkaServlet {
     try {
       KafkaClusterManager clusterManager = DoctorKafkaMain.doctorKafka.getClusterManager(clusterName);
       if (clusterManager == null) {
-	ClusterInfoError error = new ClusterInfoError("Failed to find cluster manager for " + clusterName);
-	writer.print(gson.toJson(error));
-	return ;
+        ClusterInfoError error = new ClusterInfoError("Failed to find cluster manager for " + clusterName);
+        writer.print(gson.toJson(error));
+        return ;
       }
       writer.print(gson.toJson(clusterManager.toJson()));
     } catch (Exception e) {
@@ -138,9 +138,7 @@ public class ClusterInfoServlet extends DoctorKafkaServlet {
         writer.print("</tr>");
       }
       writer.print("</tbody> </table>");
-
       printTopicPartitionInfo(cluster, writer);
-
     } catch (Exception e) {
       LOG.error("Unexpected error", e);
     }
@@ -148,7 +146,6 @@ public class ClusterInfoServlet extends DoctorKafkaServlet {
   }
 
   private void printTopicPartitionInfo(KafkaCluster cluster, PrintWriter writer) {
-
     writer.print("<div> <h4> Topics </h4> </div>");
     writer.print("<div> <table class=\"table\"> <tbody>");
     int topicId = 1;

@@ -27,18 +27,22 @@
     </licenses>
 
     <developers>
-		<developer>
-			<id>yuyang08</id>
-			<name>Yu Yang</name>
-		</developer>
-		<developer>
-			<id>HenryCaiHaiying</id>
-			<name>Henry Cai</name>
-		</developer>
-		<developer>
-			<id>ambud</id>
-			<name>Ambud</name>
-		</developer>
+        <developer>
+            <id>yuyang08</id>
+            <name>Yu Yang</name>
+        </developer>
+        <developer>
+            <id>HenryCaiHaiying</id>
+            <name>Henry Cai</name>
+        </developer>
+        <developer>
+            <id>ambud</id>
+            <name>Ambud Sharma</name>
+        </developer>
+        <developer>
+            <id>kabochya</id>
+            <name>Ping-Min Lin</name>
+        </developer>
 	</developers>
 
     <scm>
