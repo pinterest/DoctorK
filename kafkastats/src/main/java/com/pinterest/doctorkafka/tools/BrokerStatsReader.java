@@ -30,7 +30,6 @@ public class BrokerStatsReader {
   private static final Logger LOG = LogManager.getLogger(BrokerStatsReader.class);
   private static final String ZOOKEEPER = "zookeeper";
   private static final String STATS_TOPIC = "topic";
-  private static final String SECURITY_PROTOCOL = "security.protocol";
   private static final DecoderFactory avroDecoderFactory = DecoderFactory.get();
 
   private static final Options options = new Options();
@@ -42,8 +41,7 @@ public class BrokerStatsReader {
 
     Option zookeeper = new Option(ZOOKEEPER, true, "zookeeper connection string");
     Option statsTopic = new Option(STATS_TOPIC, true, "kafka topic for broker stats");
-    Option securityProtcol = new Option(SECURITY_PROTOCOL, true, "security protocol for reading from kafka");
-    options.addOption(zookeeper).addOption(statsTopic).addOption(securityProtcol);
+    options.addOption(zookeeper).addOption(statsTopic);
 
     CommandLineParser parser = new DefaultParser();
     CommandLine cmd = null;
