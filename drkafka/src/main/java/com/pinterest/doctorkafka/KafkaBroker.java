@@ -39,7 +39,9 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
   private long reservedBytesOut;
   private Set<TopicPartition>  toBeAddedReplicas;
 
-  public KafkaBroker(DoctorKafkaClusterConfig clusterConfig, int brokerId) {
+  private ReplicaStatsManager replicaStatsManager;
+
+  public KafkaBroker(DoctorKafkaClusterConfig clusterConfig, ReplicaStatsManager replicaStatsManager, int brokerId) {
     assert clusterConfig != null;
     this.zkUrl = clusterConfig.getZkUrl();
     this.brokerId = brokerId;
@@ -53,6 +55,7 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
     this.reservedBytesOut = 0L;
     this.bytesInPerSecLimit = clusterConfig.getNetworkInLimitInBytes();
     this.bytesOutPerSecLimit = clusterConfig.getNetworkOutLimitInBytes();
+    this.replicaStatsManager = replicaStatsManager;
   }
 
   public JsonElement toJson() {
@@ -71,10 +74,10 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
   public long getMaxBytesIn() {
     long result = 0L;
     for (TopicPartition topicPartition : leaderReplicas) {
-      result += ReplicaStatsManager.getMaxBytesIn(zkUrl, topicPartition);
+      result += replicaStatsManager.getMaxBytesIn(zkUrl, topicPartition);
     }
     for (TopicPartition topicPartition : followerReplicas) {
-      result += ReplicaStatsManager.getMaxBytesIn(zkUrl, topicPartition);
+      result += replicaStatsManager.getMaxBytesIn(zkUrl, topicPartition);
     }
     return result;
   }
@@ -83,7 +86,7 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
   public long getMaxBytesOut() {
     long result = 0L;
     for (TopicPartition topicPartition : leaderReplicas) {
-      result += ReplicaStatsManager.getMaxBytesOut(zkUrl, topicPartition);
+      result += replicaStatsManager.getMaxBytesOut(zkUrl, topicPartition);
     }
     return result;
   }

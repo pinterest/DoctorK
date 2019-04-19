@@ -1,6 +1,7 @@
 package com.pinterest.doctorkafka;
 
 import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
+import com.pinterest.doctorkafka.replicastats.ReplicaStatsManager;
 import com.pinterest.doctorkafka.servlet.ClusterInfoServlet;
 import kafka.cluster.Cluster;
 import org.eclipse.jetty.http.HttpStatus;
@@ -24,8 +25,9 @@ public class ClusterInfoServletTest extends Mockito {
     DoctorKafka mockDoctor = mock(DoctorKafka.class);
     DoctorKafkaMain.doctorKafka = mockDoctor;
     KafkaClusterManager clusterManager = mock(KafkaClusterManager.class);
+    ReplicaStatsManager mockReplicaStatManager = mock(ReplicaStatsManager.class);
     DoctorKafkaConfig config = new DoctorKafkaConfig("./config/doctorkafka.properties");
-    KafkaCluster cluster = new KafkaCluster(clusterName, config.getClusterConfigByName(clusterName));
+    KafkaCluster cluster = new KafkaCluster(clusterName, config.getClusterConfigByName(clusterName), mockReplicaStatManager);
 
     when(mockDoctor.getClusterManager(clusterName)).thenReturn(clusterManager);
     when(clusterManager.getCluster()).thenReturn(cluster);

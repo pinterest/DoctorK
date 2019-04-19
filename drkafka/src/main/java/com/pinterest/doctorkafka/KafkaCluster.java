@@ -46,9 +46,11 @@ public class KafkaCluster {
   public ConcurrentMap<Integer, KafkaBroker> brokers;
   private ConcurrentMap<Integer, LinkedList<BrokerStats>> brokerStatsMap;
   public ConcurrentMap<String, Set<TopicPartition>> topicPartitions = new ConcurrentHashMap<>();
+  private ReplicaStatsManager replicaStatsManager;
 
-  public KafkaCluster(String zookeeper, DoctorKafkaClusterConfig clusterConfig) {
+  public KafkaCluster(String zookeeper, DoctorKafkaClusterConfig clusterConfig, ReplicaStatsManager replicaStatsManager) {
     this.zkUrl = zookeeper;
+    this.replicaStatsManager = replicaStatsManager;
     this.brokers = new ConcurrentHashMap<>();
     this.clusterConfig = clusterConfig;
     this.brokerStatsMap = new ConcurrentHashMap<>();
@@ -84,7 +86,7 @@ public class KafkaCluster {
 
       if (!brokerStats.getHasFailure()) {
         // only record brokerstat when there is no failure on that broker.
-        KafkaBroker broker = brokers.computeIfAbsent(brokerId, i -> new KafkaBroker(clusterConfig, i));
+        KafkaBroker broker = brokers.computeIfAbsent(brokerId, i -> new KafkaBroker(clusterConfig, replicaStatsManager, i));
         broker.update(brokerStats);
       }
 
@@ -239,8 +241,8 @@ public class KafkaCluster {
   public Map<Integer, KafkaBroker> getAlternativeBrokers(PriorityQueue<KafkaBroker> brokerQueue,
                                                           OutOfSyncReplica oosReplica) {
     TopicPartition topicPartition = oosReplica.topicPartition;
-    double inBoundReq = ReplicaStatsManager.getMaxBytesIn(zkUrl, topicPartition);
-    double outBoundReq = ReplicaStatsManager.getMaxBytesOut(zkUrl, topicPartition);
+    double inBoundReq = replicaStatsManager.getMaxBytesIn(zkUrl, topicPartition);
+    double outBoundReq = replicaStatsManager.getMaxBytesOut(zkUrl, topicPartition);
     int preferredBroker = oosReplica.replicaBrokers.get(0);
 
     boolean success = true;
@@ -277,7 +279,6 @@ public class KafkaCluster {
     return success ? result : null;
   }
 
-
   public KafkaBroker getAlternativeBroker(TopicPartition topicPartition,
                                           double tpBytesIn, double tpBytesOut) {
     PriorityQueue<KafkaBroker> brokerQueue =
@@ -309,7 +310,7 @@ public class KafkaCluster {
     for (Map.Entry<String, Set<TopicPartition>> entry : topicPartitions.entrySet()) {
       Set<TopicPartition> topicPartitions = entry.getValue();
       for (TopicPartition tp : topicPartitions) {
-        result += ReplicaStatsManager.getMaxBytesIn(zkUrl, tp);
+        result += replicaStatsManager.getMaxBytesIn(zkUrl, tp);
       }
     }
     return result;
@@ -321,7 +322,7 @@ public class KafkaCluster {
     for (Map.Entry<String, Set<TopicPartition>> entry : topicPartitions.entrySet()) {
       Set<TopicPartition> topicPartitions = entry.getValue();
       for (TopicPartition tp : topicPartitions) {
-        result += ReplicaStatsManager.getMaxBytesOut(zkUrl, tp);
+        result += replicaStatsManager.getMaxBytesOut(zkUrl, tp);
       }
     }
     return result;

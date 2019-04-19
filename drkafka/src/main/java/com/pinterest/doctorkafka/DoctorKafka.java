@@ -23,7 +23,7 @@ public class DoctorKafka {
 
   private DoctorKafkaConfig drkafkaConf;
 
-  public BrokerStatsProcessor brokerStatsProcessor = null;
+  private BrokerStatsProcessor brokerStatsProcessor = null;
 
   private DoctorKafkaActionReporter actionReporter = null;
 
@@ -35,8 +35,11 @@ public class DoctorKafka {
 
   private DoctorKafkaHeartbeat heartbeat = null;
 
-  public DoctorKafka(DoctorKafkaConfig drkafkaConf) {
-    this.drkafkaConf = drkafkaConf;
+  private ReplicaStatsManager replicaStatsManager = null;
+
+  public DoctorKafka(ReplicaStatsManager replicaStatsManager) {
+    this.replicaStatsManager = replicaStatsManager;
+    this.drkafkaConf = replicaStatsManager.getConfig();
     this.clusterZkUrls = drkafkaConf.getClusterZkUrls();
     this.zookeeperClient = new ZookeeperClient(drkafkaConf.getDoctorKafkaZkurl());
   }
@@ -50,26 +53,26 @@ public class DoctorKafka {
     SecurityProtocol actionReportSecurityProtocol = drkafkaConf.getActionReportProducerSecurityProtocol();
 
     LOG.info("Start rebuilding the replica stats by reading the past 24 hours brokerstats");
-    ReplicaStatsManager.readPastReplicaStats(brokerstatsZkurl, statsSecurityProtocol,
+    replicaStatsManager.readPastReplicaStats(brokerstatsZkurl, statsSecurityProtocol,
         drkafkaConf.getBrokerStatsTopic(), drkafkaConf.getBrokerStatsBacktrackWindowsInSeconds());
     LOG.info("Finish rebuilding the replica stats");
 
     brokerStatsProcessor = new BrokerStatsProcessor(brokerstatsZkurl, statsSecurityProtocol, statsTopic,
-        drkafkaConf.getBrokerStatsConsumerSslConfigs());
+        drkafkaConf.getBrokerStatsConsumerSslConfigs(), replicaStatsManager);
     brokerStatsProcessor.start();
 
     actionReporter = new DoctorKafkaActionReporter(actionReportZkurl, actionReportSecurityProtocol, actionReportTopic,
         drkafkaConf.getActionReportProducerSslConfigs());
     for (String clusterZkUrl : clusterZkUrls) {
       DoctorKafkaClusterConfig clusterConf = drkafkaConf.getClusterConfigByZkUrl(clusterZkUrl);
-      KafkaCluster kafkaCluster = ReplicaStatsManager.clusters.get(clusterZkUrl);
+      KafkaCluster kafkaCluster = replicaStatsManager.getClusters().get(clusterZkUrl);
 
       if (kafkaCluster == null) {
         LOG.error("No brokerstats info for cluster {}", clusterZkUrl);
         continue;
       }
       KafkaClusterManager clusterManager = new KafkaClusterManager(
-          clusterZkUrl, kafkaCluster, clusterConf, drkafkaConf, actionReporter, zookeeperClient);
+          clusterZkUrl, kafkaCluster, clusterConf, drkafkaConf, actionReporter, zookeeperClient, replicaStatsManager);
       clusterManagers.put(clusterConf.getClusterName(), clusterManager);
       clusterManager.start();
       LOG.info("Starting cluster manager for " + clusterZkUrl);

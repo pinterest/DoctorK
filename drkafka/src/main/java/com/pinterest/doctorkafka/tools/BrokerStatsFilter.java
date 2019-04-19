@@ -1,9 +1,9 @@
 package com.pinterest.doctorkafka.tools;
 
 import com.pinterest.doctorkafka.BrokerStats;
-import com.pinterest.doctorkafka.replicastats.ReplicaStatsManager;
 import com.pinterest.doctorkafka.util.KafkaUtils;
 import com.pinterest.doctorkafka.util.OperatorUtil;
+import com.pinterest.doctorkafka.util.ReplicaStatsUtil;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -137,7 +137,7 @@ public class BrokerStatsFilter {
         null);
 
     long startTimestampInMillis = System.currentTimeMillis() - 86400 * 1000L;
-    Map<TopicPartition, Long> offsets = ReplicaStatsManager.getProcessingStartOffsets(
+    Map<TopicPartition, Long> offsets = ReplicaStatsUtil.getProcessingStartOffsets(
         kafkaConsumer, brokerStatsTopic, startTimestampInMillis);
     kafkaConsumer.unsubscribe();
     kafkaConsumer.assign(offsets.keySet());

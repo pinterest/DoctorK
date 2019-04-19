@@ -78,6 +78,7 @@ public class KafkaClusterManager implements Runnable {
   private DoctorKafkaConfig drkafkaConfig = null;
   private DoctorKafkaClusterConfig clusterConfig;
   private DoctorKafkaActionReporter actionReporter = null;
+  private ReplicaStatsManager replicaStatsManager;
   private boolean stopped = true;
   private Thread thread = null;
 
@@ -101,7 +102,8 @@ public class KafkaClusterManager implements Runnable {
                              DoctorKafkaClusterConfig clusterConfig,
                              DoctorKafkaConfig drkafkaConfig,
                              DoctorKafkaActionReporter actionReporter,
-                             ZookeeperClient zookeeperClient) {
+                             ZookeeperClient zookeeperClient,
+                             ReplicaStatsManager replicaStatsManager) {
     assert clusterConfig != null;
     this.zkUrl = zkUrl;
     this.zkUtils = KafkaUtils.getZkUtils(zkUrl);
@@ -117,6 +119,7 @@ public class KafkaClusterManager implements Runnable {
     if (clusterConfig.enabledDeadbrokerReplacement()) {
       this.brokerReplacer = new BrokerReplacer(drkafkaConfig.getBrokerReplacementCommand());
     }
+    this.replicaStatsManager = replicaStatsManager;
   }
 
   public KafkaCluster getCluster() {
@@ -234,8 +237,8 @@ public class KafkaClusterManager implements Runnable {
 
       for (Map.Entry<TopicPartition, Double> entry : tpTraffic.entrySet()) {
         TopicPartition tp = entry.getKey();
-        double tpBytesIn = ReplicaStatsManager.getMaxBytesIn(zkUrl, tp);
-        double tpBytesOut = ReplicaStatsManager.getMaxBytesOut(zkUrl, tp);
+        double tpBytesIn = replicaStatsManager.getMaxBytesIn(zkUrl, tp);
+        double tpBytesOut = replicaStatsManager.getMaxBytesOut(zkUrl, tp);
         double brokerTraffic = (bytesIn - toBeReducedBytesIn - tpBytesIn) +
             (bytesOut - toBeReducedBytesOut - tpBytesOut);
 
@@ -312,7 +315,7 @@ public class KafkaClusterManager implements Runnable {
 
       for (Map.Entry<TopicPartition, Double> entry : tpTraffic.entrySet()) {
         TopicPartition tp = entry.getKey();
-        double tpBytesIn = ReplicaStatsManager.getMaxBytesIn(zkUrl, tp);
+        double tpBytesIn = replicaStatsManager.getMaxBytesIn(zkUrl, tp);
         if (brokerBytesIn - toBeReducedBytesIn - tpBytesIn < bytesInLimit) {
           // if moving a topic partition out will have the broker be under-utilized, do not
           // move it out.
@@ -487,8 +490,8 @@ public class KafkaClusterManager implements Runnable {
     Map<TopicPartition, Double> tpTraffic = new HashMap<>();
     for (TopicPartition tp : tps) {
       try {
-        double bytesIn = ReplicaStatsManager.getMaxBytesIn(zkUrl, tp);
-        double bytesOut = ReplicaStatsManager.getMaxBytesOut(zkUrl, tp);
+        double bytesIn = replicaStatsManager.getMaxBytesIn(zkUrl, tp);
+        double bytesOut = replicaStatsManager.getMaxBytesOut(zkUrl, tp);
         tpTraffic.put(tp, bytesIn + bytesOut);
       } catch (Exception e) {
         LOG.info("Exception in sorting topic partition {}", tp, e);

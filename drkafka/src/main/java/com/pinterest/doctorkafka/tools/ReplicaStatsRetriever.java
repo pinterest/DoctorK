@@ -79,18 +79,18 @@ public class ReplicaStatsRetriever {
     long seconds = Long.parseLong(commandLine.getOptionValue(SECONDS));
 
     long startTime = System.currentTimeMillis();
-    ReplicaStatsManager.config = new DoctorKafkaConfig(configFilePath);
-    ReplicaStatsManager.readPastReplicaStats(brokerStatsZk, SecurityProtocol.PLAINTEXT, 
+    ReplicaStatsManager replicaStatsManager = new ReplicaStatsManager(new DoctorKafkaConfig(configFilePath));
+    replicaStatsManager.readPastReplicaStats(brokerStatsZk, SecurityProtocol.PLAINTEXT,
         brokerStatsTopic, seconds);
     long endTime = System.currentTimeMillis();
     LOG.info("Spent time : {} seconds", (endTime - startTime) / 1000.0);
 
     Map<TopicPartition, Histogram> bytesInStats =
         new TreeMap<>(new KafkaUtils.TopicPartitionComparator());
-    bytesInStats.putAll(ReplicaStatsManager.getTopicsBytesInStats(clusterZk));
+    bytesInStats.putAll(replicaStatsManager.getTopicsBytesInStats(clusterZk));
     Map<TopicPartition, Histogram> bytesOutStats =
         new TreeMap<>(new KafkaUtils.TopicPartitionComparator());
-    bytesOutStats.putAll(ReplicaStatsManager.getTopicsBytesOutStats(clusterZk));
+    bytesOutStats.putAll(replicaStatsManager.getTopicsBytesOutStats(clusterZk));
 
     for (TopicPartition tp : bytesInStats.keySet()) {
       long maxBytesIn = bytesInStats.get(tp).getSnapshot().getMax();
@@ -98,10 +98,10 @@ public class ReplicaStatsRetriever {
       System.out.println(tp + " : maxBytesIn = " + maxBytesIn + ", maxBytesOut = " + maxBytesOut);
     }
 
-    for (String zkUrl : ReplicaStatsManager.replicaReassignmentTimestamps.keySet()) {
+    for (String zkUrl : replicaStatsManager.replicaReassignmentTimestamps.keySet()) {
       System.out.println("Reassignment info for " + zkUrl);
       Map<TopicPartition, Long> reassignmentTimestamps =
-          ReplicaStatsManager.replicaReassignmentTimestamps.get(zkUrl);
+          replicaStatsManager.replicaReassignmentTimestamps.get(zkUrl);
       for (TopicPartition tp : reassignmentTimestamps.keySet()) {
         System.out.println("    " + tp + " : " + reassignmentTimestamps.get(tp));
       }

@@ -32,13 +32,15 @@ public class BrokerStatsProcessor implements Runnable {
   private String topic;
   private SecurityProtocol securityProtocol;
   private Map<String, String> consumerConfigs;
+  private ReplicaStatsManager replicaStatsManager;
 
   public BrokerStatsProcessor(String zkUrl, SecurityProtocol securityProtocol,
-      String topic, Map<String, String> consumerConfigs) {
+      String topic, Map<String, String> consumerConfigs, ReplicaStatsManager replicaStatsManager) {
     this.zkUrl = zkUrl;
     this.topic = topic;
     this.securityProtocol = securityProtocol;
     this.consumerConfigs = consumerConfigs;
+    this.replicaStatsManager = replicaStatsManager;
   }
 
 
@@ -77,7 +79,7 @@ public class BrokerStatsProcessor implements Runnable {
               continue;
             }
 
-            ReplicaStatsManager.update(brokerStats);
+            replicaStatsManager.update(brokerStats);
             OpenTsdbMetricConverter.incr(DoctorKafkaMetrics.BROKERSTATS_MESSAGES, 1,
                 "zkUrl= " + brokerStats.getZkUrl());
           } catch (Exception e) {

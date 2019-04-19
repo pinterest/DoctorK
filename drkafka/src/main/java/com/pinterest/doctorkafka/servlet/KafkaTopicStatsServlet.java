@@ -47,9 +47,9 @@ public class KafkaTopicStatsServlet extends DoctorKafkaServlet {
 
       for (TopicPartition topicPartition : topicPartitions) {
 	double bytesInMax =
-          ReplicaStatsManager.getMaxBytesIn(cluster.zkUrl, topicPartition) / 1024.0 / 1024.0;
+          DoctorKafkaMain.replicaStatsManager.getMaxBytesIn(cluster.zkUrl, topicPartition) / 1024.0 / 1024.0;
 	double bytesOutMax =
-          ReplicaStatsManager.getMaxBytesOut(cluster.zkUrl, topicPartition) / 1024.0 / 1024.0;
+            DoctorKafkaMain.replicaStatsManager.getMaxBytesOut(cluster.zkUrl, topicPartition) / 1024.0 / 1024.0;
 
 	JsonObject jsonPartition = new JsonObject();
 	jsonPartition.add("bytesInMax", gson.toJsonTree(bytesInMax));
@@ -108,9 +108,9 @@ public class KafkaTopicStatsServlet extends DoctorKafkaServlet {
       writer.print("<tr>");
 
       double bytesInMax =
-          ReplicaStatsManager.getMaxBytesIn(cluster.zkUrl, topicPartition) / 1024.0 / 1024.0;
+          DoctorKafkaMain.replicaStatsManager.getMaxBytesIn(cluster.zkUrl, topicPartition) / 1024.0 / 1024.0;
       double bytesOutMax =
-          ReplicaStatsManager.getMaxBytesOut(cluster.zkUrl, topicPartition) / 1024.0 / 1024.0;
+          DoctorKafkaMain.replicaStatsManager.getMaxBytesOut(cluster.zkUrl, topicPartition) / 1024.0 / 1024.0;
 
       if (isZero(bytesInMax) && isZero(bytesOutMax)) {
         zeroTrafficPartitions++;
