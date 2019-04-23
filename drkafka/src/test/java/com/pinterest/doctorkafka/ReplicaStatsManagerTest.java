@@ -2,6 +2,7 @@ package com.pinterest.doctorkafka;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
 import com.pinterest.doctorkafka.replicastats.ReplicaStatsManager;
 
 import org.apache.kafka.common.TopicPartition;
@@ -31,14 +32,16 @@ public class ReplicaStatsManagerTest {
   @Test
   public void updateReplicaReassignmentTimestampTest() throws Exception {
     initialize();
-    ReplicaStatsManager.updateReplicaReassignmentTimestamp(ZKURL, replicaStats.get(0));
-    ReplicaStatsManager.updateReplicaReassignmentTimestamp(ZKURL, replicaStats.get(1));
+    DoctorKafkaConfig config = new DoctorKafkaConfig("./config/doctorkafka.properties");
+    ReplicaStatsManager replicaStatsManager = new ReplicaStatsManager(config);
+    replicaStatsManager.updateReplicaReassignmentTimestamp(ZKURL, replicaStats.get(0));
+    replicaStatsManager.updateReplicaReassignmentTimestamp(ZKURL, replicaStats.get(1));
 
     TopicPartition topicPartition = new TopicPartition(TOPIC, 21);
 
-    assertEquals(ReplicaStatsManager.replicaReassignmentTimestamps.get(ZKURL).size(), 2);
+    assertEquals(replicaStatsManager.replicaReassignmentTimestamps.get(ZKURL).size(), 2);
     assertEquals(
-        (long)ReplicaStatsManager.replicaReassignmentTimestamps.get(ZKURL).get(topicPartition),
+        (long)replicaStatsManager.replicaReassignmentTimestamps.get(ZKURL).get(topicPartition),
         1502951705179L);
   }
 }

@@ -85,20 +85,20 @@ public class ClusterLoadBalancer {
     long seconds = Long.parseLong(commandLine.getOptionValue(SECONDS));
     boolean onlyOne = commandLine.hasOption(ONLY_ONE);
 
-    ReplicaStatsManager.config = new DoctorKafkaConfig(configFilePath);
-    ReplicaStatsManager.readPastReplicaStats(brokerStatsZk, SecurityProtocol.PLAINTEXT, 
+    ReplicaStatsManager replicaStatsManager = new ReplicaStatsManager(new DoctorKafkaConfig(configFilePath));
+    replicaStatsManager.readPastReplicaStats(brokerStatsZk, SecurityProtocol.PLAINTEXT,
         brokerStatsTopic, seconds);
-    Set<String> zkUrls = ReplicaStatsManager.config.getClusterZkUrls();
+    Set<String> zkUrls = replicaStatsManager.getClusterZkUrls();
     if (!zkUrls.contains(clusterZk)) {
       LOG.error("Failed to find zkurl {} in configuration", clusterZk);
       return;
     }
 
     DoctorKafkaClusterConfig clusterConf =
-        ReplicaStatsManager.config.getClusterConfigByZkUrl(clusterZk);
-    KafkaCluster kafkaCluster = ReplicaStatsManager.clusters.get(clusterZk);
+        replicaStatsManager.getConfig().getClusterConfigByZkUrl(clusterZk);
+    KafkaCluster kafkaCluster = replicaStatsManager.getClusters().get(clusterZk);
     KafkaClusterManager clusterManager = new KafkaClusterManager(
-        clusterZk, kafkaCluster, clusterConf, ReplicaStatsManager.config, null, null);
+        clusterZk, kafkaCluster, clusterConf, replicaStatsManager.getConfig(), null, null, replicaStatsManager);
 
     List<KafkaBroker> highTrafficBrokers = clusterManager.getHighTrafficBroker();
     if (onlyOne && highTrafficBrokers.size() > 0) {

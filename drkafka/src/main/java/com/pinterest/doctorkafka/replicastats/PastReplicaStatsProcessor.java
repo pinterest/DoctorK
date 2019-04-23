@@ -32,14 +32,16 @@ public class PastReplicaStatsProcessor implements Runnable {
   private long startOffset;
   private long endOffset;
   private Thread thread;
+  private ReplicaStatsManager replicaStatsManager;
 
   public PastReplicaStatsProcessor(String zkUrl, SecurityProtocol securityProtocol, TopicPartition topicPartition,
-                               long startOffset, long endOffset) {
+                               long startOffset, long endOffset, ReplicaStatsManager replicaStatsManager) {
     this.zkUrl = zkUrl;
     this.securityProtocol = securityProtocol;
     this.topicPartition = topicPartition;
     this.startOffset = startOffset;
     this.endOffset = endOffset;
+    this.replicaStatsManager = replicaStatsManager;
   }
 
   public void start() {
@@ -82,7 +84,7 @@ public class PastReplicaStatsProcessor implements Runnable {
             OpenTsdbMetricConverter.incr(DoctorKafkaMetrics.MESSAGE_DESERIALIZE_ERROR, 1);
             continue;
           }
-          ReplicaStatsManager.update(brokerStats);
+          replicaStatsManager.update(brokerStats);
         }
       }
     } catch (Exception e) {

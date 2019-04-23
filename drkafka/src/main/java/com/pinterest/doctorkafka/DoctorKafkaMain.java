@@ -42,6 +42,7 @@ public class DoctorKafkaMain extends Application<DoctorKafkaAppConfig> {
 
   public static DoctorKafka doctorKafka = null;
   private static DoctorKafkaWatcher operatorWatcher = null;
+  public static ReplicaStatsManager replicaStatsManager = null;
 
   @Override
   public void initialize(Bootstrap<DoctorKafkaAppConfig> bootstrap) {
@@ -54,16 +55,16 @@ public class DoctorKafkaMain extends Application<DoctorKafkaAppConfig> {
 
     LOG.info("Configuration path : {}", configuration.getConfig());
 
-    ReplicaStatsManager.config = new DoctorKafkaConfig(configuration.getConfig());
+    replicaStatsManager = new ReplicaStatsManager(new DoctorKafkaConfig(configuration.getConfig()));
 
-    if (!ReplicaStatsManager.config.getRestartDisabled()){
-      operatorWatcher = new DoctorKafkaWatcher(ReplicaStatsManager.config.getRestartIntervalInSeconds());
+    if (!replicaStatsManager.getConfig().getRestartDisabled()){
+      operatorWatcher = new DoctorKafkaWatcher(replicaStatsManager.getConfig().getRestartIntervalInSeconds());
       operatorWatcher.start();
     }
 
-    configureServerRuntime(configuration, ReplicaStatsManager.config);
+    configureServerRuntime(configuration, replicaStatsManager.getConfig());
 
-    doctorKafka = new DoctorKafka(ReplicaStatsManager.config);
+    doctorKafka = new DoctorKafka(replicaStatsManager);
 
     registerAPIs(environment, doctorKafka);
     registerServlets(environment);
@@ -119,8 +120,8 @@ public class DoctorKafkaMain extends Application<DoctorKafkaAppConfig> {
   }
 
   private void startMetricsService() {
-    int ostrichPort = ReplicaStatsManager.config.getOstrichPort();
-    String tsdHostPort = ReplicaStatsManager.config.getTsdHostPort();
+    int ostrichPort = replicaStatsManager.getConfig().getOstrichPort();
+    String tsdHostPort = replicaStatsManager.getConfig().getTsdHostPort();
     if (tsdHostPort == null && ostrichPort == 0) {
       LOG.info("OpenTSDB and Ostrich options missing, not starting Ostrich service");
     } else if (ostrichPort == 0) {
