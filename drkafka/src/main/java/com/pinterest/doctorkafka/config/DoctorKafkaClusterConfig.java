@@ -34,6 +34,7 @@ public class DoctorKafkaClusterConfig {
   private static final String SECURITY_PROTOCOL = "security.protocol";
   private static final String NOTIFICATION_EMAIL = "notification.email";
   private static final String NOTIFICATION_PAGER = "notificatino.pager";
+  private static final String ENABLE_RACK_AWARENESS = "rack_awareness.enabled";
 
   private static final int DEFAULT_DEADBROKER_REPLACEMENT_NO_STATS_SECONDS = 1200;
   private static final int DEFAULT_UNDER_REPLICTED_ALERT_IN_SECS = 7200;
@@ -134,5 +135,13 @@ public class DoctorKafkaClusterConfig {
 
   public String getNotificationPager() {
     return clusterConfiguration.getString(NOTIFICATION_PAGER, "");
+  }
+
+  public boolean enabledRackAwareness(){
+    boolean result = false;
+    if (clusterConfiguration.containsKey(ENABLE_RACK_AWARENESS)){
+      result = clusterConfiguration.getBoolean(ENABLE_RACK_AWARENESS);
+    }
+    return result;
   }
 }

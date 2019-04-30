@@ -27,7 +27,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.zookeeper.data.ACL;
 
-import scala.Option;
 import scala.collection.JavaConverters;
 import scala.collection.Seq;
 import com.google.gson.Gson;
@@ -260,7 +259,7 @@ public class KafkaClusterManager implements Runnable {
             preferredLeader = new PreferredReplicaElectionInfo(tp, preferredBrokerId);
             preferredLeaders.put(tp, preferredLeader);
             toBeReducedBytesOut += tpBytesOut;
-            another.reserveOutBoundBandwidth(tp, tpBytesOut);
+            another.reserveBandwidth(tp, 0, tpBytesOut);
             continue;
           }
         } else if (brokerTraffic < averageBytesIn + averageBytesOut) {
@@ -596,18 +595,48 @@ public class KafkaClusterManager implements Runnable {
 
 
   /**
-   * Generate reassignment plan for dead brokers
+   * Generate reassignment plan for dead brokers,
+   * current reassignment will fail (reassignments are all-or-none).
    */
   private Map<TopicPartition, Integer[]> generateReassignmentPlanForDeadBrokers(
       List<OutOfSyncReplica> outOfSyncReplicas) {
     Map<TopicPartition, Integer[]> replicasMap = new HashMap<>();
     boolean success = true;
+    boolean isLocalityAware = clusterConfig.enabledRackAwareness();
 
-    PriorityQueue<KafkaBroker> brokerQueue = kafkaCluster.getBrokerQueue();
+    Map<String, PriorityQueue<KafkaBroker>> brokerQueueByLocality = null;
+    PriorityQueue<KafkaBroker> brokerQueue = null;
+    if(isLocalityAware){
+      brokerQueueByLocality = kafkaCluster.getBrokerQueueByLocality();
+    } else {
+      brokerQueue = kafkaCluster.getBrokerQueue();
+    }
+
     for (OutOfSyncReplica oosReplica : outOfSyncReplicas) {
-      Map<Integer, KafkaBroker> replacedNodes =
-          kafkaCluster.getAlternativeBrokers(brokerQueue, oosReplica);
+
+      double inBoundReq = replicaStatsManager.getMaxBytesIn(zkUrl, oosReplica.topicPartition);
+      double outBoundReq = replicaStatsManager.getMaxBytesOut(zkUrl, oosReplica.topicPartition);
+      int preferredBroker = oosReplica.replicaBrokers.get(0);
+
+      Map<Integer, KafkaBroker> replacedNodes;
+      replacedNodes = isLocalityAware
+                      ? kafkaCluster.getAlternativeBrokersByLocality(
+                          brokerQueueByLocality,
+                          oosReplica,
+                          inBoundReq,
+                          outBoundReq,
+                          preferredBroker
+                        )
+                      : kafkaCluster.getAlternativeBrokers(
+                          brokerQueue,
+                          oosReplica,
+                          inBoundReq,
+                          outBoundReq,
+                          preferredBroker
+                      );
       if (replacedNodes == null) {
+        // current reassignment task fail immediately
+        // if failed to reassign for one partition
         success = false;
         for (int oosBrokerId : oosReplica.outOfSyncBrokers) {
           KafkaBroker broker = kafkaCluster.getBroker(oosBrokerId);
@@ -625,6 +654,12 @@ public class KafkaClusterManager implements Runnable {
         replicasMap.put(oosReplica.topicPartition, newReplicas);
       }
     }
+
+    // clean up if there are partial success reassignments
+    if ( !success && replicasMap.size() > 0){
+      kafkaCluster.clearResourceAllocationCounters();
+    }
+
     return success ? replicasMap : null;
   }
 
