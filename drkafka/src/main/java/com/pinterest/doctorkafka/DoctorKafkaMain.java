@@ -109,6 +109,7 @@ public class DoctorKafkaMain extends Application<DoctorKafkaAppConfig> {
     // Configure bind host and port number
     HttpConnectorFactory application = (HttpConnectorFactory) HttpConnectorFactory.application();
     application.setPort(config.getWebserverPort());
+    application.setBindHost(config.getWebserverBindHost());
     defaultServerFactory.setApplicationConnectors(Collections.singletonList(application));
   }
 

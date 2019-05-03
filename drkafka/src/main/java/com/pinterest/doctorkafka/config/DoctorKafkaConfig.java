@@ -42,6 +42,7 @@ public class DoctorKafkaConfig {
   private static final String WEB_PORT = "web.port";
   private static final String NOTIFICATION_EMAILS = "emails.notification";
   private static final String ALERT_EMAILS = "emails.alert";
+  private static final String WEB_BIND_HOST = "web.bindhost";
 
   private PropertiesConfiguration configuration = null;
   private AbstractConfiguration drkafkaConfiguration = null;
@@ -177,6 +178,10 @@ public class DoctorKafkaConfig {
 
   public int getWebserverPort() {
     return drkafkaConfiguration.getInteger(WEB_PORT, 8080);
+  }
+  
+  public String getWebserverBindHost() {
+    return drkafkaConfiguration.getString(WEB_BIND_HOST, "0.0.0.0");
   }
 
   public DoctorKafkaClusterConfig getClusterConfigByZkUrl(String clusterZkUrl) {
