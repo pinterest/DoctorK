@@ -4,7 +4,6 @@ package com.pinterest.doctorkafka.servlet;
 import com.pinterest.doctorkafka.DoctorKafkaMain;
 import com.pinterest.doctorkafka.KafkaCluster;
 import com.pinterest.doctorkafka.KafkaClusterManager;
-import com.pinterest.doctorkafka.replicastats.ReplicaStatsManager;
 import com.pinterest.doctorkafka.util.KafkaUtils;
 import com.pinterest.doctorkafka.errors.ClusterInfoError;
 
@@ -47,9 +46,9 @@ public class KafkaTopicStatsServlet extends DoctorKafkaServlet {
 
       for (TopicPartition topicPartition : topicPartitions) {
 	double bytesInMax =
-          DoctorKafkaMain.replicaStatsManager.getMaxBytesIn(cluster.zkUrl, topicPartition) / 1024.0 / 1024.0;
+          cluster.getMaxBytesIn(topicPartition) / 1024.0 / 1024.0;
 	double bytesOutMax =
-            DoctorKafkaMain.replicaStatsManager.getMaxBytesOut(cluster.zkUrl, topicPartition) / 1024.0 / 1024.0;
+            cluster.getMaxBytesOut(topicPartition) / 1024.0 / 1024.0;
 
 	JsonObject jsonPartition = new JsonObject();
 	jsonPartition.add("bytesInMax", gson.toJsonTree(bytesInMax));
@@ -108,9 +107,9 @@ public class KafkaTopicStatsServlet extends DoctorKafkaServlet {
       writer.print("<tr>");
 
       double bytesInMax =
-          DoctorKafkaMain.replicaStatsManager.getMaxBytesIn(cluster.zkUrl, topicPartition) / 1024.0 / 1024.0;
+          cluster.getMaxBytesIn(topicPartition) / 1024.0 / 1024.0;
       double bytesOutMax =
-          DoctorKafkaMain.replicaStatsManager.getMaxBytesOut(cluster.zkUrl, topicPartition) / 1024.0 / 1024.0;
+          cluster.getMaxBytesOut(topicPartition) / 1024.0 / 1024.0;
 
       if (isZero(bytesInMax) && isZero(bytesOutMax)) {
         zeroTrafficPartitions++;

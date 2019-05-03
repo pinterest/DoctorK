@@ -5,7 +5,6 @@ import static org.mockito.Mockito.*;
 
 import com.pinterest.doctorkafka.config.DoctorKafkaClusterConfig;
 import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
-import com.pinterest.doctorkafka.replicastats.ReplicaStatsManager;
 import com.pinterest.doctorkafka.util.OutOfSyncReplica;
 
 import org.apache.kafka.common.Node;
@@ -40,12 +39,14 @@ class KafkaClusterTest {
   private static final String CLUSTER_NAME = "cluster1";
   private static DoctorKafkaClusterConfig doctorKafkaClusterConfig;
   private static String zookeeper_url;
+  private static KafkaCluster kafkaCluster;
 
   @BeforeAll
   static void setup() throws Exception {
     DoctorKafkaConfig config = new DoctorKafkaConfig("./config/doctorkafka.properties");
     doctorKafkaClusterConfig = config.getClusterConfigByName(CLUSTER_NAME);
     zookeeper_url = doctorKafkaClusterConfig.getZkUrl();
+    kafkaCluster = new KafkaCluster(zookeeper_url, doctorKafkaClusterConfig);
   }
 
   /**
@@ -55,14 +56,12 @@ class KafkaClusterTest {
    * reassignment plans.
    */
   @Test
-  void getAlternativeBrokersDuplicateReassignmentTest() throws Exception{
-    ReplicaStatsManager mockReplicaStatsManager = mock(ReplicaStatsManager.class);
+  void getAlternativeBrokersDuplicateReassignmentTest() throws Exception {
     TopicPartition topicPartition = new TopicPartition(TOPIC, 0);
 
-    when(mockReplicaStatsManager.getMaxBytesIn(zookeeper_url, topicPartition)).thenReturn(1L);
-    when(mockReplicaStatsManager.getMaxBytesOut(zookeeper_url, topicPartition)).thenReturn(0L);
-
-    KafkaCluster kafkaCluster = new KafkaCluster(zookeeper_url, doctorKafkaClusterConfig, mockReplicaStatsManager);
+    KafkaCluster spyKafkaCluster = spy(kafkaCluster);
+    doReturn(1L).when(spyKafkaCluster).getMaxBytesIn(topicPartition);
+    doReturn(0L).when(spyKafkaCluster).getMaxBytesOut(topicPartition);
 
     Node leader = nodes[0];
     Node[] replicas = new Node[]{
@@ -80,11 +79,11 @@ class KafkaClusterTest {
 
 
     KafkaBroker[] brokers = new KafkaBroker[]{
-        new KafkaBroker(doctorKafkaClusterConfig, mockReplicaStatsManager, 0),
-        new KafkaBroker(doctorKafkaClusterConfig, mockReplicaStatsManager, 1),
-        new KafkaBroker(doctorKafkaClusterConfig, mockReplicaStatsManager, 2),
-        new KafkaBroker(doctorKafkaClusterConfig, mockReplicaStatsManager, 3),
-        new KafkaBroker(doctorKafkaClusterConfig, mockReplicaStatsManager, 4)
+        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 0),
+        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 1),
+        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 2),
+        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 3),
+        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 4)
     };
 
     Set<TopicPartition> replicaSet = new HashSet<>();
@@ -105,8 +104,8 @@ class KafkaClusterTest {
 
     int beforeSize = brokerQueue.size();
 
-    double inBoundReq = mockReplicaStatsManager.getMaxBytesIn(zookeeper_url, topicPartition);
-    double outBoundReq = mockReplicaStatsManager.getMaxBytesOut(zookeeper_url, topicPartition);
+    double inBoundReq = spyKafkaCluster.getMaxBytesIn(topicPartition);
+    double outBoundReq = spyKafkaCluster.getMaxBytesOut(topicPartition);
     int preferredBroker = oosReplica.replicaBrokers.get(0);
 
     /*
@@ -121,8 +120,8 @@ class KafkaClusterTest {
         preferredBroker
     );
 
-    verify(mockReplicaStatsManager, atLeast(2)).getMaxBytesIn(zookeeper_url, topicPartition);
-    verify(mockReplicaStatsManager, atLeast(2)).getMaxBytesOut(zookeeper_url, topicPartition);
+    verify(spyKafkaCluster, atLeast(2)).getMaxBytesIn(topicPartition);
+    verify(spyKafkaCluster, atLeast(2)).getMaxBytesOut(topicPartition);
 
     // There should be a valid reassignment for this scenario
     assertNotNull(altBrokers);
@@ -136,17 +135,11 @@ class KafkaClusterTest {
 
   @Test
   void testLocalityAwareReassignments() throws Exception {
-    ReplicaStatsManager mockReplicaStatsManager = mock(ReplicaStatsManager.class);
     TopicPartition topicPartition = new TopicPartition(TOPIC, 0);
 
-    when(mockReplicaStatsManager.getMaxBytesIn(zookeeper_url, topicPartition)).thenReturn(0L);
-    when(mockReplicaStatsManager.getMaxBytesOut(zookeeper_url, topicPartition)).thenReturn(0L);
-
-    DoctorKafkaConfig config = new DoctorKafkaConfig("./config/doctorkafka.properties");
-    DoctorKafkaClusterConfig doctorKafkaClusterConfig = config.getClusterConfigByName("cluster1");
-
-    KafkaCluster kafkaCluster = new KafkaCluster(zookeeper_url, doctorKafkaClusterConfig, mockReplicaStatsManager);
-
+    KafkaCluster spyKafkaCluster = spy(kafkaCluster);
+    doReturn(1L).when(spyKafkaCluster).getMaxBytesIn(topicPartition);
+    doReturn(0L).when(spyKafkaCluster).getMaxBytesOut(topicPartition);
 
     Node leader = nodes[0];
     Node[] replicas = new Node[]{
@@ -164,13 +157,13 @@ class KafkaClusterTest {
 
 
     KafkaBroker[] brokers = new KafkaBroker[]{
-        new KafkaBroker(doctorKafkaClusterConfig, mockReplicaStatsManager, 0),
-        new KafkaBroker(doctorKafkaClusterConfig, mockReplicaStatsManager, 1),
-        new KafkaBroker(doctorKafkaClusterConfig, mockReplicaStatsManager, 2),
-        new KafkaBroker(doctorKafkaClusterConfig, mockReplicaStatsManager, 3),
-        new KafkaBroker(doctorKafkaClusterConfig, mockReplicaStatsManager, 4),
-        new KafkaBroker(doctorKafkaClusterConfig, mockReplicaStatsManager, 5),
-        new KafkaBroker(doctorKafkaClusterConfig, mockReplicaStatsManager, 6)
+        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 0),
+        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 1),
+        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 2),
+        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 3),
+        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 4),
+        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 5),
+        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 6)
     };
 
     for ( KafkaBroker broker : brokers ){
@@ -208,7 +201,6 @@ class KafkaClusterTest {
 
     Map<String, PriorityQueue<KafkaBroker>> brokerLocalityMap =
         kafkaCluster.getBrokerQueueByLocality();
-    Map<OutOfSyncReplica, Map <Integer, String>> reassignmentToLocalityFailures = new HashMap<>();
 
     for ( int localityId = 0; localityId < testLocalityAssignments.size(); localityId++) {
       Collection<Integer> expectedAssignments = testLocalityAssignments.get(localityId);
@@ -223,8 +215,8 @@ class KafkaClusterTest {
           .containsAll(expectedAssignments));
     }
 
-    double inBoundReq = mockReplicaStatsManager.getMaxBytesIn(zookeeper_url, oosReplica.topicPartition);
-    double outBoundReq = mockReplicaStatsManager.getMaxBytesOut(zookeeper_url, oosReplica.topicPartition);
+    double inBoundReq = spyKafkaCluster.getMaxBytesIn(oosReplica.topicPartition);
+    double outBoundReq = spyKafkaCluster.getMaxBytesOut(oosReplica.topicPartition);
     int preferredBroker = oosReplica.replicaBrokers.get(0);
 
     // Test getAlternativeBrokersByLocality,
@@ -241,8 +233,8 @@ class KafkaClusterTest {
             preferredBroker
         );
 
-    verify(mockReplicaStatsManager,atLeast(2)).getMaxBytesIn(zookeeper_url, topicPartition);
-    verify(mockReplicaStatsManager,atLeast(2)).getMaxBytesIn(zookeeper_url, topicPartition);
+    verify(spyKafkaCluster,atLeast(2)).getMaxBytesIn(topicPartition);
+    verify(spyKafkaCluster,atLeast(2)).getMaxBytesIn(topicPartition);
     assertEquals(2, localityReassignments.size());
     assertEquals(brokers[5], localityReassignments.get(1));
     assertEquals(brokers[4], localityReassignments.get(2));
@@ -265,16 +257,11 @@ class KafkaClusterTest {
 
   @Test
   void testNonLocalityAwareReassignments() throws Exception {
-    ReplicaStatsManager mockReplicaStatsManager = mock(ReplicaStatsManager.class);
     TopicPartition topicPartition = new TopicPartition(TOPIC, 0);
 
-    when(mockReplicaStatsManager.getMaxBytesIn(zookeeper_url, topicPartition)).thenReturn(0L);
-    when(mockReplicaStatsManager.getMaxBytesOut(zookeeper_url, topicPartition)).thenReturn(0L);
-
-    DoctorKafkaConfig config = new DoctorKafkaConfig("./config/doctorkafka.properties");
-    DoctorKafkaClusterConfig doctorKafkaClusterConfig = config.getClusterConfigByName("cluster1");
-
-    KafkaCluster kafkaCluster = new KafkaCluster(zookeeper_url, doctorKafkaClusterConfig, mockReplicaStatsManager);
+    KafkaCluster spyKafkaCluster = spy(kafkaCluster);
+    doReturn(1L).when(spyKafkaCluster).getMaxBytesIn(topicPartition);
+    doReturn(0L).when(spyKafkaCluster).getMaxBytesOut(topicPartition);
 
     Node leader = nodes[0];
     Node[] replicas = new Node[]{
@@ -292,13 +279,13 @@ class KafkaClusterTest {
 
 
     KafkaBroker[] brokers = new KafkaBroker[]{
-        new KafkaBroker(doctorKafkaClusterConfig, mockReplicaStatsManager, 0),
-        new KafkaBroker(doctorKafkaClusterConfig, mockReplicaStatsManager, 1),
-        new KafkaBroker(doctorKafkaClusterConfig, mockReplicaStatsManager, 2),
-        new KafkaBroker(doctorKafkaClusterConfig, mockReplicaStatsManager, 3),
-        new KafkaBroker(doctorKafkaClusterConfig, mockReplicaStatsManager, 4),
-        new KafkaBroker(doctorKafkaClusterConfig, mockReplicaStatsManager, 5),
-        new KafkaBroker(doctorKafkaClusterConfig, mockReplicaStatsManager, 6)
+        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 0),
+        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 1),
+        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 2),
+        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 3),
+        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 4),
+        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 5),
+        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 6)
     };
 
     for ( KafkaBroker broker : brokers ){
@@ -324,13 +311,12 @@ class KafkaClusterTest {
 
     Map<String, PriorityQueue<KafkaBroker>> brokerLocalityMap =
         kafkaCluster.getBrokerQueueByLocality();
-    Map<OutOfSyncReplica, Map <Integer, String>> reassignmentToLocalityFailures = new HashMap<>();
 
     assertEquals(brokers.length, brokerLocalityMap.get(null).size());
     assertTrue(brokerLocalityMap.get(null).containsAll(Arrays.asList(brokers)));
 
-    double inBoundReq = mockReplicaStatsManager.getMaxBytesIn(zookeeper_url, oosReplica.topicPartition);
-    double outBoundReq = mockReplicaStatsManager.getMaxBytesOut(zookeeper_url, oosReplica.topicPartition);
+    double inBoundReq = spyKafkaCluster.getMaxBytesIn(oosReplica.topicPartition);
+    double outBoundReq = spyKafkaCluster.getMaxBytesOut(oosReplica.topicPartition);
     int preferredBroker = oosReplica.replicaBrokers.get(0);
 
     // Test getAlternativeBrokersByLocality,
@@ -346,8 +332,8 @@ class KafkaClusterTest {
             preferredBroker
         );
 
-    verify(mockReplicaStatsManager,atLeast(2)).getMaxBytesIn(zookeeper_url, topicPartition);
-    verify(mockReplicaStatsManager,atLeast(2)).getMaxBytesIn(zookeeper_url, topicPartition);
+    verify(spyKafkaCluster,atLeast(2)).getMaxBytesIn(topicPartition);
+    verify(spyKafkaCluster,atLeast(2)).getMaxBytesIn(topicPartition);
     assertEquals(2, localityReassignments.size());
     assertEquals(brokers[3], localityReassignments.get(1));
     assertEquals(brokers[6], localityReassignments.get(2));
@@ -355,17 +341,12 @@ class KafkaClusterTest {
 
   @Test
   void testLocalityAwareReassignmentsFailure() throws Exception {
-    ReplicaStatsManager mockReplicaStatsManager = mock(ReplicaStatsManager.class);
     TopicPartition topicPartition = new TopicPartition(TOPIC, 0);
 
     // set to 20MB
-    when(mockReplicaStatsManager.getMaxBytesIn(zookeeper_url, topicPartition)).thenReturn(20*1024*1024L);
-    when(mockReplicaStatsManager.getMaxBytesOut(zookeeper_url, topicPartition)).thenReturn(0L);
-
-    DoctorKafkaConfig config = new DoctorKafkaConfig("./config/doctorkafka.properties");
-    DoctorKafkaClusterConfig doctorKafkaClusterConfig = config.getClusterConfigByName("cluster1");
-
-    KafkaCluster kafkaCluster = new KafkaCluster(zookeeper_url, doctorKafkaClusterConfig, mockReplicaStatsManager);
+    KafkaCluster spyKafkaCluster = spy(kafkaCluster);
+    doReturn(20*1024*1024L).when(spyKafkaCluster).getMaxBytesIn(topicPartition);
+    doReturn(0L).when(spyKafkaCluster).getMaxBytesOut(topicPartition);
 
     Node leader = nodes[0];
     Node[] replicas = new Node[]{
@@ -383,11 +364,11 @@ class KafkaClusterTest {
 
 
     KafkaBroker[] brokers = new KafkaBroker[]{
-        new KafkaBroker(doctorKafkaClusterConfig, mockReplicaStatsManager, 0),
-        new KafkaBroker(doctorKafkaClusterConfig, mockReplicaStatsManager, 1),
-        new KafkaBroker(doctorKafkaClusterConfig, mockReplicaStatsManager, 2),
-        new KafkaBroker(doctorKafkaClusterConfig, mockReplicaStatsManager, 3),
-        new KafkaBroker(doctorKafkaClusterConfig, mockReplicaStatsManager, 4)
+        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 0),
+        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 1),
+        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 2),
+        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 3),
+        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 4)
     };
 
     for ( KafkaBroker broker : brokers ){
@@ -426,8 +407,8 @@ class KafkaClusterTest {
         kafkaCluster.getBrokerQueueByLocality();
     Map<OutOfSyncReplica, Map <Integer, String>> reassignmentToLocalityFailures = new HashMap<>();
 
-    double inBoundReq = mockReplicaStatsManager.getMaxBytesIn(zookeeper_url, oosReplica.topicPartition);
-    double outBoundReq = mockReplicaStatsManager.getMaxBytesOut(zookeeper_url, oosReplica.topicPartition);
+    double inBoundReq = spyKafkaCluster.getMaxBytesIn(oosReplica.topicPartition);
+    double outBoundReq = spyKafkaCluster.getMaxBytesOut(oosReplica.topicPartition);
     int preferredBroker = oosReplica.replicaBrokers.get(0);
 
     // Test getAlternativeBrokersByLocality,
@@ -443,10 +424,9 @@ class KafkaClusterTest {
             preferredBroker
         );
 
-    verify(mockReplicaStatsManager,atLeast(2)).getMaxBytesIn(zookeeper_url, topicPartition);
-    verify(mockReplicaStatsManager,atLeast(2)).getMaxBytesIn(zookeeper_url, topicPartition);
+    verify(spyKafkaCluster,atLeast(2)).getMaxBytesIn(topicPartition);
+    verify(spyKafkaCluster,atLeast(2)).getMaxBytesIn(topicPartition);
     assertNull(localityReassignments);
-
   }
 
 }

@@ -1,7 +1,6 @@
 package com.pinterest.doctorkafka;
 
 import com.pinterest.doctorkafka.config.DoctorKafkaClusterConfig;
-import com.pinterest.doctorkafka.replicastats.ReplicaStatsManager;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.kafka.common.TopicPartition;
@@ -41,9 +40,9 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
   private long reservedBytesOut;
   private Set<TopicPartition>  toBeAddedReplicas;
 
-  private ReplicaStatsManager replicaStatsManager;
+  private KafkaCluster kafkaCluster;
 
-  public KafkaBroker(DoctorKafkaClusterConfig clusterConfig, ReplicaStatsManager replicaStatsManager, int brokerId) {
+  public KafkaBroker(DoctorKafkaClusterConfig clusterConfig, KafkaCluster kafkaCluster, int brokerId) {
     assert clusterConfig != null;
     this.zkUrl = clusterConfig.getZkUrl();
     this.brokerId = brokerId;
@@ -57,7 +56,7 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
     this.reservedBytesOut = 0L;
     this.bytesInPerSecLimit = clusterConfig.getNetworkInLimitInBytes();
     this.bytesOutPerSecLimit = clusterConfig.getNetworkOutLimitInBytes();
-    this.replicaStatsManager = replicaStatsManager;
+    this.kafkaCluster = kafkaCluster;
   }
 
   public JsonElement toJson() {
@@ -76,10 +75,10 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
   public long getMaxBytesIn() {
     long result = 0L;
     for (TopicPartition topicPartition : leaderReplicas) {
-      result += replicaStatsManager.getMaxBytesIn(zkUrl, topicPartition);
+      result += kafkaCluster.getMaxBytesIn(topicPartition);
     }
     for (TopicPartition topicPartition : followerReplicas) {
-      result += replicaStatsManager.getMaxBytesIn(zkUrl, topicPartition);
+      result += kafkaCluster.getMaxBytesIn(topicPartition);
     }
     return result;
   }
@@ -88,7 +87,7 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
   public long getMaxBytesOut() {
     long result = 0L;
     for (TopicPartition topicPartition : leaderReplicas) {
-      result += replicaStatsManager.getMaxBytesOut(zkUrl, topicPartition);
+      result += kafkaCluster.getMaxBytesOut(topicPartition);
     }
     return result;
   }

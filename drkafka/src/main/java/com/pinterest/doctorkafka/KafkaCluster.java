@@ -2,9 +2,10 @@ package com.pinterest.doctorkafka;
 
 
 import com.pinterest.doctorkafka.config.DoctorKafkaClusterConfig;
-import com.pinterest.doctorkafka.replicastats.ReplicaStatsManager;
 import com.pinterest.doctorkafka.util.OutOfSyncReplica;
 
+import com.codahale.metrics.Histogram;
+import com.codahale.metrics.SlidingWindowReservoir;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -43,17 +44,24 @@ public class KafkaCluster {
   private static final Logger LOG = LogManager.getLogger(KafkaCluster.class);
   private static final int MAX_NUM_STATS = 5;
   private static final int INVALID_BROKERSTATS_TIME = 240000;
+  /**
+   * The kafka network traffic stats takes ~15 minutes to cool down. We give a 20 minutes
+   * cool down period to avoid inaccurate stats collection.
+   */
+  private static final long REASSIGNMENT_COOLDOWN_WINDOW_IN_MS = 1800 * 1000L;
+  private static final int SLIDING_WINDOW_SIZE = 1440 * 4;
 
   private DoctorKafkaClusterConfig clusterConfig;
   public String zkUrl;
   public ConcurrentMap<Integer, KafkaBroker> brokers;
   private ConcurrentMap<Integer, LinkedList<BrokerStats>> brokerStatsMap;
   public ConcurrentMap<String, Set<TopicPartition>> topicPartitions = new ConcurrentHashMap<>();
-  private ReplicaStatsManager replicaStatsManager;
+  private ConcurrentMap<TopicPartition, Histogram> bytesInHistograms = new ConcurrentHashMap<>();
+  private ConcurrentMap<TopicPartition, Histogram> bytesOutHistograms = new ConcurrentHashMap<>();
+  private ConcurrentMap<TopicPartition, Long> reassignmentTimestamps = new ConcurrentHashMap<>();
 
-  public KafkaCluster(String zookeeper, DoctorKafkaClusterConfig clusterConfig, ReplicaStatsManager replicaStatsManager) {
+  public KafkaCluster(String zookeeper, DoctorKafkaClusterConfig clusterConfig) {
     this.zkUrl = zookeeper;
-    this.replicaStatsManager = replicaStatsManager;
     this.brokers = new ConcurrentHashMap<>();
     this.clusterConfig = clusterConfig;
     this.brokerStatsMap = new ConcurrentHashMap<>();
@@ -89,17 +97,30 @@ public class KafkaCluster {
 
       if (!brokerStats.getHasFailure()) {
         // only record brokerstat when there is no failure on that broker.
-        KafkaBroker broker = brokers.computeIfAbsent(brokerId, i -> new KafkaBroker(clusterConfig, replicaStatsManager, i));
+        KafkaBroker broker = brokers.computeIfAbsent(brokerId, i -> new KafkaBroker(clusterConfig, this, i));
         broker.update(brokerStats);
       }
 
-      if (brokerStats.getLeaderReplicas() != null) {
-        for (AvroTopicPartition atp : brokerStats.getLeaderReplicas()) {
-          String topic = atp.getTopic();
-          TopicPartition tp = new TopicPartition(topic, atp.getPartition());
-          topicPartitions
-              .computeIfAbsent(topic, t -> new HashSet<>())
-              .add(tp);
+      if (brokerStats.getLeaderReplicaStats() != null) {
+        for (ReplicaStat replicaStat : brokerStats.getLeaderReplicaStats()) {
+          String topic = replicaStat.getTopic();
+          TopicPartition topicPartition = new TopicPartition(topic, replicaStat.getPartition());
+          topicPartitions.computeIfAbsent(topic, t -> new HashSet<>()).add(topicPartition);
+          // if the replica is involved in reassignment, ignore the stats
+          if (replicaStat.getInReassignment()){
+            reassignmentTimestamps.compute(topicPartition,
+                  (t, v) -> v == null || v < replicaStat.getTimestamp() ? replicaStat.getTimestamp() : v);
+            continue;
+          }
+          long lastReassignment = reassignmentTimestamps.getOrDefault(topicPartition, 0L);
+          if (brokerStats.getTimestamp() - lastReassignment < REASSIGNMENT_COOLDOWN_WINDOW_IN_MS) {
+            continue;
+          }
+          bytesInHistograms.computeIfAbsent(topicPartition, k -> new Histogram(new SlidingWindowReservoir(SLIDING_WINDOW_SIZE)));
+          bytesOutHistograms.computeIfAbsent(topicPartition, k -> new Histogram(new SlidingWindowReservoir(SLIDING_WINDOW_SIZE)));
+
+          bytesInHistograms.get(topicPartition).update(replicaStat.getBytesIn15MinMeanRate());
+          bytesOutHistograms.get(topicPartition).update(replicaStat.getBytesOut15MinMeanRate());
         }
       }
     } catch (Exception e) {
@@ -120,6 +141,18 @@ public class KafkaCluster {
       }
     }
     return json;
+  }
+
+  public ConcurrentMap<TopicPartition, Histogram> getBytesInHistograms() {
+    return bytesInHistograms;
+  }
+
+  public ConcurrentMap<TopicPartition, Histogram> getBytesOutHistograms() {
+    return bytesOutHistograms;
+  }
+
+  public ConcurrentMap<TopicPartition, Long> getReassignmentTimestamps() {
+    return reassignmentTimestamps;
   }
 
   /**
@@ -450,25 +483,31 @@ public class KafkaCluster {
     }
   }
 
+  public long getMaxBytesIn(TopicPartition tp) {
+    return bytesInHistograms.get(tp).getSnapshot().getMax();
+  }
+
+  public long getMaxBytesOut(TopicPartition tp) {
+    return bytesOutHistograms.get(tp).getSnapshot().getMax();
+  }
 
   public long getMaxBytesIn() {
     long result = 0L;
     for (Map.Entry<String, Set<TopicPartition>> entry : topicPartitions.entrySet()) {
       Set<TopicPartition> topicPartitions = entry.getValue();
       for (TopicPartition tp : topicPartitions) {
-        result += replicaStatsManager.getMaxBytesIn(zkUrl, tp);
+        result += getMaxBytesIn(tp);
       }
     }
     return result;
   }
-
 
   public long getMaxBytesOut() {
     long result = 0L;
     for (Map.Entry<String, Set<TopicPartition>> entry : topicPartitions.entrySet()) {
       Set<TopicPartition> topicPartitions = entry.getValue();
       for (TopicPartition tp : topicPartitions) {
-        result += replicaStatsManager.getMaxBytesOut(zkUrl, tp);
+        result += getMaxBytesOut(tp);
       }
     }
     return result;

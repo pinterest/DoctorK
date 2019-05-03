@@ -77,7 +77,6 @@ public class KafkaClusterManager implements Runnable {
   private DoctorKafkaConfig drkafkaConfig = null;
   private DoctorKafkaClusterConfig clusterConfig;
   private DoctorKafkaActionReporter actionReporter = null;
-  private ReplicaStatsManager replicaStatsManager;
   private boolean stopped = true;
   private Thread thread = null;
 
@@ -118,7 +117,6 @@ public class KafkaClusterManager implements Runnable {
     if (clusterConfig.enabledDeadbrokerReplacement()) {
       this.brokerReplacer = new BrokerReplacer(drkafkaConfig.getBrokerReplacementCommand());
     }
-    this.replicaStatsManager = replicaStatsManager;
   }
 
   public KafkaCluster getCluster() {
@@ -236,8 +234,8 @@ public class KafkaClusterManager implements Runnable {
 
       for (Map.Entry<TopicPartition, Double> entry : tpTraffic.entrySet()) {
         TopicPartition tp = entry.getKey();
-        double tpBytesIn = replicaStatsManager.getMaxBytesIn(zkUrl, tp);
-        double tpBytesOut = replicaStatsManager.getMaxBytesOut(zkUrl, tp);
+        double tpBytesIn = kafkaCluster.getMaxBytesIn(tp);
+        double tpBytesOut = kafkaCluster.getMaxBytesOut(tp);
         double brokerTraffic = (bytesIn - toBeReducedBytesIn - tpBytesIn) +
             (bytesOut - toBeReducedBytesOut - tpBytesOut);
 
@@ -314,7 +312,7 @@ public class KafkaClusterManager implements Runnable {
 
       for (Map.Entry<TopicPartition, Double> entry : tpTraffic.entrySet()) {
         TopicPartition tp = entry.getKey();
-        double tpBytesIn = replicaStatsManager.getMaxBytesIn(zkUrl, tp);
+        double tpBytesIn = kafkaCluster.getMaxBytesIn(tp);
         if (brokerBytesIn - toBeReducedBytesIn - tpBytesIn < bytesInLimit) {
           // if moving a topic partition out will have the broker be under-utilized, do not
           // move it out.
@@ -489,8 +487,8 @@ public class KafkaClusterManager implements Runnable {
     Map<TopicPartition, Double> tpTraffic = new HashMap<>();
     for (TopicPartition tp : tps) {
       try {
-        double bytesIn = replicaStatsManager.getMaxBytesIn(zkUrl, tp);
-        double bytesOut = replicaStatsManager.getMaxBytesOut(zkUrl, tp);
+        double bytesIn = kafkaCluster.getMaxBytesIn(tp);
+        double bytesOut = kafkaCluster.getMaxBytesOut(tp);
         tpTraffic.put(tp, bytesIn + bytesOut);
       } catch (Exception e) {
         LOG.info("Exception in sorting topic partition {}", tp, e);
@@ -614,8 +612,8 @@ public class KafkaClusterManager implements Runnable {
 
     for (OutOfSyncReplica oosReplica : outOfSyncReplicas) {
 
-      double inBoundReq = replicaStatsManager.getMaxBytesIn(zkUrl, oosReplica.topicPartition);
-      double outBoundReq = replicaStatsManager.getMaxBytesOut(zkUrl, oosReplica.topicPartition);
+      double inBoundReq = kafkaCluster.getMaxBytesIn(oosReplica.topicPartition);
+      double outBoundReq = kafkaCluster.getMaxBytesOut(oosReplica.topicPartition);
       int preferredBroker = oosReplica.replicaBrokers.get(0);
 
       Map<Integer, KafkaBroker> replacedNodes;

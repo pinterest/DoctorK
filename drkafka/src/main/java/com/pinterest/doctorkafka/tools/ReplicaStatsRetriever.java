@@ -1,5 +1,6 @@
 package com.pinterest.doctorkafka.tools;
 
+import com.pinterest.doctorkafka.KafkaCluster;
 import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
 import com.pinterest.doctorkafka.replicastats.ReplicaStatsManager;
 import com.pinterest.doctorkafka.util.KafkaUtils;
@@ -87,10 +88,10 @@ public class ReplicaStatsRetriever {
 
     Map<TopicPartition, Histogram> bytesInStats =
         new TreeMap<>(new KafkaUtils.TopicPartitionComparator());
-    bytesInStats.putAll(replicaStatsManager.getTopicsBytesInStats(clusterZk));
+    bytesInStats.putAll(replicaStatsManager.getClusters().get(clusterZk).getBytesInHistograms());
     Map<TopicPartition, Histogram> bytesOutStats =
         new TreeMap<>(new KafkaUtils.TopicPartitionComparator());
-    bytesOutStats.putAll(replicaStatsManager.getTopicsBytesOutStats(clusterZk));
+    bytesOutStats.putAll(replicaStatsManager.getClusters().get(clusterZk).getBytesOutHistograms());
 
     for (TopicPartition tp : bytesInStats.keySet()) {
       long maxBytesIn = bytesInStats.get(tp).getSnapshot().getMax();
@@ -98,10 +99,10 @@ public class ReplicaStatsRetriever {
       System.out.println(tp + " : maxBytesIn = " + maxBytesIn + ", maxBytesOut = " + maxBytesOut);
     }
 
-    for (String zkUrl : replicaStatsManager.replicaReassignmentTimestamps.keySet()) {
-      System.out.println("Reassignment info for " + zkUrl);
+    for (KafkaCluster cluster : replicaStatsManager.getClusters().values()) {
+      System.out.println("Reassignment info for " + cluster.name());
       Map<TopicPartition, Long> reassignmentTimestamps =
-          replicaStatsManager.replicaReassignmentTimestamps.get(zkUrl);
+          cluster.getReassignmentTimestamps();
       for (TopicPartition tp : reassignmentTimestamps.keySet()) {
         System.out.println("    " + tp + " : " + reassignmentTimestamps.get(tp));
       }

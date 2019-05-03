@@ -13,11 +13,8 @@ import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.codahale.metrics.Histogram;
-import com.codahale.metrics.SlidingWindowReservoir;
 import com.pinterest.doctorkafka.BrokerStats;
 import com.pinterest.doctorkafka.KafkaCluster;
-import com.pinterest.doctorkafka.ReplicaStat;
 import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
 import com.pinterest.doctorkafka.util.KafkaUtils;
 import com.pinterest.doctorkafka.util.ReplicaStatsUtil;
@@ -26,30 +23,8 @@ public class ReplicaStatsManager {
 
   private static final Logger LOG = LogManager.getLogger(ReplicaStatsManager.class);
 
-  private static final int SLIDING_WINDOW_SIZE = 1440 * 4;
-
-  /**
-   * The kafka network traffic stats takes ~15 minutes to cool down. We give a 20 minutes
-   * cool down period to avoid inaccurate stats collection.
-   */
-  private static final long REASSIGNMENT_COOLDOWN_WINDOW_IN_MS = 1800 * 1000L;
-
-  private ConcurrentMap<String, ConcurrentMap<TopicPartition, Histogram>>
-      bytesInStats = new ConcurrentHashMap<>();
-
-  private ConcurrentMap<String, ConcurrentMap<TopicPartition, Histogram>>
-      bytesOutStats = new ConcurrentHashMap<>();
-
   private ConcurrentMap<String, KafkaCluster> clusters = new ConcurrentHashMap<>();
-
   private DoctorKafkaConfig config;
-
-  public ConcurrentHashMap<String, ConcurrentHashMap<TopicPartition, Long>>
-      replicaReassignmentTimestamps = new ConcurrentHashMap<>();
-
-  /*
-   * Getters
-   */
 
   public ConcurrentMap<String, KafkaCluster> getClusters() {
     return clusters;
@@ -70,36 +45,6 @@ public class ReplicaStatsManager {
     this.clusterZkUrls = config.getClusterZkUrls();
   }
 
-  public void updateReplicaReassignmentTimestamp(String brokerZkUrl,
-                                                         ReplicaStat replicaStat) {
-    if (!replicaReassignmentTimestamps.containsKey(brokerZkUrl)) {
-      replicaReassignmentTimestamps.put(brokerZkUrl, new ConcurrentHashMap<>());
-    }
-    ConcurrentHashMap<TopicPartition, Long> replicaTimestamps =
-        replicaReassignmentTimestamps.get(brokerZkUrl);
-    TopicPartition topicPartition = new TopicPartition(
-        replicaStat.getTopic(), replicaStat.getPartition());
-
-    if (!replicaTimestamps.containsKey(topicPartition) ||
-        replicaTimestamps.get(topicPartition) < replicaStat.getTimestamp()) {
-      replicaTimestamps.put(topicPartition, replicaStat.getTimestamp());
-    }
-  }
-
-  private long getLastReplicaReassignmentTimestamp(String brokerZkUrl,
-                                                          TopicPartition topicPartition) {
-    long result = 0;
-    if (replicaReassignmentTimestamps.containsKey(brokerZkUrl)) {
-      ConcurrentHashMap<TopicPartition, Long> replicaTimestamps =
-          replicaReassignmentTimestamps.get(brokerZkUrl);
-      if (replicaTimestamps.containsKey(topicPartition)) {
-        result = replicaTimestamps.get(topicPartition);
-      }
-    }
-    return result;
-  }
-
-
   /**
    *  Record the latest brokerstats, and update DocotorKafka internal data structures.
    */
@@ -110,66 +55,8 @@ public class ReplicaStatsManager {
       return;
     }
 
-    KafkaCluster cluster = clusters.computeIfAbsent(brokerZkUrl, url -> new KafkaCluster(url, config.getClusterConfigByZkUrl(url), this));
+    KafkaCluster cluster = clusters.computeIfAbsent(brokerZkUrl, url -> new KafkaCluster(url, config.getClusterConfigByZkUrl(url)));
     cluster.recordBrokerStats(brokerStats);
-
-    bytesInStats.putIfAbsent(brokerZkUrl, new ConcurrentHashMap<>());
-    bytesOutStats.putIfAbsent(brokerZkUrl, new ConcurrentHashMap<>());
-
-    if (brokerStats.getLeaderReplicaStats() != null) {
-      ConcurrentMap<TopicPartition, Histogram> bytesInHistograms = bytesInStats.get(brokerZkUrl);
-      ConcurrentMap<TopicPartition, Histogram> bytesOutHistograms = bytesOutStats.get(brokerZkUrl);
-      for (ReplicaStat replicaStat : brokerStats.getLeaderReplicaStats()) {
-        if (replicaStat.getInReassignment()) {
-          // if the replica is involved in reassignment, ignore the stats
-          updateReplicaReassignmentTimestamp(brokerZkUrl, replicaStat);
-          continue;
-        }
-        TopicPartition topicPartition = new TopicPartition(
-            replicaStat.getTopic(), replicaStat.getPartition());
-        long lastReassignment = getLastReplicaReassignmentTimestamp(brokerZkUrl, topicPartition);
-        if (brokerStats.getTimestamp() - lastReassignment < REASSIGNMENT_COOLDOWN_WINDOW_IN_MS) {
-          continue;
-        }
-
-        bytesInHistograms.computeIfAbsent(topicPartition, k -> new Histogram(new SlidingWindowReservoir(SLIDING_WINDOW_SIZE)));
-        bytesOutHistograms.computeIfAbsent(topicPartition, k -> new Histogram(new SlidingWindowReservoir(SLIDING_WINDOW_SIZE)));
-
-        bytesInHistograms.get(topicPartition).update(replicaStat.getBytesIn15MinMeanRate());
-        bytesOutHistograms.get(topicPartition).update(replicaStat.getBytesOut15MinMeanRate());
-      }
-    }
-  }
-
-
-  public long getMaxBytesIn(String zkUrl, TopicPartition topicPartition) {
-    try {
-      return bytesInStats.get(zkUrl).get(topicPartition).getSnapshot().getMax();
-    } catch (Exception e) {
-      LOG.error("Failed to get bytesinfo for {}:{}", zkUrl, topicPartition);
-      throw e;
-    }
-  }
-
-  public double get99thPercentilBytesIn(String zkUrl, TopicPartition topicPartition) {
-    return bytesInStats.get(zkUrl).get(topicPartition).getSnapshot().get99thPercentile();
-  }
-
-  public long getMaxBytesOut(String zkUrl, TopicPartition topicPartition) {
-    return bytesOutStats.get(zkUrl).get(topicPartition).getSnapshot().getMax();
-  }
-
-  public double get99thPercentilBytesOut(String zkUrl, TopicPartition topicPartition) {
-    return bytesOutStats.get(zkUrl).get(topicPartition).getSnapshot().get99thPercentile();
-  }
-
-
-  public Map<TopicPartition, Histogram> getTopicsBytesInStats(String zkUrl) {
-    return bytesInStats.get(zkUrl);
-  }
-
-  public Map<TopicPartition, Histogram> getTopicsBytesOutStats(String zkUrl) {
-    return bytesOutStats.get(zkUrl);
   }
 
   /**
