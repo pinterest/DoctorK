@@ -38,7 +38,7 @@ public class DoctorKafkaActionsServlet extends DoctorKafkaServlet {
   private static final long CONSUMER_POLL_TIMEOUT_MS = 1000L;
   private static final DecoderFactory avroDecoderFactory = DecoderFactory.get();
   private static Schema operatorActionSchema = OperatorAction.getClassSchema();
-  private static SimpleDateFormat dtFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
+  private static SimpleDateFormat dtFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss z");
 
   @Override
   public void renderJSON(PrintWriter writer, Map<String, String> params) {
