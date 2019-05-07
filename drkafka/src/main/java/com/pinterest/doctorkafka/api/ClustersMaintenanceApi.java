@@ -4,7 +4,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
-import javax.ws.rs.NotFoundException;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
@@ -17,17 +16,17 @@ import org.apache.logging.log4j.Logger;
 
 import com.pinterest.doctorkafka.DoctorKafka;
 import com.pinterest.doctorkafka.KafkaClusterManager;
+import com.pinterest.doctorkafka.util.ApiUtils;
 
-@Path("/cluster/{clusterName}/admin/maintenance")
+@Path("/clusters/{clusterName}/admin/maintenance")
 @Produces({ MediaType.APPLICATION_JSON })
 @Consumes({ MediaType.APPLICATION_JSON })
-public class MaintenanceApi {
+public class ClustersMaintenanceApi extends DoctorKafkaApi {
 
-  private static final Logger LOG = LogManager.getLogger(MaintenanceApi.class);
-  private DoctorKafka drKafka;
+  private static final Logger LOG = LogManager.getLogger(ClustersMaintenanceApi.class);
 
-  public MaintenanceApi(DoctorKafka drKafka) {
-    this.drKafka = drKafka;
+  public ClustersMaintenanceApi(DoctorKafka drKafka) {
+    super(drKafka);
   }
 
   @GET
@@ -41,8 +40,7 @@ public class MaintenanceApi {
       @PathParam("clusterName") String clusterName) {
     KafkaClusterManager clusterManager = checkAndGetClusterManager(clusterName);
     clusterManager.enableMaintenanceMode();
-    LOG.info("Enabled maintenance mode for cluster:" + clusterName + " by user:"
-        + ctx.getRemoteUser() + " from ip:" + ctx.getRemoteHost());
+    ApiUtils.logAPIAction(LOG, ctx, "Enabled maintenance mode for cluster:" + clusterName);
   }
 
   @DELETE
@@ -50,16 +48,7 @@ public class MaintenanceApi {
       @PathParam("clusterName") String clusterName) {
     KafkaClusterManager clusterManager = checkAndGetClusterManager(clusterName);
     clusterManager.disableMaintenanceMode();
-    LOG.info("Dsiabled maintenance mode for cluster:" + clusterName + " by user:"
-        + ctx.getRemoteUser() + " from ip:" + ctx.getRemoteHost());
-  }
-
-  private KafkaClusterManager checkAndGetClusterManager(String clusterName) {
-    KafkaClusterManager clusterManager = drKafka.getClusterManager(clusterName);
-    if (clusterManager == null) {
-      throw new NotFoundException("Unknown clustername:" + clusterName);
-    }
-    return clusterManager;
+    ApiUtils.logAPIAction(LOG, ctx, "Disabled maintenance mode for cluster:" + clusterName);
   }
 
 }

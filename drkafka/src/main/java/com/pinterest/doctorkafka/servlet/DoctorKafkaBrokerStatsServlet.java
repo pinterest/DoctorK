@@ -28,26 +28,34 @@ public class DoctorKafkaBrokerStatsServlet extends DoctorKafkaServlet {
   private static final Logger LOG = LogManager.getLogger(DoctorKafkaBrokerStatsServlet.class);
   private static final Gson gson = (new GsonBuilder()).serializeSpecialFloatingPointValues().create();
 
-  public BrokerStats getLatestStats(String clusterName, int brokerId)
-    throws ClusterInfoError {
-
-    try {
-      KafkaClusterManager clusterMananger =
-	DoctorKafkaMain.doctorKafka.getClusterManager(clusterName);
-      if (clusterMananger == null) {
-	throw new ClusterInfoError("Failed to find cluster manager for {}", clusterName);
-      }
-      KafkaCluster cluster = clusterMananger.getCluster();
-      KafkaBroker broker = cluster.brokers.get(brokerId);
-      BrokerStats latestStats = broker.getLatestStats();
-      if (latestStats == null) {
-	throw new ClusterInfoError("Failed to find Broker {} for {} ", Integer.toString(brokerId), clusterName);
-      }
-      return latestStats;
-    } catch (Exception e) {
-      LOG.error("Unexpected exception : ", e);
-      throw new ClusterInfoError("Unexpected exception: {} ", e.toString());
+  public KafkaBroker getBroker(String clusterName, int brokerId) throws ClusterInfoError {
+    KafkaClusterManager clusterMananger =
+        DoctorKafkaMain.doctorKafka.getClusterManager(clusterName);
+    if (clusterMananger == null) {
+      throw new ClusterInfoError("Failed to find cluster manager for {}", clusterName);
     }
+    KafkaBroker broker = clusterMananger.getCluster().getBroker(brokerId);
+    if (broker == null) {
+      throw new ClusterInfoError(
+          "Failed to find broker {} in cluster {}",
+          Integer.toString(brokerId),
+          clusterName
+      );
+    }
+
+    return broker;
+  }
+
+  public BrokerStats getLatestStats(String clusterName, KafkaBroker broker)
+    throws ClusterInfoError {
+    BrokerStats latestStats = broker.getLatestStats();
+    if (latestStats == null) {
+      throw new ClusterInfoError("Failed to get latest stats from broker {} in cluster {}",
+          Integer.toString(broker.getId()),
+          clusterName
+      );
+    }
+    return latestStats;
   }
   
   @Override
@@ -83,8 +91,7 @@ public class DoctorKafkaBrokerStatsServlet extends DoctorKafkaServlet {
     writer.print("<tbody>");
 
     try {
-      BrokerStats latestStats = getLatestStats(clusterName, brokerId);
-      generateBrokerStatsHtml(writer, latestStats);
+      generateBrokerHtml(writer, clusterName, brokerId);
       writer.print("</tbody></table>");
       writer.print("</td> </tr>");
       writer.print("</tbody> </table>");
@@ -95,11 +102,16 @@ public class DoctorKafkaBrokerStatsServlet extends DoctorKafkaServlet {
     printFooter(writer);
   }
 
-  private void generateBrokerStatsHtml(PrintWriter writer, BrokerStats stats) {
+  private void generateBrokerHtml(PrintWriter writer, String clusterName, int brokerId)
+      throws ClusterInfoError{
+    KafkaBroker broker = getBroker(clusterName, brokerId);
+    BrokerStats stats = getLatestStats(clusterName, broker);
+
     writer.print("<tr> <td> " + new Date(stats.getTimestamp()) + "</td>");
     writer.print("<td>");
     writer.print("<table class=\"table\"><tbody>");
     printHtmlTableRow(writer, "BrokerId", stats.getId());
+    printHtmlTableRow(writer, "IsDecommissioned", broker.isDecommissioned());
     printHtmlTableRow(writer, "Name", stats.getName());
     printHtmlTableRow(writer, "HasFailure", stats.getHasFailure());
     printHtmlTableRow(writer, "KafkaVersion", stats.getKafkaVersion());

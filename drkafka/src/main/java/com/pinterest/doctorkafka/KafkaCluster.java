@@ -219,7 +219,7 @@ public class KafkaCluster {
           continue;
         }
         LOG.debug("High traffic broker: {} : [{}, {}]",
-            broker.name(), broker.getMaxBytesIn(), broker.getMaxBytesOut());
+            broker.getName(), broker.getMaxBytesIn(), broker.getMaxBytesOut());
         result.add(broker);
       }
     }
@@ -239,7 +239,7 @@ public class KafkaCluster {
           double brokerBytesOut = broker.getMaxBytesOut();
           if (brokerBytesIn < averageBytesIn && brokerBytesOut < averageBytesOut) {
             LOG.info("Low traffic broker {} : [{}, {}]",
-                broker.name(), broker.getMaxBytesIn(), broker.getMaxBytesOut());
+                broker.getName(), broker.getMaxBytesIn(), broker.getMaxBytesOut());
             result.add(broker);
           }
         } catch (Exception e) {
@@ -293,7 +293,8 @@ public class KafkaCluster {
     BrokerStats latestStats = broker.getLatestStats();
     return latestStats== null ||
         latestStats.getHasFailure() ||
-        System.currentTimeMillis() - latestStats.getTimestamp() > INVALID_BROKERSTATS_TIME;
+        System.currentTimeMillis() - latestStats.getTimestamp() > INVALID_BROKERSTATS_TIME ||
+        broker.isDecommissioned();
   }
 
 
@@ -436,7 +437,7 @@ public class KafkaCluster {
   ){
     boolean success;
     KafkaBroker leastUsedBroker = brokerQueue.poll();
-    while (leastUsedBroker != null && replicaBrokers.contains(leastUsedBroker.id())) {
+    while (leastUsedBroker != null && replicaBrokers.contains(leastUsedBroker.getId())) {
       unusableBrokers.add(leastUsedBroker);
       leastUsedBroker = brokerQueue.poll();
     }
@@ -444,7 +445,7 @@ public class KafkaCluster {
       LOG.error("Failed to find a usable broker for fixing {}:{}", tp, oosBrokerId);
       success = false;
     } else {
-      LOG.info("LeastUsedBroker for replacing {} : {}", oosBrokerId, leastUsedBroker.id());
+      LOG.info("LeastUsedBroker for replacing {} : {}", oosBrokerId, leastUsedBroker.getId());
       success = preferredBroker == oosBrokerId ?
                 leastUsedBroker.reserveBandwidth(tp, inBoundReq, outBoundReq) :
                 leastUsedBroker.reserveBandwidth(tp, inBoundReq, 0);
@@ -472,7 +473,7 @@ public class KafkaCluster {
     }
     // we will get the broker with the least network usage
     KafkaBroker leastUsedBroker = brokerQueue.poll();
-    LOG.info("LeastUsedBroker for replacing {} : {}", topicPartition, leastUsedBroker.id());
+    LOG.info("LeastUsedBroker for replacing {} : {}", topicPartition, leastUsedBroker.getId());
     boolean success = leastUsedBroker.reserveBandwidth(topicPartition, tpBytesIn, tpBytesOut);
 
     if (!success) {

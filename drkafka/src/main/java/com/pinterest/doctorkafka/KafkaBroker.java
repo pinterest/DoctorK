@@ -9,13 +9,17 @@ import org.apache.logging.log4j.Logger;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
+
 
 public class KafkaBroker implements Comparable<KafkaBroker> {
 
@@ -41,6 +45,7 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
   private Set<TopicPartition>  toBeAddedReplicas;
 
   private KafkaCluster kafkaCluster;
+  private AtomicBoolean isDecommissioned = new AtomicBoolean(false);
 
   public KafkaBroker(DoctorKafkaClusterConfig clusterConfig, KafkaCluster kafkaCluster, int brokerId) {
     assert clusterConfig != null;
@@ -57,19 +62,6 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
     this.bytesInPerSecLimit = clusterConfig.getNetworkInLimitInBytes();
     this.bytesOutPerSecLimit = clusterConfig.getNetworkOutLimitInBytes();
     this.kafkaCluster = kafkaCluster;
-  }
-
-  public JsonElement toJson() {
-    // Return a JSON representation of a Kafka Broker.  Sadly, not everything can be trivially added.
-    JsonObject json = new JsonObject();
-    json.add("brokerId", gson.toJsonTree(brokerId));
-    json.add("brokerName", gson.toJsonTree(brokerName));
-    json.add("rackId", gson.toJsonTree(rackId));
-    json.add("bytesInPerSecLimit", gson.toJsonTree(bytesInPerSecLimit));
-    json.add("bytesOutPerSecLimit", gson.toJsonTree(bytesOutPerSecLimit));
-    json.add("maxBytesOut", gson.toJsonTree(getMaxBytesOut()));
-    json.add("maxBytesIn", gson.toJsonTree(getMaxBytesIn()));
-    return json;
   }
 
   public long getMaxBytesIn() {
@@ -100,21 +92,173 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
     return reservedBytesOut;
   }
 
-  public int id() {
+  @JsonProperty
+  public int getId() {
     return this.brokerId;
   }
 
-  public String name() {
+  @JsonProperty
+  public String getName() {
     return brokerName;
   }
 
-  public int port() {
+  @JsonProperty
+  public int getPort() {
     return this.brokerPort;
   }
 
-  public long lastStatsTimestamp() {
+  public long getLastStatsTimestamp() {
     return latestStats == null ? 0 : latestStats.getTimestamp();
   }
+
+  @JsonIgnore
+  public List<TopicPartition> getLeaderTopicPartitions() {
+    BrokerStats brokerStats = getLatestStats();
+    if (brokerStats == null) {
+      LOG.error("Failed to get brokerstats for {}:{}", clusterConfig.getClusterName(), brokerId);
+      return null;
+    }
+    List<TopicPartition> topicPartitions = new ArrayList<>();
+    brokerStats.getLeaderReplicas().stream().forEach(atp ->
+        topicPartitions.add(new TopicPartition(atp.getTopic(), atp.getPartition())));
+    return topicPartitions;
+  }
+
+  @JsonIgnore
+  public List<TopicPartition> getFollowerTopicPartitions() {
+    BrokerStats brokerStats = getLatestStats();
+    if (brokerStats == null) {
+      LOG.error("Failed to get brokerstats for {}:{}", clusterConfig.getClusterName(), brokerId);
+      return null;
+    }
+    List<TopicPartition> topicPartitions = new ArrayList<>();
+    brokerStats.getFollowerReplicas().stream().forEach(atp ->
+        topicPartitions.add(new TopicPartition(atp.getTopic(), atp.getPartition())));
+    return topicPartitions;
+  }
+
+
+  public void clearResourceAllocationCounters() {
+    this.reservedBytesIn = 0L;
+    this.reservedBytesOut = 0L;
+    this.toBeAddedReplicas.clear();
+  }
+
+  @JsonIgnore
+  protected void setLeaderReplicas(Set<TopicPartition> leaderReplicas) {
+    this.leaderReplicas = leaderReplicas;
+  }
+
+  @JsonIgnore
+  protected void setFollowerReplicas(Set<TopicPartition> followerReplicas) {
+    this.followerReplicas= followerReplicas;
+  }
+
+  /**
+   *  This is used in partition reassignment. During the partition reassignment, we cannot
+   *  put two replicas on the same broker.
+   *
+   *  @param tp the topic partition for examining
+   *  @return whether the broker has a replica for the given topic partition.
+   */
+  public boolean hasTopicPartition(TopicPartition tp) {
+    return leaderReplicas.contains(tp) || followerReplicas.contains(tp)
+        || toBeAddedReplicas.contains(tp);
+  }
+
+  @JsonIgnore
+  public BrokerStats getLatestStats() {
+    return latestStats;
+  }
+
+  @VisibleForTesting
+  protected void setLatestStats(BrokerStats brokerStats){
+    this.latestStats = brokerStats;
+  }
+
+  @JsonProperty
+  public String getRackId(){
+    return rackId;
+  }
+
+  @VisibleForTesting
+  protected void setRackId(String rackId){
+    this.rackId = rackId;
+  }
+
+  /**
+   *
+   * Broker Decommissioning:
+   * Currently, a decommissioned broker
+   * WILL:
+   *  1. Be ignored when checking for dead brokers (and thus no replacement will happen)
+   *  2. Be ignored during URP reassignments
+   *  3. Still update stats so it can catch up if decommission is cancelled
+   * WILL NOT:
+   *  1. Reassign the partitions to other brokers, you have to do it manually
+   *
+   * Note: Decommissioning is ephemeral for now, state is not preserved in ZK, so if a restart happens,
+   * we will have to do it again
+   *
+   */
+
+  /**
+   * Decommissions the broker
+   * @return previous decommission state
+   */
+  public boolean decommission() {
+    return this.isDecommissioned.getAndSet(true);
+  }
+
+  /**
+   * Cancels decommission of the broker
+   * @return previous decommission state
+   */
+  public boolean cancelDecommission() {
+    return this.isDecommissioned.getAndSet(false);
+  }
+
+  @JsonProperty
+  public boolean isDecommissioned() {
+    return this.isDecommissioned.get();
+  }
+
+
+  /**
+   *  Record the stats, and update the topic partition list based on the stats
+   *
+   *  @param stats the broker stats
+   */
+  public synchronized void update(BrokerStats stats) {
+    if (stats == null
+        || (latestStats != null && latestStats.getTimestamp() > stats.getTimestamp())
+        || stats.getHasFailure()) {
+      return;
+    }
+
+    brokerName = stats.getName();
+    latestStats = stats;
+    if (rackId == null) {
+      rackId = stats.getRackId() != null ? stats.getRackId() : stats.getAvailabilityZone();
+    }
+
+    if (stats.getLeaderReplicas() != null) {
+      setLeaderReplicas(stats.getLeaderReplicas()
+          .stream()
+          .map(tps -> new TopicPartition(tps.getTopic(), tps.getPartition()))
+          .collect(Collectors.toSet())
+      );
+    }
+
+    if (stats.getFollowerReplicas() != null ) {
+      setFollowerReplicas(stats.getFollowerReplicas()
+          .stream()
+          .map(tps -> new TopicPartition(tps.getTopic(), tps.getPartition()))
+          .collect(Collectors.toSet())
+      );
+    }
+  }
+
 
   public boolean reserveBandwidth(TopicPartition tp, double inBound, double outBound){
     if (bytesInPerSecLimit > getMaxBytesIn() + reservedBytesIn + inBound &&
@@ -177,119 +321,30 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
     return false;
   }
 
-  public List<TopicPartition> getLeaderTopicPartitions() {
-    BrokerStats brokerStats = getLatestStats();
-    if (brokerStats == null) {
-      LOG.error("Failed to get brokerstats for {}:{}", clusterConfig.getClusterName(), brokerId);
-      return null;
-    }
-    List<TopicPartition> topicPartitions = new ArrayList<>();
-    brokerStats.getLeaderReplicas().stream().forEach(atp ->
-        topicPartitions.add(new TopicPartition(atp.getTopic(), atp.getPartition())));
-    return topicPartitions;
-  }
-
-  public List<TopicPartition> getFollowerTopicPartitions() {
-    BrokerStats brokerStats = getLatestStats();
-    if (brokerStats == null) {
-      LOG.error("Failed to get brokerstats for {}:{}", clusterConfig.getClusterName(), brokerId);
-      return null;
-    }
-    List<TopicPartition> topicPartitions = new ArrayList<>();
-    brokerStats.getFollowerReplicas().stream().forEach(atp ->
-        topicPartitions.add(new TopicPartition(atp.getTopic(), atp.getPartition())));
-    return topicPartitions;
-  }
-
-
-  public void clearResourceAllocationCounters() {
-    this.reservedBytesIn = 0L;
-    this.reservedBytesOut = 0L;
-    this.toBeAddedReplicas.clear();
-  }
-
-  protected void setLeaderReplicas(Set<TopicPartition> leaderReplicas) {
-    this.leaderReplicas = leaderReplicas;
-  }
-
-  protected void setFollowerReplicas(Set<TopicPartition> followerReplicas) {
-    this.followerReplicas= followerReplicas;
-  }
-
-  /**
-   *  Record the stats, and update the topic partition list based on the stats
-   *
-   *  @param stats the broker stats
-   */
-  public synchronized void update(BrokerStats stats) {
-    if (stats == null
-        || (latestStats != null && latestStats.getTimestamp() > stats.getTimestamp())
-        || stats.getHasFailure()) {
-      return;
-    }
-
-    brokerName = stats.getName();
-    latestStats = stats;
-    if (rackId == null) {
-      rackId = stats.getRackId() != null ? stats.getRackId() : stats.getAvailabilityZone();
-    }
-
-    if (stats.getLeaderReplicas() != null) {
-      setLeaderReplicas(stats.getLeaderReplicas()
-          .stream()
-          .map(tps -> new TopicPartition(tps.getTopic(), tps.getPartition()))
-          .collect(Collectors.toSet())
-      );
-    }
-
-    if (stats.getFollowerReplicas() != null ) {
-      setFollowerReplicas(stats.getFollowerReplicas()
-          .stream()
-          .map(tps -> new TopicPartition(tps.getTopic(), tps.getPartition()))
-          .collect(Collectors.toSet())
-      );
-    }
-  }
-
-  /**
-   *  This is used in partition reassignment. During the partition reassignment, we cannot
-   *  put two replicas on the same broker.
-   *
-   *  @param tp the topic partition for examining
-   *  @return whether the broker has a replica for the given topic partition.
-   */
-  public boolean hasTopicPartition(TopicPartition tp) {
-    return leaderReplicas.contains(tp) || followerReplicas.contains(tp)
-        || toBeAddedReplicas.contains(tp);
-  }
-
-  public BrokerStats getLatestStats() {
-    return latestStats;
-  }
-
-  @VisibleForTesting
-  protected void setLatestStats(BrokerStats brokerStats){
-    this.latestStats = brokerStats;
-  }
-
-  public String getRackId(){
-    return rackId;
-  }
-
-  @VisibleForTesting
-  protected void setRackId(String rackId){
-    this.rackId = rackId;
-  }
-
-
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
-    sb.append("brokerId:" + id());
+    sb.append("brokerId:" + getId());
     sb.append("; rackId = " + rackId);
     sb.append("; stats : " + (latestStats == null ? "null" : latestStats));
     return sb.toString();
   }
+
+
+  @Deprecated
+  public JsonElement toJson() {
+    // Return a JSON representation of a Kafka Broker.  Sadly, not everything can be trivially added.
+    JsonObject json = new JsonObject();
+    json.add("brokerId", gson.toJsonTree(brokerId));
+    json.add("brokerName", gson.toJsonTree(brokerName));
+    json.add("rackId", gson.toJsonTree(rackId));
+    json.add("bytesInPerSecLimit", gson.toJsonTree(bytesInPerSecLimit));
+    json.add("bytesOutPerSecLimit", gson.toJsonTree(bytesOutPerSecLimit));
+    json.add("maxBytesOut", gson.toJsonTree(getMaxBytesOut()));
+    json.add("maxBytesIn", gson.toJsonTree(getMaxBytesIn()));
+    return json;
+  }
+
 
   public int compareTo(KafkaBroker another) {
     double networkUsage = getMaxBytesIn() + getMaxBytesOut()
@@ -315,4 +370,5 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
       return (xNetworkUsage < yNetworkUsage) ? -1 : (xNetworkUsage > yNetworkUsage ? 1 : 0);
     }
   }
+
 }

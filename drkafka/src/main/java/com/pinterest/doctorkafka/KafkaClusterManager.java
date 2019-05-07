@@ -219,9 +219,9 @@ public class KafkaClusterManager implements Runnable {
                                                List<TopicPartition> leaderReplicas,
                                                double averageBytesIn,
                                                double averageBytesOut) {
-    LOG.info("Start generating leader reassignment plan for {}", broker.name());
+    LOG.info("Start generating leader reassignment plan for {}", broker.getName());
     if (leaderReplicas == null) {
-      LOG.info("broker {} does not have leader partition", broker.id());
+      LOG.info("broker {} does not have leader partition", broker.getId());
       return;
     }
 
@@ -246,8 +246,8 @@ public class KafkaClusterManager implements Runnable {
         // if the preferred leader is not the current leader,
         // check if applying preferred leader election is feasible
         int preferredBrokerId = replicasList.get(0);
-        if (preferredBrokerId != broker.id()) {
-          LOG.info("Partition {}: {}, broker :{}", tp.partition(), replicasList, broker.name());
+        if (preferredBrokerId != broker.getId()) {
+          LOG.info("Partition {}: {}, broker :{}", tp.partition(), replicasList, broker.getName());
           KafkaBroker another = kafkaCluster.getBroker(preferredBrokerId);
           // we only need to check if the outbound bandwidth for preferredBroker as
           // there will be no in-bound traffic change
@@ -268,14 +268,14 @@ public class KafkaClusterManager implements Runnable {
         // invariant: is preferred leader, and moving this replica out will be helpful.
         KafkaBroker alterBroker = kafkaCluster.getAlternativeBroker(tp, tpBytesIn, tpBytesOut);
         if (alterBroker != null) {
-          LOG.info("Alternative broker for {} : {} -> {}", tp, broker.name(), alterBroker.name());
+          LOG.info("Alternative broker for {} : {} -> {}", tp, broker.getName(), alterBroker.getName());
           LOG.info("    tpBytesIn:{}, tpBytesOut:{}", tpBytesIn, tpBytesOut);
           LOG.info("    to be added: in: {}, out: {}", alterBroker.getReservedBytesIn(),
               alterBroker.getReservedBytesOut());
 
           ReassignmentInfo reassign = new ReassignmentInfo(tp, broker, alterBroker);
           reassignmentMap.put(tp, reassign);
-          LOG.info("    {} : {} -> {}", tp, reassign.source.name(), reassign.dest.name());
+          LOG.info("    {} : {} -> {}", tp, reassign.source.getName(), reassign.dest.getName());
           toBeReducedBytesIn += tpBytesIn;
           toBeReducedBytesOut += tpBytesOut;
 
@@ -284,14 +284,14 @@ public class KafkaClusterManager implements Runnable {
             break;
           }
         } else {
-          LOG.info("Could not find an alternative broker for {}:{} ", broker.name(), tp);
+          LOG.info("Could not find an alternative broker for {}:{} ", broker.getName(), tp);
           reassignmentFailures.add(new MutablePair<>(broker, tp));
         }
       }
     } catch (Exception e) {
-      LOG.info("Failure in generating leader assignment plan for {}", broker.name(), e);
+      LOG.info("Failure in generating leader assignment plan for {}", broker.getName(), e);
     }
-    LOG.info("End generating leader reassignment plan for {}", broker.name());
+    LOG.info("End generating leader reassignment plan for {}", broker.getName());
   }
 
 
@@ -299,7 +299,7 @@ public class KafkaClusterManager implements Runnable {
    *  Reassign the follower partitions
    */
   private void generateFollowerReassignmentPlan(KafkaBroker broker) {
-    LOG.info("Begin generating follower reassignment plan for {}", broker.name());
+    LOG.info("Begin generating follower reassignment plan for {}", broker.getName());
     List<TopicPartition> topicPartitions = broker.getFollowerTopicPartitions();
     Map<TopicPartition, Double> tpTraffic = sortTopicPartitionsByTraffic(topicPartitions);
 
@@ -320,17 +320,17 @@ public class KafkaClusterManager implements Runnable {
         }
         KafkaBroker alterBroker = kafkaCluster.getAlternativeBroker(tp, tpBytesIn, 0);
         if (alterBroker != null) {
-          LOG.info("  Alternative broker for {} : {} -> {}, bytesIn: {}", tp, broker.name(),
-              alterBroker.name(), tpBytesIn);
+          LOG.info("  Alternative broker for {} : {} -> {}, bytesIn: {}", tp, broker.getName(),
+              alterBroker.getName(), tpBytesIn);
           ReassignmentInfo reassign = new ReassignmentInfo(tp, broker, alterBroker);
           reassignmentMap.put(tp, reassign);
-          LOG.info("    {} : {} -> {}", tp, reassign.source.name(), reassign.dest.name());
+          LOG.info("    {} : {} -> {}", tp, reassign.source.getName(), reassign.dest.getName());
           toBeReducedBytesIn += tpBytesIn;
           if (broker.getMaxBytesIn() - toBeReducedBytesIn <= bytesInLimit) {
             break;
           }
         } else {
-          LOG.info("Could not find an alternative broker for {}:{}", broker.name(), tp);
+          LOG.info("Could not find an alternative broker for {}:{}", broker.getName(), tp);
           reassignmentFailures.add(new MutablePair<>(broker, tp));
         }
       }
@@ -353,7 +353,7 @@ public class KafkaClusterManager implements Runnable {
     Collections.reverse(highTrafficBrokers);
     for (KafkaBroker broker : highTrafficBrokers) {
       LOG.info("high traffic borker: {} : [{}, {}]",
-          broker.name(), broker.getMaxBytesIn(), broker.getMaxBytesOut());
+          broker.getName(), broker.getMaxBytesIn(), broker.getMaxBytesOut());
     }
     return highTrafficBrokers;
   }
@@ -378,14 +378,14 @@ public class KafkaClusterManager implements Runnable {
       try {
         if (broker.getMaxBytesOut() > clusterConfig.getNetworkOutLimitInBytes()) {
           // need to move some leader partitions out, or switch preferred leaders
-          List<TopicPartition> leaderReplicas = leaderTopicPartitions.get(broker.id());
+          List<TopicPartition> leaderReplicas = leaderTopicPartitions.get(broker.getId());
           generateLeadersReassignmentPlan(broker, leaderReplicas, averageBytesIn, averageBytesOut);
         } else if (broker.getMaxBytesIn() > clusterConfig.getNetworkInLimitInBytes()) {
           // move some followers out may be sufficient
           generateFollowerReassignmentPlan(broker);
         }
       } catch (Exception e) {
-        LOG.info("Exception in generating assignment plan for {}", broker.name(), e);
+        LOG.info("Exception in generating assignment plan for {}", broker.getName(), e);
       }
     }
 
@@ -435,14 +435,14 @@ public class KafkaClusterManager implements Runnable {
       Node[] replicas = partitionInfo.replicas();
       Integer[] newReplicas = new Integer[partitionInfo.replicas().length];
       for (int i = 0; i < replicas.length; i++) {
-        if (replicas[i].id() == reassign.source.id()) {
-          newReplicas[i] = reassign.dest.id();
+        if (replicas[i].id() == reassign.source.getId()) {
+          newReplicas[i] = reassign.dest.getId();
         } else {
           newReplicas[i] = replicas[i].id();
         }
       }
       assignmentPlan.put(tp, newReplicas);
-      sourceBrokerId.add(reassign.source.id());
+      sourceBrokerId.add(reassign.source.getId());
     }
     if (assignmentPlan.size() > 0) {
       scala.collection.Map<TopicAndPartition, Seq<Object>> proposedAssignment =
@@ -580,7 +580,7 @@ public class KafkaClusterManager implements Runnable {
     } else {
       KafkaBroker leaderBroker = kafkaCluster.getBroker(leaderId);
       // Leader might be bad as well
-      if (leaderBroker != null && isDeadBroker(leaderBroker.name(), kafkaPort, leaderId, tp)) {
+      if (leaderBroker != null && isDeadBroker(leaderBroker.getName(), kafkaPort, leaderId, tp)) {
         reason = UnderReplicatedReason.LEADER_FAILURE;
       } else if (isNetworkSaturated(leaderId)) {
         reason = UnderReplicatedReason.LEADER_NETWORK_SATURATION;
@@ -646,7 +646,7 @@ public class KafkaClusterManager implements Runnable {
         Integer[] newReplicas = new Integer[replicas.size()];
         for (int i = 0; i < replicas.size(); i++) {
           int brokerId = replicas.get(i);
-          newReplicas[i] = replacedNodes.containsKey(brokerId) ? replacedNodes.get(brokerId).id()
+          newReplicas[i] = replacedNodes.containsKey(brokerId) ? replacedNodes.get(brokerId).getId()
                                                                : brokerId;
         }
         replicasMap.put(oosReplica.topicPartition, newReplicas);
@@ -710,7 +710,7 @@ public class KafkaClusterManager implements Runnable {
           } else if (downBrokers.contains(leaderId)) {
             reason = UnderReplicatedReason.LEADER_FAILURE;
           } else {
-            reason = getUnderReplicatedReason(broker.name(), broker.port(), oosBrokerId, leaderId,
+            reason = getUnderReplicatedReason(broker.getName(), broker.getPort(), oosBrokerId, leaderId,
                 oosReplica.topicPartition);
             if (reason == UnderReplicatedReason.FOLLOWER_FAILURE) {
               downBrokers.add(oosBrokerId);
@@ -943,7 +943,10 @@ public class KafkaClusterManager implements Runnable {
     KafkaBroker toBeReplaced = null;
     for (Map.Entry<Integer, KafkaBroker> brokerEntry : kafkaCluster.brokers.entrySet()) {
       KafkaBroker broker = brokerEntry.getValue();
-      double lastUpdateTime = (now - broker.lastStatsTimestamp()) / 1000.0;
+      if (broker.isDecommissioned()) {
+        continue;
+      }
+      double lastUpdateTime = (now - broker.getLastStatsTimestamp()) / 1000.0;
       // call broker replacement script to replace dead brokers
       if (lastUpdateTime > clusterConfig.getBrokerReplacementNoStatsSeconds()) {
         toBeReplaced = broker;
@@ -952,7 +955,7 @@ public class KafkaClusterManager implements Runnable {
     }
 
     if (toBeReplaced != null) {
-      String brokerName= toBeReplaced.name();
+      String brokerName= toBeReplaced.getName();
       String clusterName = clusterConfig.getClusterName();
 
       try {
@@ -996,6 +999,24 @@ public class KafkaClusterManager implements Runnable {
     LOG.info("Disabled maintenace mode for:" + clusterConfig.getClusterName());
     Email.notifyOnMaintenanceMode(drkafkaConfig.getNotificationEmails(), 
         clusterConfig.getClusterName(), maintenanceMode.get());
+  }
+
+  public void decommissionBroker(Integer brokerId) {
+    boolean prevState = kafkaCluster.getBroker(brokerId).decommission();
+
+    // only notify if state changed
+    if (prevState == false) {
+      Email.notifyOnDecommissioningBroker(drkafkaConfig.getNotificationEmails(), kafkaCluster.name(), String.valueOf(brokerId));
+    }
+  }
+
+  public void cancelDecommissionBroker(Integer brokerId) {
+    boolean prevState = kafkaCluster.getBroker(brokerId).cancelDecommission();
+
+    // only notify if state changed
+    if (prevState == true) {
+      Email.notifyOnCancelledDecommissioningBroker(drkafkaConfig.getNotificationEmails(), kafkaCluster.name(), String.valueOf(brokerId));
+    }
   }
   
   /**

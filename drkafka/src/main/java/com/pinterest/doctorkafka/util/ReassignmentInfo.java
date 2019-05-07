@@ -19,7 +19,7 @@ public class ReassignmentInfo {
     @Override
     public String toString() {
       String result = topicPartition.toString() + ": ";
-      result += source.name() + " -> " + dest.name();
+      result += source.getName() + " -> " + dest.getName();
       return result;
     }
 }

@@ -170,7 +170,7 @@ class KafkaClusterTest {
       BrokerStats bs = new BrokerStats();
       bs.setTimestamp(System.currentTimeMillis());
       broker.setLatestStats(bs);
-      kafkaCluster.brokers.put(broker.id(), broker);
+      kafkaCluster.brokers.put(broker.getId(), broker);
     }
 
     Set<TopicPartition> replicaSet = new HashSet<>();
@@ -210,7 +210,7 @@ class KafkaClusterTest {
       // element check
       assertTrue(actualAssignments
           .stream()
-          .map(broker -> broker.id())
+          .map(broker -> broker.getId())
           .collect(Collectors.toList())
           .containsAll(expectedAssignments));
     }
@@ -248,7 +248,7 @@ class KafkaClusterTest {
       // element check
       assertTrue(actualAssignments
           .stream()
-          .map(broker -> broker.id())
+          .map(broker -> broker.getId())
           .collect(Collectors.toList())
           .containsAll(expectedAssignments));
     }
@@ -292,7 +292,7 @@ class KafkaClusterTest {
       BrokerStats bs = new BrokerStats();
       bs.setTimestamp(System.currentTimeMillis());
       broker.setLatestStats(bs);
-      kafkaCluster.brokers.put(broker.id(), broker);
+      kafkaCluster.brokers.put(broker.getId(), broker);
     }
 
     Set<TopicPartition> replicaSet = new HashSet<>();
@@ -375,7 +375,7 @@ class KafkaClusterTest {
       BrokerStats bs = new BrokerStats();
       bs.setTimestamp(System.currentTimeMillis());
       broker.setLatestStats(bs);
-      kafkaCluster.brokers.put(broker.id(), broker);
+      kafkaCluster.brokers.put(broker.getId(), broker);
     }
 
     Set<TopicPartition> replicaSet = new HashSet<>();

@@ -8,9 +8,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.google.common.collect.ImmutableList;
-import com.pinterest.doctorkafka.api.MaintenanceApi;
-import com.pinterest.doctorkafka.api.BrokerApi;
-import com.pinterest.doctorkafka.api.ClusterApi;
+
+import com.pinterest.doctorkafka.api.BrokersDecommissionApi;
+import com.pinterest.doctorkafka.api.ClustersMaintenanceApi;
+import com.pinterest.doctorkafka.api.BrokersApi;
+import com.pinterest.doctorkafka.api.ClustersApi;
 import com.pinterest.doctorkafka.config.DoctorKafkaAppConfig;
 import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
 import com.pinterest.doctorkafka.replicastats.ReplicaStatsManager;
@@ -115,9 +117,10 @@ public class DoctorKafkaMain extends Application<DoctorKafkaAppConfig> {
 
   private void registerAPIs(Environment environment, DoctorKafka doctorKafka) {
     environment.jersey().setUrlPattern("/api/*");
-    environment.jersey().register(new BrokerApi());
-    environment.jersey().register(new ClusterApi(doctorKafka));
-    environment.jersey().register(new MaintenanceApi(doctorKafka));
+    environment.jersey().register(new BrokersApi(doctorKafka));
+    environment.jersey().register(new ClustersApi(doctorKafka));
+    environment.jersey().register(new ClustersMaintenanceApi(doctorKafka));
+    environment.jersey().register(new BrokersDecommissionApi(doctorKafka));
   }
 
   private void startMetricsService() {
