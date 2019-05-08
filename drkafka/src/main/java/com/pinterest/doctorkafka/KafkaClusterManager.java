@@ -969,12 +969,17 @@ public class KafkaClusterManager implements Runnable {
         return false;
       }
 
-      LOG.info("Replacing {}  in {}", brokerName, clusterName);
-      brokerReplacer.replaceBroker(brokerName);
-      zookeeperClient.recordBrokerTermination(clusterName, brokerName);
-      actionReporter.sendMessage(clusterName, "broker replacement : " + brokerName);
-      Email.notifyOnBrokerReplacement(drkafkaConfig.getNotificationEmails(),
-          clusterName, brokerName);
+      if (!clusterConfig.dryRun()){
+        LOG.info("Replacing {}  in {}", brokerName, clusterName);
+        brokerReplacer.replaceBroker(brokerName);
+        zookeeperClient.recordBrokerTermination(clusterName, brokerName);
+        actionReporter.sendMessage(clusterName, "broker replacement : " + brokerName);
+        Email.notifyOnBrokerReplacement(drkafkaConfig.getNotificationEmails(),
+            clusterName, brokerName);
+      } else {
+        LOG.info("Dry run: Replacing {} in {}", brokerName, clusterName);
+      }
+
     }
     return true;
   }
