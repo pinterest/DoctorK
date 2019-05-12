@@ -89,6 +89,18 @@ public class Email {
     sendTo(emails, title, content);
   }
 
+  public static void notifyOnDecommissioningBroker(String[] emails, String clusterName, String brokerId) {
+    String title = "Decommissioning broker " + brokerId + " on " + clusterName;
+    String content = "Broker:" + brokerId + " Cluster:" + clusterName + " is getting decommissioned";
+    sendTo(emails, title, content);
+  }
+
+  public static void notifyOnCancelledDecommissioningBroker(String[] emails, String clusterName, String brokerId) {
+    String title = "Cancelled decommissioning broker " + brokerId + " on " + clusterName;
+    String content = "Broker:" + brokerId + " Cluster:" + clusterName + " decommission cancelled";
+    sendTo(emails, title, content);
+  }
+
   public static void alertOnNoStatsBrokers(String[] emails,
                                            String clusterName,
                                            List<Broker> noStatsBrokers) {
@@ -129,7 +141,7 @@ public class Email {
       reassignmentFailures.stream().forEach(pair -> {
         KafkaBroker broker = pair.getKey();
         TopicPartition topicPartition = pair.getValue();
-        sb.append("Broker : " + broker.name() + ", " + topicPartition);
+        sb.append("Broker : " + broker.getName() + ", " + topicPartition);
       });
     }
     if (downBrokers != null && !downBrokers.isEmpty()) {

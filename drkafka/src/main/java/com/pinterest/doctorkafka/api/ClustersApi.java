@@ -10,20 +10,18 @@ import javax.ws.rs.core.MediaType;
 
 import com.pinterest.doctorkafka.DoctorKafka;
 
-@Path("/cluster")
+@Path("/clusters")
 @Produces({ MediaType.APPLICATION_JSON })
 @Consumes({ MediaType.APPLICATION_JSON })
-public class ClusterApi {
+public class ClustersApi extends DoctorKafkaApi {
 
-  private DoctorKafka drKafka;
-
-  public ClusterApi(DoctorKafka drKafka) {
-    this.drKafka = drKafka;
+  public ClustersApi(DoctorKafka drKafka) {
+    super(drKafka);
   }
 
   @GET
   public List<String> getClusterNames() {
-    return drKafka.getClusterNames();
+    return getDrkafka().getClusterNames();
   }
 
 }

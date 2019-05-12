@@ -90,14 +90,14 @@ public class ClusterInfoServlet extends DoctorKafkaServlet {
         writer.print(String.format("<div class=\"container\"> overloaded brokers (%d) : ",
             overloadedBrokers.size()));
         for (KafkaBroker broker : overloadedBrokers) {
-          writer.print(broker.name() + ",");
+          writer.print(broker.getName() + ",");
         }
         writer.print("</div>");
 
         writer.print(String.format("<div class=\"container\"> under-utilized brokers (%d): ",
             underutilized.size()));
         for (KafkaBroker broker : underutilized) {
-          writer.print(broker.name() + ",");
+          writer.print(broker.getName() + ",");
         }
         writer.print("</div>");
       }
@@ -105,8 +105,9 @@ public class ClusterInfoServlet extends DoctorKafkaServlet {
       writer.print("<table class=\"table table_stripped text-left\">");
       writer.print("<thead> <tr>");
       String thStr = String.format(
-          "<th>%s</th> <th>%s</th> <th>%s</th> <th>%s</th> <th>%s</th> <th>%s</th>",
-          "BrokerId", "BrokerName", "MaxIn (Mb/s)", "MaxOut (Mb/s)", "#Partitions", "Last Update");
+          "<th>%s</th> <th>%s</th> <th>%s</th> <th>%s</th> <th>%s</th> <th>%s</th> <th>%s</th>",
+          "BrokerId", "BrokerName", "MaxIn (Mb/s)", "MaxOut (Mb/s)", "#Partitions", "Last Update",
+          "Decommissioned");
       writer.print(thStr + "</tr> </thead>");
       writer.print("<tbody>");
 
@@ -119,7 +120,7 @@ public class ClusterInfoServlet extends DoctorKafkaServlet {
         KafkaBroker broker = brokerEntry.getValue();
         double maxMbInPerSec = broker.getMaxBytesIn() / 1024.0 / 1024.0;
         double maxMbOutPerSec = broker.getMaxBytesOut() / 1024.0 / 1024.0;
-        double lastUpdateTime = (now - broker.lastStatsTimestamp()) / 1000.0;
+        double lastUpdateTime = (now - broker.getLastStatsTimestamp()) / 1000.0;
         
         String lastUpateTimeHtml =
             lastUpdateTime < 600
@@ -128,11 +129,12 @@ public class ClusterInfoServlet extends DoctorKafkaServlet {
 
         int partitionCount = broker.getLatestStats().getNumReplicas();
         String html = String.format(
-            "<td>%d</td> <td> %s </td> <td> %.2f</td> <td>%.2f</td> <td>%d</td> %s",
+            "<td>%d</td> <td> %s </td> <td> %.2f</td> <td>%.2f</td> <td>%d</td> %s <td> %s </td>",
             brokerEntry.getKey(),
             "<a href=\"/servlet/brokerstats?cluster=" + clusterName
-                + "&brokerid=" + broker.id() + "\">" + broker.name() + "</a>",
-            maxMbInPerSec, maxMbOutPerSec, partitionCount, lastUpateTimeHtml);
+                + "&brokerid=" + broker.getId() + "\">" + broker.getName() + "</a>",
+            maxMbInPerSec, maxMbOutPerSec, partitionCount, lastUpateTimeHtml,
+            broker.isDecommissioned());
 
         writer.print(html);
         writer.print("</tr>");
