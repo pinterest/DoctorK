@@ -6,7 +6,7 @@
 	<name>doctorkafka-parent</name>
 	<groupId>com.github.pinterest</groupId>
 	<artifactId>doctorkafka-parent</artifactId>
-	<version>0.2.4.6</version>
+	<version>0.2.4.7</version>
 	<packaging>pom</packaging>
 	<url>https://github.com/pinterest/doctorkafka</url>
 
