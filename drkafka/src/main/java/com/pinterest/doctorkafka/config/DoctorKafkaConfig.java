@@ -8,10 +8,14 @@ import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.pinterest.doctorkafka.security.DrKafkaAuthorizationFilter;
+
 import java.io.File;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -43,6 +47,9 @@ public class DoctorKafkaConfig {
   private static final String NOTIFICATION_EMAILS = "emails.notification";
   private static final String ALERT_EMAILS = "emails.alert";
   private static final String WEB_BIND_HOST = "web.bindhost";
+  public static final String DRKAFKA_ADMIN_ROLE = "drkafka_admin";
+  private static final String DRKAFKA_ADMIN_GROUPS = "admin.groups";
+  private static final String AUTHORIZATION_FILTER_CLASS = "authorization.filter.class";
 
   private PropertiesConfiguration configuration = null;
   private AbstractConfiguration drkafkaConfiguration = null;
@@ -217,5 +224,33 @@ public class DoctorKafkaConfig {
 
   public boolean getRestartDisabled(){
     return drkafkaConfiguration.getBoolean(RESTART_DISABLE, false);
+  }
+  
+  /**
+   * Return authorization filter class (if any)
+   * @return authorization filter class
+   * @throws ClassNotFoundException 
+   */
+  @SuppressWarnings("unchecked")
+  public Class<? extends DrKafkaAuthorizationFilter> getAuthorizationFilterClass() throws ClassNotFoundException {
+    if (drkafkaConfiguration.containsKey(AUTHORIZATION_FILTER_CLASS)) {
+      String classFqcn = drkafkaConfiguration.getString(AUTHORIZATION_FILTER_CLASS);
+      return (Class<? extends DrKafkaAuthorizationFilter>) Class.forName(classFqcn);
+    } else {
+      return null;
+    }
+  }
+  
+  /**
+   * Groups from directory service (like LDAP) that are granted Dr.Kafka Admin 
+   * permissions to run privileged commands.
+   * @return list of groups
+   */
+  public List<String> getDrKafkaAdminGroups() {
+    if (drkafkaConfiguration.containsKey(DRKAFKA_ADMIN_GROUPS)) {
+      return Arrays.asList(drkafkaConfiguration.getStringArray(DRKAFKA_ADMIN_GROUPS));
+    } else {
+      return null; 
+    }
   }
 }

@@ -1,5 +1,6 @@
 package com.pinterest.doctorkafka.api;
 
+import javax.annotation.security.RolesAllowed;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
@@ -16,6 +17,7 @@ import org.apache.logging.log4j.Logger;
 
 import com.pinterest.doctorkafka.DoctorKafka;
 import com.pinterest.doctorkafka.KafkaClusterManager;
+import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
 import com.pinterest.doctorkafka.util.ApiUtils;
 
 @Path("/clusters/{clusterName}/admin/maintenance")
@@ -36,6 +38,7 @@ public class ClustersMaintenanceApi extends DoctorKafkaApi {
   }
 
   @PUT
+  @RolesAllowed({ DoctorKafkaConfig.DRKAFKA_ADMIN_ROLE })
   public void enableMaintenance(@Context HttpServletRequest ctx,
       @PathParam("clusterName") String clusterName) {
     KafkaClusterManager clusterManager = checkAndGetClusterManager(clusterName);
@@ -44,6 +47,7 @@ public class ClustersMaintenanceApi extends DoctorKafkaApi {
   }
 
   @DELETE
+  @RolesAllowed({ DoctorKafkaConfig.DRKAFKA_ADMIN_ROLE })
   public void disableMaintenance(@Context HttpServletRequest ctx,
       @PathParam("clusterName") String clusterName) {
     KafkaClusterManager clusterManager = checkAndGetClusterManager(clusterName);
