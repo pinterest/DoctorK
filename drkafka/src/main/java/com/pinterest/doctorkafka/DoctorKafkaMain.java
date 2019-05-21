@@ -6,6 +6,7 @@ import java.util.concurrent.Executors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature;
 
 import com.google.common.collect.ImmutableList;
 
@@ -16,6 +17,7 @@ import com.pinterest.doctorkafka.api.ClustersApi;
 import com.pinterest.doctorkafka.config.DoctorKafkaAppConfig;
 import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
 import com.pinterest.doctorkafka.replicastats.ReplicaStatsManager;
+import com.pinterest.doctorkafka.security.DrKafkaAuthorizationFilter;
 import com.pinterest.doctorkafka.servlet.ClusterInfoServlet;
 import com.pinterest.doctorkafka.servlet.DoctorKafkaActionsServlet;
 import com.pinterest.doctorkafka.servlet.DoctorKafkaBrokerStatsServlet;
@@ -68,7 +70,7 @@ public class DoctorKafkaMain extends Application<DoctorKafkaAppConfig> {
 
     doctorKafka = new DoctorKafka(replicaStatsManager);
 
-    registerAPIs(environment, doctorKafka);
+    registerAPIs(environment, doctorKafka, replicaStatsManager.getConfig());
     registerServlets(environment);
 
     Executors.newCachedThreadPool().submit(() -> {
@@ -115,12 +117,29 @@ public class DoctorKafkaMain extends Application<DoctorKafkaAppConfig> {
     defaultServerFactory.setApplicationConnectors(Collections.singletonList(application));
   }
 
-  private void registerAPIs(Environment environment, DoctorKafka doctorKafka) {
+  private void registerAPIs(Environment environment, DoctorKafka doctorKafka, DoctorKafkaConfig doctorKafkaConfig) {
     environment.jersey().setUrlPattern("/api/*");
+    checkAndInitializeAuthorizationFilter(environment, doctorKafkaConfig);
     environment.jersey().register(new BrokersApi(doctorKafka));
     environment.jersey().register(new ClustersApi(doctorKafka));
     environment.jersey().register(new ClustersMaintenanceApi(doctorKafka));
     environment.jersey().register(new BrokersDecommissionApi(doctorKafka));
+  }
+
+  private void checkAndInitializeAuthorizationFilter(Environment environment, DoctorKafkaConfig doctorKafkaConfig) {
+    LOG.info("Checking authorization filter");
+    try {
+      Class<? extends DrKafkaAuthorizationFilter> authorizationFilterClass = doctorKafkaConfig.getAuthorizationFilterClass();
+      if (authorizationFilterClass != null) {
+        DrKafkaAuthorizationFilter filter = authorizationFilterClass.newInstance();
+        filter.configure(doctorKafkaConfig);
+        LOG.info("Using authorization filer:" + filter.getClass().getName());
+        environment.jersey().register(filter);
+        environment.jersey().register(RolesAllowedDynamicFeature.class);
+      }
+    } catch (Exception e) {
+      LOG.error("Failed to get and initialize DrKafkaAuthorizationFilter", e);
+    }
   }
 
   private void startMetricsService() {

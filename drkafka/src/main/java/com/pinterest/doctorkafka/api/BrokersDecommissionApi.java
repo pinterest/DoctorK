@@ -1,11 +1,13 @@
 package com.pinterest.doctorkafka.api;
 
 import com.pinterest.doctorkafka.DoctorKafka;
+import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
 import com.pinterest.doctorkafka.util.ApiUtils;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import javax.annotation.security.RolesAllowed;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
@@ -34,6 +36,7 @@ public class BrokersDecommissionApi extends DoctorKafkaApi {
   }
 
   @PUT
+  @RolesAllowed({ DoctorKafkaConfig.DRKAFKA_ADMIN_ROLE })
   public void decommissionBroker(@Context HttpServletRequest ctx,
                                  @PathParam("clusterName") String clusterName,
                                  @PathParam("brokerId") String brokerIdStr) {
@@ -42,6 +45,7 @@ public class BrokersDecommissionApi extends DoctorKafkaApi {
   }
 
   @DELETE
+  @RolesAllowed({ DoctorKafkaConfig.DRKAFKA_ADMIN_ROLE })
   public void cancelDecommissionBroker(@Context HttpServletRequest ctx,
                                        @PathParam("clusterName") String clusterName,
                                        @PathParam("brokerId") String brokerIdStr) {
