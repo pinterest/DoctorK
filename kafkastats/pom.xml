@@ -94,6 +94,7 @@
             <plugin>
                 <groupId>org.apache.avro</groupId>
                 <artifactId>avro-maven-plugin</artifactId>
+                <version>1.8.2</version>
                 <configuration>
                     <stringType>String</stringType>
                 </configuration>
