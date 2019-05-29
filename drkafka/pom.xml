@@ -14,7 +14,7 @@
 	<artifactId>doctorkafka</artifactId>
 
 	<properties>
-		<dropwizard.version>1.3.11</dropwizard.version>
+		<dropwizard.version>1.3.12</dropwizard.version>
 		<jetty.version>9.4.18.v20190429</jetty.version>
 		<fasterxml.version>2.9.8</fasterxml.version>
 	</properties>
