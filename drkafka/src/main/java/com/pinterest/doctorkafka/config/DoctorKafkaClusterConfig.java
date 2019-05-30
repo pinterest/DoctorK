@@ -1,10 +1,11 @@
 package com.pinterest.doctorkafka.config;
 
 
-import java.util.Map;
 import org.apache.commons.configuration2.AbstractConfiguration;
 import org.apache.commons.configuration2.SubsetConfiguration;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
+
+import java.util.Map;
 
 
 /**
@@ -143,5 +144,24 @@ public class DoctorKafkaClusterConfig {
       result = clusterConfiguration.getBoolean(ENABLE_RACK_AWARENESS);
     }
     return result;
+  }
+
+  public String[] getEnabledMonitors() {
+    if (clusterConfiguration.containsKey(DoctorKafkaConfig.ENABLED_MONITORS)) {
+      return clusterConfiguration.getStringArray((DoctorKafkaConfig.ENABLED_MONITORS));
+    }
+    return null;
+  }
+
+  public AbstractConfiguration getMonitorConfiguration(String moduleName) {
+    return new SubsetConfiguration(clusterConfiguration, DoctorKafkaConfig.MONITORS_PREFIX + moduleName);
+  }
+
+  public AbstractConfiguration getActionConfiguration(String moduleName) {
+    return new SubsetConfiguration(clusterConfiguration, DoctorKafkaConfig.ACTIONS_PREFIX + moduleName);
+  }
+
+  public AbstractConfiguration getOperatorConfiguration(String moduleName) {
+    return new SubsetConfiguration(clusterConfiguration, DoctorKafkaConfig.OPERATORS_PREFIX + moduleName);
   }
 }

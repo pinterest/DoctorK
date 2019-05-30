@@ -2,6 +2,12 @@ package com.pinterest.doctorkafka;
 
 import com.pinterest.doctorkafka.config.DoctorKafkaClusterConfig;
 import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
+import com.pinterest.doctorkafka.modules.manager.ActionManager;
+import com.pinterest.doctorkafka.modules.manager.DoctorKafkaActionManager;
+import com.pinterest.doctorkafka.modules.manager.DoctorKafkaMonitorManager;
+import com.pinterest.doctorkafka.modules.manager.DoctorKafkaOperatorManager;
+import com.pinterest.doctorkafka.modules.manager.MonitorManager;
+import com.pinterest.doctorkafka.modules.manager.OperatorManager;
 import com.pinterest.doctorkafka.replicastats.BrokerStatsProcessor;
 import com.pinterest.doctorkafka.replicastats.ReplicaStatsManager;
 import com.pinterest.doctorkafka.util.ZookeeperClient;
@@ -18,39 +24,33 @@ import java.util.Map;
 import java.util.Set;
 
 public class DoctorKafka {
-
   private static final Logger LOG = LogManager.getLogger(DoctorKafka.class);
 
   private DoctorKafkaConfig drkafkaConf;
-
   private BrokerStatsProcessor brokerStatsProcessor = null;
-
-  private DoctorKafkaActionReporter actionReporter = null;
-
   private Map<String, KafkaClusterManager> clusterManagers = new HashMap<>();
-
   private Set<String> clusterZkUrls = null;
-
   private ZookeeperClient zookeeperClient = null;
-
   private DoctorKafkaHeartbeat heartbeat = null;
-
   private ReplicaStatsManager replicaStatsManager = null;
+  private MonitorManager monitorManager;
+  private ActionManager actionManager;
+  private OperatorManager operatorManager;
 
-  public DoctorKafka(ReplicaStatsManager replicaStatsManager) {
+  public DoctorKafka(ReplicaStatsManager replicaStatsManager) throws Exception{
     this.replicaStatsManager = replicaStatsManager;
     this.drkafkaConf = replicaStatsManager.getConfig();
     this.clusterZkUrls = drkafkaConf.getClusterZkUrls();
     this.zookeeperClient = new ZookeeperClient(drkafkaConf.getDoctorKafkaZkurl());
+    this.monitorManager = new DoctorKafkaMonitorManager(drkafkaConf.getMonitorsConfiguration());
+    this.actionManager = new DoctorKafkaActionManager(drkafkaConf.getActionsConfiguration());
+    this.operatorManager = new DoctorKafkaOperatorManager(drkafkaConf.getOperatorsConfiguration());
   }
 
-  public void start() {
+  public void start() throws Exception {
     String brokerstatsZkurl = drkafkaConf.getBrokerstatsZkurl();
-    String actionReportZkurl = drkafkaConf.getActionReportZkurl();
     String statsTopic = drkafkaConf.getBrokerStatsTopic();
     SecurityProtocol statsSecurityProtocol = drkafkaConf.getBrokerStatsConsumerSecurityProtocol();
-    String actionReportTopic = drkafkaConf.getActionReportTopic();
-    SecurityProtocol actionReportSecurityProtocol = drkafkaConf.getActionReportProducerSecurityProtocol();
 
     LOG.info("Start rebuilding the replica stats by reading the past 24 hours brokerstats");
     replicaStatsManager.readPastReplicaStats(brokerstatsZkurl, statsSecurityProtocol,
@@ -61,8 +61,6 @@ public class DoctorKafka {
         drkafkaConf.getBrokerStatsConsumerSslConfigs(), replicaStatsManager);
     brokerStatsProcessor.start();
 
-    actionReporter = new DoctorKafkaActionReporter(actionReportZkurl, actionReportSecurityProtocol, actionReportTopic,
-        drkafkaConf.getActionReportProducerSslConfigs());
     for (String clusterZkUrl : clusterZkUrls) {
       DoctorKafkaClusterConfig clusterConf = drkafkaConf.getClusterConfigByZkUrl(clusterZkUrl);
       KafkaCluster kafkaCluster = replicaStatsManager.getClusters().get(clusterZkUrl);
@@ -72,7 +70,8 @@ public class DoctorKafka {
         continue;
       }
       KafkaClusterManager clusterManager = new KafkaClusterManager(
-          clusterZkUrl, kafkaCluster, clusterConf, drkafkaConf, actionReporter, zookeeperClient, replicaStatsManager);
+          clusterZkUrl, kafkaCluster, clusterConf, drkafkaConf, zookeeperClient,
+          monitorManager, actionManager, operatorManager);
       clusterManagers.put(clusterConf.getClusterName(), clusterManager);
       clusterManager.start();
       LOG.info("Starting cluster manager for " + clusterZkUrl);

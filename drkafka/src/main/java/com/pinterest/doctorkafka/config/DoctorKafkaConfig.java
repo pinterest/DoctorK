@@ -1,5 +1,7 @@
 package com.pinterest.doctorkafka.config;
 
+import com.pinterest.doctorkafka.security.DrKafkaAuthorizationFilter;
+
 import org.apache.commons.configuration2.AbstractConfiguration;
 import org.apache.commons.configuration2.PropertiesConfiguration;
 import org.apache.commons.configuration2.SubsetConfiguration;
@@ -7,8 +9,6 @@ import org.apache.commons.configuration2.builder.fluent.Configurations;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import com.pinterest.doctorkafka.security.DrKafkaAuthorizationFilter;
 
 import java.io.File;
 import java.util.Arrays;
@@ -22,13 +22,17 @@ import java.util.stream.Collectors;
 
 public class DoctorKafkaConfig {
 
+  public static final String ENABLED_MONITORS = "enabled_monitors";
+  public static final String MONITORS_PREFIX = "monitors.";
+  public static final String ACTIONS_PREFIX = "actions.";
+  public static final String OPERATORS_PREFIX = "operators.";
+
   private static final Logger LOG = LogManager.getLogger(DoctorKafkaConfig.class);
   private static final String DOCTORKAFKA_PREFIX = "doctorkafka.";
   private static final String CLUSTER_PREFIX = "kafkacluster.";
   private static final String BROKERSTATS_CONSUMER_PREFIX = "brokerstats.consumer.";
   private static final String ACTION_REPORT_PRODUCER_PREFIX = "action.report.producer.";
   private static final String SECURITY_PROTOCOL = "security.protocol";
-
   private static final String BROKERSTATS_ZKURL = "brokerstats.zkurl";
   private static final String BROKERSTATS_TOPIC = "brokerstats.topic";
   private static final String BROKERSTATS_VERSION = "brokerstats.version";
@@ -87,6 +91,22 @@ public class DoctorKafkaConfig {
 
   public Set<String> getClusters() {
     return clusterConfigurations.keySet();
+  }
+
+  public String[] getEnabledMonitors() {
+    return drkafkaConfiguration.getStringArray(ENABLED_MONITORS);
+  }
+
+  public AbstractConfiguration getMonitorsConfiguration() {
+    return new SubsetConfiguration(drkafkaConfiguration, MONITORS_PREFIX);
+  }
+
+  public AbstractConfiguration getActionsConfiguration() {
+    return new SubsetConfiguration(drkafkaConfiguration, ACTIONS_PREFIX);
+  }
+
+  public AbstractConfiguration getOperatorsConfiguration() {
+    return new SubsetConfiguration(drkafkaConfiguration, OPERATORS_PREFIX);
   }
 
   public Set<String> getClusterZkUrls() {
