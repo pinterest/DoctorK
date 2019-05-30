@@ -22,34 +22,6 @@ public class DoctorKafkaInfoServlet extends DoctorKafkaServlet {
   private static final Gson gson = new Gson();
 
   @Override
-  public void renderJSON(PrintWriter writer, Map<String, String> params) {
-    JsonObject json = new JsonObject();
-    json.add("version", gson.toJsonTree(getVersion()));
-    json.add("uptime", gson.toJsonTree(ManagementFactory.getRuntimeMXBean().getUptime() / 1000.0));
-    JsonArray jsonClusters = new JsonArray();
-    json.add("clusters", jsonClusters);
-
-    Collection<KafkaClusterManager> clusterManagers = DoctorKafkaMain.doctorKafka.getClusterManagers();
-
-    for (KafkaClusterManager clusterManager : clusterManagers) {
-      JsonObject cluster = new JsonObject();
-      cluster.add("clusterName", gson.toJsonTree(clusterManager.getClusterName()));
-      if (clusterManager.getCluster() != null) {
-	cluster.add("size", gson.toJsonTree(clusterManager.getClusterSize()));
-	cluster.add("urps", gson.toJsonTree(clusterManager.getUnderReplicatedPartitions().size()));
-      } else {
-	cluster.add("size", gson.toJsonTree(0));
-	cluster.add("urps", gson.toJsonTree(0));
-      }
-      jsonClusters.add(cluster);
-    }
-
-    writer.print(json);
-    
-  }
-  
-
-  @Override
   public void renderHTML(PrintWriter writer, Map<String, String> params) {
     try {
       double jvmUpTimeInSeconds = ManagementFactory.getRuntimeMXBean().getUptime() / 1000.0;

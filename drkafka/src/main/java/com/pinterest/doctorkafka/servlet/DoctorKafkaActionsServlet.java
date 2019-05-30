@@ -41,31 +41,6 @@ public class DoctorKafkaActionsServlet extends DoctorKafkaServlet {
   private static SimpleDateFormat dtFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss z");
 
   @Override
-  public void renderJSON(PrintWriter writer, Map<String, String> params) {
-    JsonArray json = new JsonArray();
-
-    for (ConsumerRecord<byte[], byte[]> record : Lists.reverse(retrieveActionReportMessages())) {
-      try {
-	JsonObject jsonRecord = new JsonObject();
-	BinaryDecoder binaryDecoder = avroDecoderFactory.binaryDecoder(record.value(), null);
-	SpecificDatumReader<OperatorAction> reader =
-	  new SpecificDatumReader<>(operatorActionSchema);
-
-	OperatorAction result = new OperatorAction();
-	reader.read(result, binaryDecoder);
-
-	jsonRecord.add("date",gson.toJsonTree(new Date(result.getTimestamp())));
-	jsonRecord.add("clusterName",gson.toJsonTree(result.getClusterName()));
-	jsonRecord.add("description",gson.toJsonTree(result.getDescription()));
-	json.add(jsonRecord);
-      } catch (Exception e) {
-	LOG.info("Fail to decode an message", e);
-      }
-    }
-    writer.print(json);
-  }
-
-  @Override
   public void renderHTML(PrintWriter writer, Map<String, String> params) {
     printHeader(writer);
     writer.print("<div> <p><a href=\"/\">Home</a> > doctorkafka action </p> </div>");

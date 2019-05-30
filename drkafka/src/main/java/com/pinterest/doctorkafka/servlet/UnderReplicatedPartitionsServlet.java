@@ -21,27 +21,6 @@ public class UnderReplicatedPartitionsServlet extends DoctorKafkaServlet {
   private static final Gson gson = new Gson();
 
   @Override
-  public void renderJSON(PrintWriter writer, Map<String, String> params) {
-    String clusterName = params.get("cluster");
-    KafkaClusterManager clusterMananger =
-        DoctorKafkaMain.doctorKafka.getClusterManager(clusterName);
-
-    if (clusterMananger == null) {
-      ClusterInfoError error = new ClusterInfoError("Failed to find cluster manager for {}", clusterName);
-      writer.print(gson.toJson(error));
-      return;
-    }
-
-    List<PartitionInfo> urps = clusterMananger.getUnderReplicatedPartitions();
-    JsonArray json = new JsonArray();
-
-    for (PartitionInfo partitionInfo : urps) {
-      json.add(gson.toJsonTree(partitionInfo));
-    }
-    writer.print(json);
-  }
-
-  @Override
   public void renderHTML(PrintWriter writer, Map<String, String> params) {
     String clusterName = params.get("cluster");
     printHeader(writer);

@@ -22,45 +22,6 @@ public class KafkaTopicStatsServlet extends DoctorKafkaServlet {
 
   private static final Logger LOG = LogManager.getLogger(KafkaTopicStatsServlet.class);
   private static final Gson gson = new Gson();
-  
-  @Override
-  public void renderJSON(PrintWriter writer, Map<String, String> params) {
-    String clusterName = params.get("cluster");
-    String topic = params.get("topic");
-    JsonArray json = new JsonArray();
-
-    KafkaClusterManager clusterMananger =
-      DoctorKafkaMain.doctorKafka.getClusterManager(clusterName);
-    if (clusterMananger == null) {
-      ClusterInfoError error = new ClusterInfoError("Failed to find cluster manager for {}", clusterName);
-      writer.print(gson.toJson(error));
-      return;
-    }
-
-    try {
-      KafkaCluster cluster = clusterMananger.getCluster();
-      
-      TreeSet<TopicPartition> topicPartitions =
-        new TreeSet( new KafkaUtils.TopicPartitionComparator());
-      topicPartitions.addAll(cluster.topicPartitions.get(topic));
-
-      for (TopicPartition topicPartition : topicPartitions) {
-	double bytesInMax =
-          cluster.getMaxBytesIn(topicPartition) / 1024.0 / 1024.0;
-	double bytesOutMax =
-            cluster.getMaxBytesOut(topicPartition) / 1024.0 / 1024.0;
-
-	JsonObject jsonPartition = new JsonObject();
-	jsonPartition.add("bytesInMax", gson.toJsonTree(bytesInMax));
-	jsonPartition.add("bytesOutMax", gson.toJsonTree(bytesOutMax));
-	jsonPartition.add("partition", gson.toJsonTree(topicPartition.partition()));
-	json.add(jsonPartition);
-      }
-      writer.print(json);
-    } catch (Exception e) {
-      writer.print(gson.toJson(e));
-    }
-  }
 
   @Override
   public void renderHTML(PrintWriter writer, Map<String, String> params) {

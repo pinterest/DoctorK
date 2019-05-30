@@ -111,7 +111,6 @@ public class DoctorKafkaServlet extends HttpServlet {
     return result;
   }
 
-  public void renderJSON(PrintWriter writer, Map<String, String> params){};
   public void renderHTML(PrintWriter writer, Map<String, String> params){};
 
   @Override
@@ -125,12 +124,7 @@ public class DoctorKafkaServlet extends HttpServlet {
     String contentType = req.getHeader("content-type");
     String queryString = req.getQueryString();
     Map<String, String> params = parseQueryString(queryString);
-    if (contentType != null && contentType == "application/json") {
-	resp.setContentType("application/json");
-        renderJSON(writer, params);
-    } else {
-      resp.setContentType("text/html");
-      renderHTML(writer, params);
-    }
+    resp.setContentType("text/html");
+    renderHTML(writer, params);
   }  
 }
