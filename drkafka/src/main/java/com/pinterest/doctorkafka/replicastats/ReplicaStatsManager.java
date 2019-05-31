@@ -1,11 +1,10 @@
 package com.pinterest.doctorkafka.replicastats;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import com.pinterest.doctorkafka.BrokerStats;
+import com.pinterest.doctorkafka.KafkaCluster;
+import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
+import com.pinterest.doctorkafka.util.KafkaUtils;
+import com.pinterest.doctorkafka.util.ReplicaStatsUtil;
 
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
@@ -13,11 +12,12 @@ import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.pinterest.doctorkafka.BrokerStats;
-import com.pinterest.doctorkafka.KafkaCluster;
-import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
-import com.pinterest.doctorkafka.util.KafkaUtils;
-import com.pinterest.doctorkafka.util.ReplicaStatsUtil;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 public class ReplicaStatsManager {
 

@@ -5,14 +5,11 @@ import com.pinterest.doctorkafka.DoctorKafkaMain;
 import com.pinterest.doctorkafka.KafkaCluster;
 import com.pinterest.doctorkafka.KafkaClusterManager;
 import com.pinterest.doctorkafka.util.KafkaUtils;
-import com.pinterest.doctorkafka.errors.ClusterInfoError;
 
+import com.google.gson.Gson;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonArray;
 
 import java.io.PrintWriter;
 import java.util.Map;

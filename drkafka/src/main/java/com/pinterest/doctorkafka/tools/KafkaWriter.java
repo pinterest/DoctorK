@@ -12,11 +12,11 @@ import org.apache.commons.cli.ParseException;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
 
 import java.util.Properties;
 import java.util.Random;
 import java.util.concurrent.Future;
-import org.apache.kafka.common.security.auth.SecurityProtocol;
 
 
 public class KafkaWriter {

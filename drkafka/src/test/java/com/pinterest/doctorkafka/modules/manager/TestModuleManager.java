@@ -1,7 +1,11 @@
 package com.pinterest.doctorkafka.modules.manager;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import com.pinterest.doctorkafka.modules.Configurable;
 import com.pinterest.doctorkafka.modules.errors.ModuleException;

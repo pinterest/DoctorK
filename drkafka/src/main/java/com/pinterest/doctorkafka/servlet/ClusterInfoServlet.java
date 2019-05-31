@@ -1,12 +1,11 @@
 package com.pinterest.doctorkafka.servlet;
 
-import com.google.gson.Gson;
-import com.pinterest.doctorkafka.KafkaBroker;
 import com.pinterest.doctorkafka.DoctorKafkaMain;
+import com.pinterest.doctorkafka.KafkaBroker;
 import com.pinterest.doctorkafka.KafkaCluster;
 import com.pinterest.doctorkafka.KafkaClusterManager;
-import com.pinterest.doctorkafka.errors.ClusterInfoError;
 
+import com.google.gson.Gson;
 import kafka.cluster.Broker;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;

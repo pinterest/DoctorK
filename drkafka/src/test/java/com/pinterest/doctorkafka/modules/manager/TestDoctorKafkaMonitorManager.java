@@ -1,6 +1,7 @@
 package com.pinterest.doctorkafka.modules.manager;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import com.pinterest.doctorkafka.modules.action.cluster.kafka.ZkUtilReassignPartition;
 

@@ -1,22 +1,20 @@
 package com.pinterest.doctorkafka.security;
 
+import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
+
+import jersey.repackaged.com.google.common.collect.Sets;
+import jersey.repackaged.com.google.common.collect.Sets.SetView;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
 import javax.annotation.Priority;
 import javax.ws.rs.container.ContainerRequestContext;
 import javax.ws.rs.ext.Provider;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
-import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
-
-import jersey.repackaged.com.google.common.collect.Sets;
-import jersey.repackaged.com.google.common.collect.Sets.SetView;
 
 /**
  * This is a sample implementation of {@link DrKafkaAuthorizationFilter}

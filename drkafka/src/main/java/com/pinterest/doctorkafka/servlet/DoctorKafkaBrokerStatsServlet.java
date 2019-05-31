@@ -3,22 +3,20 @@ package com.pinterest.doctorkafka.servlet;
 import com.pinterest.doctorkafka.BrokerStats;
 import com.pinterest.doctorkafka.DoctorKafkaMain;
 import com.pinterest.doctorkafka.KafkaBroker;
-import com.pinterest.doctorkafka.KafkaCluster;
 import com.pinterest.doctorkafka.KafkaClusterManager;
 import com.pinterest.doctorkafka.ReplicaStat;
-import com.pinterest.doctorkafka.util.KafkaUtils;
 import com.pinterest.doctorkafka.errors.ClusterInfoError;
+import com.pinterest.doctorkafka.util.KafkaUtils;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 
 import java.io.PrintWriter;
 import java.text.NumberFormat;
 import java.util.Date;
-import java.lang.Integer;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;

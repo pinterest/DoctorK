@@ -2,14 +2,15 @@ package com.pinterest.doctorkafka;
 
 import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
 import com.pinterest.doctorkafka.servlet.ClusterInfoServlet;
+
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import scala.Console;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 public class ClusterInfoServletTest extends Mockito {
 

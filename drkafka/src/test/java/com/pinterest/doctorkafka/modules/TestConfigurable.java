@@ -1,12 +1,14 @@
 package com.pinterest.doctorkafka.modules;
 
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import com.pinterest.doctorkafka.modules.utils.DummyStub;
 
-import org.apache.commons.configuration2.MapConfiguration;
-
 import org.apache.commons.configuration2.AbstractConfiguration;
+import org.apache.commons.configuration2.MapConfiguration;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;

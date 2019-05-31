@@ -1,14 +1,12 @@
 package com.pinterest.doctorkafka.servlet;
 
 
-import com.pinterest.doctorkafka.KafkaClusterManager;
 import com.pinterest.doctorkafka.DoctorKafkaMain;
+import com.pinterest.doctorkafka.KafkaClusterManager;
 
+import com.google.gson.Gson;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonArray;
 
 import java.io.PrintWriter;
 import java.lang.management.ManagementFactory;

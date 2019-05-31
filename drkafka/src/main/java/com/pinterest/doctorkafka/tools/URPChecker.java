@@ -1,7 +1,6 @@
 package com.pinterest.doctorkafka.tools;
 
 
-import com.pinterest.doctorkafka.KafkaClusterManager;
 import com.pinterest.doctorkafka.util.KafkaUtils;
 
 import kafka.utils.ZkUtils;
