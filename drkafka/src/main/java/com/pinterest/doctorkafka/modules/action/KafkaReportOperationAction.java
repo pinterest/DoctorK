@@ -3,6 +3,7 @@ package com.pinterest.doctorkafka.modules.action;
 import com.pinterest.doctorkafka.OperatorAction;
 import com.pinterest.doctorkafka.modules.errors.ModuleConfigurationException;
 import com.pinterest.doctorkafka.modules.event.Event;
+import com.pinterest.doctorkafka.modules.event.EventUtils;
 import com.pinterest.doctorkafka.util.OperatorUtil;
 
 import org.apache.avro.io.BinaryEncoder;
@@ -26,8 +27,8 @@ import java.util.Iterator;
 import java.util.Properties;
 import java.util.concurrent.Future;
 
-public class KafkaReportOperation extends Action {
-  private static final Logger LOG = LogManager.getLogger(KafkaReportOperation.class);
+public class KafkaReportOperationAction extends Action {
+  private static final Logger LOG = LogManager.getLogger(KafkaReportOperationAction.class);
   private static final int MAX_RETRIES = 5;
   private static final EncoderFactory avroEncoderFactory = EncoderFactory.get();
   private static final SpecificDatumWriter<OperatorAction> avroWriter
@@ -42,9 +43,6 @@ public class KafkaReportOperation extends Action {
 
   private static String configTopic;
 
-  private final static String EVENT_SUBJECT_KEY = "subject";
-  private final static String EVENT_MESSAGE_KEY = "message";
-
   private static boolean configured = false;
   private static Producer<byte[], byte[]> kafkaProducer;
 
@@ -54,7 +52,7 @@ public class KafkaReportOperation extends Action {
     super.configure(config);
     if (!configured) {
       if(!config.containsKey(CONFIG_TOPIC_KEY)){
-        throw new ModuleConfigurationException("Missing config " + CONFIG_TOPIC_KEY + " in plugin " + KafkaReportOperation.class);
+        throw new ModuleConfigurationException("Missing config " + CONFIG_TOPIC_KEY + " in plugin " + KafkaReportOperationAction.class);
       }
       configTopic = config.getString(CONFIG_TOPIC_KEY);
       kafkaProducer = createReportKafkaProducerFromConfig(config);
@@ -64,11 +62,9 @@ public class KafkaReportOperation extends Action {
 
   @Override
   public Collection<Event> execute(Event event) throws Exception {
-    if(isDryRun()) {
-      LOG.info("Dry run: Action {} triggered by event {}", this.getClass(), event.getName());
-    } else if(event.containsAttribute(EVENT_SUBJECT_KEY) && event.containsAttribute(EVENT_MESSAGE_KEY)){
-      String subject = (String) event.getAttribute(EVENT_SUBJECT_KEY);
-      String message = (String) event.getAttribute(EVENT_MESSAGE_KEY);
+    if(event.containsAttribute(EventUtils.EVENT_SUBJECT_KEY) && event.containsAttribute(EventUtils.EVENT_MESSAGE_KEY)){
+      String subject = (String) event.getAttribute(EventUtils.EVENT_SUBJECT_KEY);
+      String message = (String) event.getAttribute(EventUtils.EVENT_MESSAGE_KEY);
       report(subject, message);
     }
     return null;
@@ -106,7 +102,7 @@ public class KafkaReportOperation extends Action {
       throws ModuleConfigurationException {
 
     if(!config.containsKey(CONFIG_ZKURL_KEY)){
-      throw new ModuleConfigurationException("Missing config " + CONFIG_ZKURL_KEY + " in plugin " + KafkaReportOperation.class);
+      throw new ModuleConfigurationException("Missing config " + CONFIG_ZKURL_KEY + " in plugin " + KafkaReportOperationAction.class);
     }
     String zkUrl = config.getString(CONFIG_ZKURL_KEY);
     SecurityProtocol securityProtocol = config.containsKey(CONFIG_SECURITY_PROTOCOL_KEY) ?

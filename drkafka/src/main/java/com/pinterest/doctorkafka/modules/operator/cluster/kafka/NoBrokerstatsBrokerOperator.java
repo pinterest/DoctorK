@@ -11,17 +11,17 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.List;
 
-public class NoStatsBrokersOperator extends KafkaOperator {
-  private static final Logger LOG = LogManager.getLogger(NoStatsBrokersOperator.class);
-  private static final String EVENT_ALERT_NO_STATS_BROKERS_NAME = "alert_no_stats_brokers";
+public class NoBrokerstatsBrokerOperator extends KafkaOperator {
+  private static final Logger LOG = LogManager.getLogger(NoBrokerstatsBrokerOperator.class);
+  private static final String EVENT_ALERT_NO_BROKERSTATS_BROKERS_NAME = "alert_no_brokerstats_brokers";
 
 
   @Override
   public boolean operate(KafkaContext ctx, KafkaState state) throws Exception {
-    List<Broker> noStatsBrokers = state.getNoStatsBrokers();
-    if(noStatsBrokers.size() > 0){
+    List<Broker> noStatsBrokers = state.getNoBrokerstatsBrokers();
+    if(noStatsBrokers != null && noStatsBrokers.size() > 0){
       try {
-        emit(createNoStatsBrokerAlertEvent(ctx.getClusterName(), state.getNoStatsBrokers()));
+        emit(createNoBrokerstatsBrokerAlertEvent(ctx.getClusterName(), state.getNoBrokerstatsBrokers()));
       } catch (Exception e){
         LOG.error("Failed to emit alert on no stats brokers event", e);
       }
@@ -30,11 +30,11 @@ public class NoStatsBrokersOperator extends KafkaOperator {
     return true;
   }
 
-  protected Event createNoStatsBrokerAlertEvent(String clusterName, List<Broker> noStatsBrokers){
+  protected Event createNoBrokerstatsBrokerAlertEvent(String clusterName, List<Broker> noStatsBrokers){
     String title = clusterName + " : " + noStatsBrokers.size() + " brokers do not have stats";
     StringBuilder msg = new StringBuilder();
     msg.append("No stats brokers : \n");
     noStatsBrokers.stream().forEach(broker -> msg.append(broker + "\n"));
-    return new NotificationEvent(EVENT_ALERT_NO_STATS_BROKERS_NAME, title, msg.toString());
+    return new NotificationEvent(EVENT_ALERT_NO_BROKERSTATS_BROKERS_NAME, title, msg.toString());
   }
 }

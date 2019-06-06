@@ -7,6 +7,7 @@ import com.pinterest.doctorkafka.KafkaCluster;
 import com.pinterest.doctorkafka.modules.context.cluster.kafka.KafkaContext;
 import com.pinterest.doctorkafka.modules.errors.ModuleConfigurationException;
 import com.pinterest.doctorkafka.modules.event.Event;
+import com.pinterest.doctorkafka.modules.event.EventUtils;
 import com.pinterest.doctorkafka.modules.event.GenericEvent;
 import com.pinterest.doctorkafka.modules.event.NotificationEvent;
 import com.pinterest.doctorkafka.modules.state.cluster.kafka.KafkaState;
@@ -37,8 +38,8 @@ import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class URPReassignor extends KafkaOperator {
-  private final static Logger LOG = LogManager.getLogger(URPReassignor.class);
+public class URPReassignmentOperator extends KafkaOperator {
+  private final static Logger LOG = LogManager.getLogger(URPReassignmentOperator.class);
   //The time-out for machine reboot etc.
   private static final long MAX_HOST_REBOOT_TIME_MS = 300000L;
   private static final long MAX_TIMEOUT_MS = 300000L;
@@ -56,9 +57,7 @@ public class URPReassignor extends KafkaOperator {
   private static final String EVENT_KAFKA_PARTITION_REASSIGNMENT_NAME = "reassign_partitions";
   private static final String EVENT_URP_HANDLING_FAILURE_ALERT_NAME = "alert_urp_handling_failure";
   private static final String EVENT_ALERT_PROLONG_URP_NAME = "alert_prolong_urp";
-  private static final String EVENT_ZKURL_KEY = "zkurl";
-  private static final String EVENT_CLUSTER_NAME_KEY = "cluster_name";
-  private static final String EVENT_JSON_REASSIGNMENT_KEY = "json_reassignment";
+  private static final String EVENT_REASSIGNMENT_JSON_KEY = "reassignment_json";
 
   private boolean foundUrps = false;
   private long firstSeenUrpsTimestamp = Long.MAX_VALUE;
@@ -248,9 +247,9 @@ public class URPReassignor extends KafkaOperator {
 
   protected Event createReassignmentEvent(String zkUrl, String clusterName, String jsonReassignmentData){
     Map<String, Object> reassignmentEventAttributes = new HashMap<>();
-    reassignmentEventAttributes.put(EVENT_ZKURL_KEY, zkUrl);
-    reassignmentEventAttributes.put(EVENT_CLUSTER_NAME_KEY, clusterName);
-    reassignmentEventAttributes.put(EVENT_JSON_REASSIGNMENT_KEY, jsonReassignmentData);
+    reassignmentEventAttributes.put(EventUtils.EVENT_ZKURL_KEY, zkUrl);
+    reassignmentEventAttributes.put(EventUtils.EVENT_CLUSTER_NAME_KEY, clusterName);
+    reassignmentEventAttributes.put(EVENT_REASSIGNMENT_JSON_KEY, jsonReassignmentData);
     return new GenericEvent(EVENT_KAFKA_PARTITION_REASSIGNMENT_NAME,reassignmentEventAttributes);
   }
 

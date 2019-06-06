@@ -11,7 +11,7 @@ import java.util.List;
 public class KafkaState extends ClusterState {
 
   private List<PartitionInfo> underReplicatedPartitions;
-  private List<Broker> noStatsBrokers;
+  private List<Broker> noBrokerstatsBrokers;
   private List<KafkaBroker> toBeReplacedBrokers;
 
   public List<PartitionInfo> getUnderReplicatedPartitions() {
@@ -23,12 +23,12 @@ public class KafkaState extends ClusterState {
     this.underReplicatedPartitions = underReplicatedPartitions;
   }
 
-  public List<Broker> getNoStatsBrokers() {
-    return noStatsBrokers;
+  public List<Broker> getNoBrokerstatsBrokers() {
+    return noBrokerstatsBrokers;
   }
 
-  public void setNoStatsBrokers(List<Broker> noStatsBrokers) {
-    this.noStatsBrokers = noStatsBrokers;
+  public void setNoBrokerstatsBrokers(List<Broker> noBrokerstatsBrokers) {
+    this.noBrokerstatsBrokers = noBrokerstatsBrokers;
   }
 
   public List<KafkaBroker> getToBeReplacedBrokers() {

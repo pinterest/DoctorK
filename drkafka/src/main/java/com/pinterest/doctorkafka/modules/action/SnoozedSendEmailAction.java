@@ -4,15 +4,12 @@ import com.pinterest.doctorkafka.modules.errors.ModuleConfigurationException;
 import com.pinterest.doctorkafka.modules.event.Event;
 
 import org.apache.commons.configuration2.AbstractConfiguration;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class SnoozedSendEmail extends SendEmail {
-  private static final Logger LOG = LogManager.getLogger(SnoozedSendEmail.class);
+public class SnoozedSendEmailAction extends SendEmailAction {
   private static final String CONFIG_SNOOZE_SECONDS_KEY = "snooze.seconds";
 
   private long configSnoozeSeconds = 1200L;

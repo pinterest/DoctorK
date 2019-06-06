@@ -31,7 +31,7 @@ public class KafkaClusterManager implements Runnable {
   private static final String EVENT_NOTIFY_DECOMMISSION_NAME = "notify_decommission";
 
   private KafkaContext ctx;
-  private KafkaState currentState;
+  private volatile KafkaState currentState = new KafkaState();
   private Collection<Monitor> monitors = new ArrayList<>();
   private Collection<Operator> operators = new ArrayList<>();
   private SingleThreadEventHandler eventHandler;
@@ -124,6 +124,7 @@ public class KafkaClusterManager implements Runnable {
   }
 
   public void start() {
+    eventHandler.start();
     thread = new Thread(this);
     thread.setName("ClusterManager:" + getClusterName());
     thread.start();
@@ -154,7 +155,7 @@ public class KafkaClusterManager implements Runnable {
    *   return the list of brokers that do not have stats
    */
   public List<Broker> getNoStatsBrokers() {
-    return currentState.getNoStatsBrokers();
+    return currentState.getNoBrokerstatsBrokers();
   }
 
   public List<KafkaBroker> getAllBrokers() {
@@ -238,7 +239,7 @@ public class KafkaClusterManager implements Runnable {
       State newState = new KafkaState();
 
       for (Monitor plugin: monitors) {
-        if (newState.isStopped()){
+        if (newState.isOperationsStopped()){
           break;
         }
         try{
@@ -249,7 +250,7 @@ public class KafkaClusterManager implements Runnable {
       }
 
       // short circuit if stopped
-      if (!newState.isStopped()){
+      if (newState.isOperationsStopped()){
         continue;
       }
 

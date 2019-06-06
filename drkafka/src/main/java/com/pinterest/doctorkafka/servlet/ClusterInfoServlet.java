@@ -48,7 +48,7 @@ public class ClusterInfoServlet extends DoctorKafkaServlet {
           totalMbIn, totalMbOut));
 
       List<Broker> noStatsBrokers = clusterMananger.getNoStatsBrokers();
-      if (!noStatsBrokers.isEmpty()) {
+      if (noStatsBrokers != null && !noStatsBrokers.isEmpty()) {
         writer.print(
             "<div class=\"container\"> No stats brokers (" + noStatsBrokers.size() + ") : ");
         for (Broker broker : noStatsBrokers) {

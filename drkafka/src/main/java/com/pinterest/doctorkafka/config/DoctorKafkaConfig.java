@@ -85,15 +85,27 @@ public class DoctorKafkaConfig {
   }
 
   public String[] getEnabledMonitors() {
-    return drkafkaConfiguration.getStringArray(ENABLED_MONITORS);
+    String monitors = drkafkaConfiguration.getString(ENABLED_MONITORS);
+    if (monitors != null){
+      return monitors.split(",");
+    }
+    return null;
   }
 
   public String[] getEnabledOperators() {
-    return drkafkaConfiguration.getStringArray(ENABLED_OPERATORS);
+    String operators = drkafkaConfiguration.getString(ENABLED_OPERATORS);
+    if (operators != null){
+      return operators.split(",");
+    }
+    return null;
   }
 
   public String[] getEnabledActions() {
-    return drkafkaConfiguration.getStringArray(ENABLED_ACTIONS);
+    String actions = drkafkaConfiguration.getString(ENABLED_ACTIONS);
+    if (actions != null){
+      return actions.split(",");
+    }
+    return null;
   }
 
   public AbstractConfiguration getMonitorsConfiguration() {

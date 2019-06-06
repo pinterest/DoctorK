@@ -39,28 +39,28 @@ class TestDoctorKafkaModuleManager {
     DoctorKafkaModuleManager moduleManager = new DoctorKafkaModuleManager(null,null,null);
     try{
       moduleManager.getModule("noclasspathmodule",config,null);
-      fail();
+      fail("Should fail since class not been provided in the config");
     } catch (Exception e){
       assertTrue(e instanceof ModuleException);
     }
 
     try{
       moduleManager.getModule("badclasspathmodule", config, null);
-      fail();
+      fail("Should fail since class in config is a invalid class name");
     } catch (Exception e){
       assertTrue(e instanceof ClassNotFoundException);
     }
 
     try {
       moduleManager.getModule("notaconfigurablemodule", config, null);
-      fail();
+      fail("Should fail since class is not a Configurable");
     } catch (Exception e){
       assertTrue(e instanceof ClassCastException);
     }
 
     try {
       moduleManager.getModule("missingnoargctrmodule", config, null);
-      fail();
+      fail("Should fail since class has no nullary constructor");
     } catch (Exception e){
       assertTrue(e instanceof InstantiationException);
     }

@@ -11,6 +11,9 @@ import org.apache.commons.configuration2.Configuration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Create modules based on configuration values and caches the classes for future instance creation
+ */
 public class DoctorKafkaModuleManager implements ModuleManager {
   private static final String MODULE_CLASS_KEY = "class";
   private static final String MODULE_CONFIG_KEY = "config";

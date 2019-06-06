@@ -63,7 +63,7 @@ public class SingleThreadEventHandler implements EventEmitter, EventListener, Ru
         String eventName = event.getName();
         for (Action action : subscriptionMap.get(eventName)){
           try {
-            Collection<Event> newEvents = action.execute(event);
+            Collection<Event> newEvents = action.on(event);
             receiveAll(newEvents);
           } catch (Exception e){
             LOG.error("Failed to execute action {}", action.getClass() , e);

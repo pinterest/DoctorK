@@ -6,6 +6,11 @@ import com.pinterest.doctorkafka.modules.event.Event;
 import com.pinterest.doctorkafka.modules.event.EventEmitter;
 import com.pinterest.doctorkafka.modules.state.State;
 
+
+/**
+ * An operator takes the state of a service and performs some operations to remediate/alert on the service.
+ * Operators emit {@link Event Event(s)} to trigger these actions.
+ */
 public abstract class Operator implements Configurable {
   private EventEmitter eventEmitter;
 
@@ -13,10 +18,20 @@ public abstract class Operator implements Configurable {
     this.eventEmitter = eventEmitter;
   }
 
+  /**
+   * Sends an event to trigger actions
+   * @param event Event that provides context to the subscribed action(s)
+   * @throws Exception
+   */
   public void emit(Event event) throws Exception {
     eventEmitter.emit(event);
   }
 
-  // returns false if later operations should not be executed
+  /**
+   * @param ctx The context of the service
+   * @param state The state derived from {@link com.pinterest.doctorkafka.modules.monitor.Monitor Monitors}
+   * @return false if later operations should not be executed, true otherwise.
+   * @throws Exception
+   */
   public abstract boolean operate(Context ctx, State state) throws Exception;
 }

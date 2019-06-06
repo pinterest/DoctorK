@@ -3,6 +3,10 @@ package com.pinterest.doctorkafka.modules.context;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+
+/**
+ * Contexts are key-value objects that keeps attributes for modules to access.
+ */
 public abstract class Context {
   private Map<String, Object> attributes = new ConcurrentHashMap<>();
   public Object getAttribute(String key){

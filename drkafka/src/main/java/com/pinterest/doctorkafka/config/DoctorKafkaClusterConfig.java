@@ -54,21 +54,30 @@ public class DoctorKafkaClusterConfig {
 
   public String[] getEnabledMonitors() {
     if (clusterConfiguration.containsKey(DoctorKafkaConfig.ENABLED_MONITORS)) {
-      return clusterConfiguration.getStringArray((DoctorKafkaConfig.ENABLED_MONITORS));
+      String monitors = clusterConfiguration.getString((DoctorKafkaConfig.ENABLED_MONITORS));
+      if(monitors != null){
+        return monitors.split(",");
+      }
     }
     return null;
   }
 
   public String[] getEnabledOperators() {
     if (clusterConfiguration.containsKey(DoctorKafkaConfig.ENABLED_OPERATORS)) {
-      return clusterConfiguration.getStringArray((DoctorKafkaConfig.ENABLED_OPERATORS));
+      String operators = clusterConfiguration.getString((DoctorKafkaConfig.ENABLED_OPERATORS));
+      if(operators != null){
+        return operators.split(",");
+      }
     }
     return null;
   }
 
   public String[] getEnabledActions() {
     if (clusterConfiguration.containsKey(DoctorKafkaConfig.ENABLED_ACTIONS)) {
-      return clusterConfiguration.getStringArray((DoctorKafkaConfig.ENABLED_ACTIONS));
+      String actions = clusterConfiguration.getString((DoctorKafkaConfig.ENABLED_ACTIONS));
+      if(actions != null){
+        return actions.split(",");
+      }
     }
     return null;
   }

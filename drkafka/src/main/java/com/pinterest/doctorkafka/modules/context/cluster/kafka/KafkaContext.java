@@ -10,8 +10,9 @@ public class KafkaContext extends ClusterContext {
   private KafkaCluster kafkaCluster;
   private ZkUtils zkUtils;
 
-  // a per-Kafka-cluster client for Doctorkafka interactions with Zookeeper. Dependency should be
-  // injected externally from container of plugin.
+  /**
+   * a per-Kafka-cluster client for Doctorkafka interactions with Zookeeper.
+   */
   private ZookeeperClient kafkaClusterZookeeperClient;
   private String zkUrl;
 

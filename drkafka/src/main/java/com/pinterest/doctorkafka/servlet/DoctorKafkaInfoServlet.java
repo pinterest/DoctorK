@@ -38,12 +38,16 @@ public class DoctorKafkaInfoServlet extends DoctorKafkaServlet {
       Map<String, String> clustersHtml = new TreeMap<>();
       for (KafkaClusterManager clusterManager : clusterManagers) {
         String clusterName = clusterManager.getClusterName();
+        int urp_count = 0;
+        if(clusterManager.getUnderReplicatedPartitions() != null ){
+          urp_count = clusterManager.getUnderReplicatedPartitions().size();
+        }
         String htmlStr;
         htmlStr = "<tr> <td> <a href=\"/servlet/clusterinfo?name=" + clusterName + "\">"
               + clusterName + "</a>"
               + " </td> <td> " + ((clusterManager.getCluster()!=null)? clusterManager.getClusterSize() : "no brokerstats")
               + " </td> <td> <a href=\"/servlet/urp?cluster=" + clusterName + "\">"
-              + clusterManager.getUnderReplicatedPartitions().size() + "</a> </td>"
+              + urp_count + "</a> </td>"
               + "<td>" + clusterManager.isMaintenanceModeEnabled() + " </td> </tr>";
 
         clustersHtml.put(clusterName, htmlStr);

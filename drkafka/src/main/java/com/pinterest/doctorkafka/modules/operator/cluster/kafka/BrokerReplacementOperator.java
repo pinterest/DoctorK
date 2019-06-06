@@ -4,8 +4,10 @@ import com.pinterest.doctorkafka.KafkaBroker;
 import com.pinterest.doctorkafka.modules.context.cluster.kafka.KafkaContext;
 import com.pinterest.doctorkafka.modules.errors.ModuleConfigurationException;
 import com.pinterest.doctorkafka.modules.event.Event;
+import com.pinterest.doctorkafka.modules.event.EventUtils;
 import com.pinterest.doctorkafka.modules.event.GenericEvent;
 import com.pinterest.doctorkafka.modules.state.cluster.kafka.KafkaState;
+import com.pinterest.doctorkafka.util.ZookeeperClient;
 
 import org.apache.commons.configuration2.AbstractConfiguration;
 import org.apache.logging.log4j.LogManager;
@@ -15,8 +17,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class BrokerReplacer extends KafkaOperator {
-  private static final Logger LOG = LogManager.getLogger(BrokerReplacer.class);
+public class BrokerReplacementOperator extends KafkaOperator {
+  private static final Logger LOG = LogManager.getLogger(BrokerReplacementOperator.class);
 
   private static final String CONFIG_REPLACEMENT_COOLDOWN_SECONDS_KEY = "replacement.cooldown.seconds";
 
@@ -24,8 +26,8 @@ public class BrokerReplacer extends KafkaOperator {
 
   private static final String EVENT_REPLACE_INSTANCE_NAME = "replace_instance";
 
-  private static final String EVENT_CLUSTER_NAME_KEY = "cluster_name";
   private static final String EVENT_HOSTNAME_KEY = "hostname";
+  private static final String EVENT_ZOOKEEPER_CLIENT_KEY = "zookeeper_client";
 
   @Override
   public void configure(AbstractConfiguration config) throws ModuleConfigurationException {
@@ -40,10 +42,11 @@ public class BrokerReplacer extends KafkaOperator {
   public boolean operate(KafkaContext ctx, KafkaState state) {
     List<KafkaBroker> toBeReplacedBrokers = state.getToBeReplacedBrokers();
     KafkaBroker victim = null;
-    long now = System.currentTimeMillis();
-    for (KafkaBroker broker : toBeReplacedBrokers ) {
-      if(isClusterReplacementCooldownExpired(ctx, now, broker)){
-        victim = broker;
+    if ( toBeReplacedBrokers != null && toBeReplacedBrokers.size() > 0 ){
+      if(!isClusterReplacementCooldownExpired(ctx)) {
+        LOG.info("Cannot replace brokers on {} due to replace frequency limitation", ctx.getClusterName());
+      } else {
+        victim = toBeReplacedBrokers.get(0);
       }
     }
 
@@ -51,7 +54,7 @@ public class BrokerReplacer extends KafkaOperator {
       String brokerName = victim.getName();
       String clusterName = ctx.getClusterName();
       try {
-        emit(createReplaceInstanceEvent(clusterName, brokerName));
+        emit(createReplaceInstanceEvent(clusterName, brokerName, ctx.getKafkaClusterZookeeperClient()));
       } catch (Exception e){
         LOG.error("Failed to emit replacement event", e);
       }
@@ -60,28 +63,24 @@ public class BrokerReplacer extends KafkaOperator {
     return true;
   }
 
-  protected Event createReplaceInstanceEvent(String clusterName, String hostname){
+  protected Event createReplaceInstanceEvent(String clusterName, String hostname, ZookeeperClient zookeeperClient){
     Map<String, Object> replaceInstanceAttributes = new HashMap<>();
-    replaceInstanceAttributes.put(EVENT_CLUSTER_NAME_KEY, clusterName);
+    replaceInstanceAttributes.put(EventUtils.EVENT_CLUSTER_NAME_KEY, clusterName);
     replaceInstanceAttributes.put(EVENT_HOSTNAME_KEY, hostname);
+    replaceInstanceAttributes.put(EVENT_ZOOKEEPER_CLIENT_KEY, zookeeperClient);
     return new GenericEvent(EVENT_REPLACE_INSTANCE_NAME, replaceInstanceAttributes);
   }
 
-  protected boolean isClusterReplacementCooldownExpired(KafkaContext ctx, long now, KafkaBroker victim){
+  protected boolean isClusterReplacementCooldownExpired(KafkaContext ctx){
     String clusterName = ctx.getClusterName();
     try {
       long lastReplacementTime =
           ctx.getKafkaClusterZookeeperClient().getLastBrokerReplacementTime(clusterName);
-      long elaspedTimeInSeconds = (now - lastReplacementTime) / 1000;
-      if (elaspedTimeInSeconds < configReplacementCooldownSeconds) {
-        LOG.info("Cannot replace {}:{} due to replace frequency limitation",
-            clusterName, victim.getName());
-        return false;
-      }
+      long elapsedTimeInSeconds = (System.currentTimeMillis()- lastReplacementTime) / 1000;
+      return elapsedTimeInSeconds > configReplacementCooldownSeconds;
     } catch (Exception e) {
       LOG.error("Failed to check last broker replacement info for {}", clusterName, e);
       return false;
     }
-    return true;
   }
 }
