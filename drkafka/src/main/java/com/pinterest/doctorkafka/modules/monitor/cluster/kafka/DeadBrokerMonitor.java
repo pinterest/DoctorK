@@ -16,16 +16,14 @@ import java.util.Map;
 public class DeadBrokerMonitor extends KafkaMonitor {
   private static final Logger LOG = LogManager.getLogger(DeadBrokerMonitor.class);
 
-  private static final long DEFAULT_NO_STATS_SECONDS = 1200L;
-
   private static final String CONFIG_NO_STATS_SECONDS_KEY = "no_stats.seconds";
 
-  private long configNoStatsSeconds;
+  private long configNoStatsSeconds = 1200L;
 
   @Override
   public void configure(AbstractConfiguration config) throws ModuleConfigurationException {
     super.configure(config);
-    configNoStatsSeconds = config.getLong(CONFIG_NO_STATS_SECONDS_KEY, DEFAULT_NO_STATS_SECONDS);
+    configNoStatsSeconds = config.getLong(CONFIG_NO_STATS_SECONDS_KEY, configNoStatsSeconds);
   }
 
   public KafkaState observe(KafkaContext ctx, KafkaState state) {

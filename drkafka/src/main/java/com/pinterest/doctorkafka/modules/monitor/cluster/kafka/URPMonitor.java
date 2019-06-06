@@ -34,9 +34,7 @@ public class URPMonitor extends KafkaMonitor {
   private static final String CONFIG_CONSUMER_CONFIG_KEY = "consumer";
   private static final String CONFIG_SECURITY_PROTOCOL_KEY = CONFIG_CONSUMER_CONFIG_KEY + ".security.protocol";
 
-  private static final SecurityProtocol DEFAULT_SECURITY_PROTOCOL = SecurityProtocol.PLAINTEXT;
-
-  private SecurityProtocol configSecurityProtocol;
+  private SecurityProtocol configSecurityProtocol = SecurityProtocol.PLAINTEXT;
   private Map<String, String> configConsumerConfigs = new HashMap<>();
 
   @Override
@@ -49,7 +47,7 @@ public class URPMonitor extends KafkaMonitor {
 
     configSecurityProtocol = config.containsKey(CONFIG_SECURITY_PROTOCOL_KEY) ?
                              Enum.valueOf(SecurityProtocol.class, config.getString(CONFIG_SECURITY_PROTOCOL_KEY)) :
-                             DEFAULT_SECURITY_PROTOCOL;
+                             configSecurityProtocol;
   }
 
   public KafkaState observe(KafkaContext ctx, KafkaState state){

@@ -9,13 +9,11 @@ import org.apache.commons.configuration2.AbstractConfiguration;
 public class IntervalTimer implements Monitor {
   private static final String CONFIG_INTERVAL_SECONDS_KEY = "interval.seconds";
 
-  private static final long DEFAULT_INTERVAL_SECONDS_KEY = 5;
-
-  long configIntervalSeconds;
+  long configIntervalSeconds = 5L;
 
   @Override
   public void configure(AbstractConfiguration config) throws ModuleConfigurationException {
-    configIntervalSeconds = config.getLong(CONFIG_INTERVAL_SECONDS_KEY, DEFAULT_INTERVAL_SECONDS_KEY);
+    configIntervalSeconds = config.getLong(CONFIG_INTERVAL_SECONDS_KEY, configIntervalSeconds);
   }
 
   @Override

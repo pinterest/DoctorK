@@ -1,7 +1,10 @@
 package com.pinterest.doctorkafka.modules.action.cluster;
 
-import com.pinterest.doctorkafka.modules.action.errors.ProlongReplacementException;
+import com.pinterest.doctorkafka.modules.action.Action;
 import com.pinterest.doctorkafka.modules.errors.ModuleConfigurationException;
+import com.pinterest.doctorkafka.modules.event.Event;
+import com.pinterest.doctorkafka.modules.event.NotificationEvent;
+import com.pinterest.doctorkafka.modules.event.ReportEvent;
 
 import org.apache.commons.configuration2.AbstractConfiguration;
 import org.apache.logging.log4j.LogManager;
@@ -11,58 +14,73 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.Collection;
 
-public class ScriptReplaceInstance implements ReplaceInstance, Runnable {
+public class ScriptReplaceInstance extends Action implements Runnable {
   private static final Logger LOG = LogManager.getLogger(ScriptReplaceInstance.class);
 
   private static final String CONFIG_SCRIPT_KEY = "script";
   private static final String CONFIG_PROLONG_REPLACEMENT_ALERT_SECONDS_KEY = "prolong.replacement.alert.seconds";
 
-  private static final long DEFAULT_PROLONG_REPLACEMENT_ALERT_SECONDS = 1800L;
-
   private String configScript;
-  private long configProlongReplacementAlertSeconds;
+  private long configProlongReplacementAlertSeconds = 1800L;
+
+  private static final String EVENT_NOTIFY_PROLONG_REPLACEMENT_NAME = "notify_prolong_replacement";
+  private static final String EVENT_NOTIFY_REPLACEMENT_NAME = "notify_replacement";
+  private static final String EVENT_REPORT_OPERATION_NAME = "report_operation";
+
+  private static final String EVENT_CLUSTER_NAME_KEY = "cluster_name";
+  private static final String EVENT_HOSTNAME_KEY = "hostname";
+
+  private static final String DEFAULT_EVENT_SUBJECT = "n/a";
 
   private volatile boolean isBusy = false;
-  private String hostname;
+  private String currentHostname;
   private long replacementStartTime = -1;
   private Thread thread;
 
   @Override
   public void configure(AbstractConfiguration config) throws ModuleConfigurationException {
+    super.configure(config);
     if (!config.containsKey(CONFIG_SCRIPT_KEY)){
       throw new ModuleConfigurationException("Missing config " + CONFIG_SCRIPT_KEY + " for plugin " + this.getClass());
     }
     this.configScript = config.getString(CONFIG_SCRIPT_KEY);
     this.configProlongReplacementAlertSeconds = config.getLong(
         CONFIG_PROLONG_REPLACEMENT_ALERT_SECONDS_KEY,
-        DEFAULT_PROLONG_REPLACEMENT_ALERT_SECONDS
+        configProlongReplacementAlertSeconds
     );
   }
 
-  public void replace(String hostname) throws Exception {
+  @Override
+  public Collection<Event> execute(Event event) throws Exception {
+    if(isDryRun()){
+      LOG.info("Dry run: Action {} triggered by event {}", this.getClass(), event.getName());
+    } else if(event.containsAttribute(EVENT_HOSTNAME_KEY)){
+      String clusterName = event.containsAttribute(EVENT_CLUSTER_NAME_KEY) ?
+                       (String) event.getAttribute(EVENT_CLUSTER_NAME_KEY) :
+                       DEFAULT_EVENT_SUBJECT;
+      String hostname = (String) event.getAttribute(EVENT_HOSTNAME_KEY);
+      replace(clusterName, hostname);
+    }
+    return null;
+  }
+
+  protected Collection<Event> replace(String clusterName, String hostname) throws Exception {
     long now = System.currentTimeMillis();
     if (!isBusy) {
-      this.hostname = hostname;
+      currentHostname = hostname;
       isBusy = true;
       replacementStartTime = now;
       thread = new Thread(this);
       thread.start();
+      return createReplacementEvents(clusterName, hostname);
     } else {
-      long replacementTime = (now - replacementStartTime)/1000L;
-      LOG.info("Cannot replace broker {}: Busy replacing {}", hostname, this.hostname);
-      if (replacementTime > configProlongReplacementAlertSeconds) {
-        throw new ProlongReplacementException(
-            "Replacement of instance " + this.hostname +
-                " has not finished after " + replacementTime + " seconds",
-            this.hostname
-        );
-      }
+      long replacementTime = (System.currentTimeMillis() - replacementStartTime)/1000L;
+      LOG.info("Cannot replace broker {}: Busy replacing {}", hostname, currentHostname);
+      return maybeCreateNotifyProlongReplacementEvents(clusterName, replacementTime);
     }
-  }
-
-  public boolean isBusy(){
-    return isBusy;
   }
 
   @Override
@@ -70,7 +88,7 @@ public class ScriptReplaceInstance implements ReplaceInstance, Runnable {
     String[] replaceBrokerCommand = new String[3];
     replaceBrokerCommand[0] = "/bin/sh";
     replaceBrokerCommand[1] = "-c";
-    replaceBrokerCommand[2] = configScript + " " + hostname;
+    replaceBrokerCommand[2] = configScript + " " + currentHostname;
     LOG.info("Broker replacement command : " + replaceBrokerCommand[0] + " "
         + replaceBrokerCommand[1] + replaceBrokerCommand[2]);
 
@@ -92,5 +110,27 @@ public class ScriptReplaceInstance implements ReplaceInstance, Runnable {
     } finally {
       isBusy = false;
     }
+  }
+
+  protected Collection<Event> createReplacementEvents(String clusterName, String hostname){
+
+    Collection<Event> events = new ArrayList<>();
+    events.add(new ReportEvent(EVENT_REPORT_OPERATION_NAME, clusterName, "Replacing instance: " + hostname));
+
+    String title = clusterName + "replacing instance " + hostname;
+    String message = "Replacing instance " + hostname + " on cluster " + clusterName;
+    events.add(new NotificationEvent(EVENT_NOTIFY_REPLACEMENT_NAME, title, message));
+
+    return events;
+  }
+
+  protected Collection<Event> maybeCreateNotifyProlongReplacementEvents(String clusterName, long replacementTime){
+    Collection<Event> events = new ArrayList<>();
+    if (replacementTime > configProlongReplacementAlertSeconds) {
+      String title = "Slow replacement of broker " + currentHostname + " in cluster " + clusterName;
+      String message = "Replacement of instance " + currentHostname + " has not finished after " + replacementTime + " seconds";
+      events.add(new NotificationEvent(EVENT_NOTIFY_PROLONG_REPLACEMENT_NAME, title, message));
+    }
+    return events;
   }
 }

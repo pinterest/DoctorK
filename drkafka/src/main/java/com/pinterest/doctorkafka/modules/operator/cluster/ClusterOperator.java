@@ -6,9 +6,7 @@ import com.pinterest.doctorkafka.modules.operator.Operator;
 import com.pinterest.doctorkafka.modules.state.State;
 import com.pinterest.doctorkafka.modules.state.cluster.ClusterState;
 
-public abstract class ClusterOperator implements Operator  {
-  private boolean dryrun = false;
-
+public abstract class ClusterOperator extends Operator  {
   @Override
   public final boolean operate(Context ctx, State state) throws Exception {
     if (ctx instanceof ClusterContext && state instanceof ClusterState) {
@@ -18,9 +16,4 @@ public abstract class ClusterOperator implements Operator  {
   }
 
   public abstract boolean operate(ClusterContext ctx, ClusterState state) throws Exception;
-
-  @Override
-  public boolean isDryRun() {
-    return dryrun;
-  }
 }

@@ -23,6 +23,8 @@ import java.util.stream.Collectors;
 public class DoctorKafkaConfig {
 
   public static final String ENABLED_MONITORS = "enabled_monitors";
+  public static final String ENABLED_OPERATORS = "enabled_operators";
+  public static final String ENABLED_ACTIONS = "enabled_actions";
   public static final String MONITORS_PREFIX = "monitors.";
   public static final String ACTIONS_PREFIX = "actions.";
   public static final String OPERATORS_PREFIX = "operators.";
@@ -35,21 +37,14 @@ public class DoctorKafkaConfig {
   private static final String SECURITY_PROTOCOL = "security.protocol";
   private static final String BROKERSTATS_ZKURL = "brokerstats.zkurl";
   private static final String BROKERSTATS_TOPIC = "brokerstats.topic";
-  private static final String BROKERSTATS_VERSION = "brokerstats.version";
   private static final String BROKERSTATS_BACKTRACK_SECONDS = "brokerstats.backtrack.seconds";
-  private static final String ACTION_REPORT_ZKURL= "action.report.zkurl";
   private static final String ACTION_REPORT_TOPIC = "action.report.topic";
-  private static final String BROKER_REPLACEMENT_INTERVAL_SECONDS =
-      "action.broker_replacement.interval.seconds";
-  private static final String BROKER_REPLACEMENT_COMMAND = "action.broker_replacement.command";
   private static final String OSTRICH_PORT = "ostrich.port";
   private static final String RESTART_DISABLE = "restart.disabled";
   private static final String RESTART_INTERVAL_SECONDS = "restart.interval.seconds";
   private static final String DOCTORKAFKA_ZKURL = "zkurl";
   private static final String TSD_HOSTPORT = "tsd.hostport";
   private static final String WEB_PORT = "web.port";
-  private static final String NOTIFICATION_EMAILS = "emails.notification";
-  private static final String ALERT_EMAILS = "emails.alert";
   private static final String WEB_BIND_HOST = "web.bindhost";
   public static final String DRKAFKA_ADMIN_ROLE = "drkafka_admin";
   private static final String DRKAFKA_ADMIN_GROUPS = "admin.groups";
@@ -89,12 +84,16 @@ public class DoctorKafkaConfig {
     }
   }
 
-  public Set<String> getClusters() {
-    return clusterConfigurations.keySet();
-  }
-
   public String[] getEnabledMonitors() {
     return drkafkaConfiguration.getStringArray(ENABLED_MONITORS);
+  }
+
+  public String[] getEnabledOperators() {
+    return drkafkaConfiguration.getStringArray(ENABLED_OPERATORS);
+  }
+
+  public String[] getEnabledActions() {
+    return drkafkaConfiguration.getStringArray(ENABLED_ACTIONS);
   }
 
   public AbstractConfiguration getMonitorsConfiguration() {
@@ -126,10 +125,6 @@ public class DoctorKafkaConfig {
     return drkafkaConfiguration.getString(BROKERSTATS_TOPIC);
   }
 
-  public String getBrokerStatsVersion() {
-    return drkafkaConfiguration.getString(BROKERSTATS_VERSION);
-  }
-
   public long getBrokerStatsBacktrackWindowsInSeconds() {
     String backtrackWindow = drkafkaConfiguration.getString(BROKERSTATS_BACKTRACK_SECONDS);
     return Long.parseLong(backtrackWindow);
@@ -148,10 +143,6 @@ public class DoctorKafkaConfig {
     Map<String, String> sslConfigMap = getBrokerStatsConsumerSslConfigs();
     return sslConfigMap.containsKey(SECURITY_PROTOCOL)
         ?  Enum.valueOf(SecurityProtocol.class, sslConfigMap.get(SECURITY_PROTOCOL)) : SecurityProtocol.PLAINTEXT;
-  }
-
-  public String getActionReportZkurl() {
-    return drkafkaConfiguration.getString(ACTION_REPORT_ZKURL);
   }
 
   public String getActionReportTopic() {
@@ -179,16 +170,6 @@ public class DoctorKafkaConfig {
       result.put(key, configuration.getString(key));
     }
     return result;
-  }
-
-  public int getBrokerReplacementIntervalInSeconds() {
-    return drkafkaConfiguration.getInt(BROKER_REPLACEMENT_INTERVAL_SECONDS, 43200);
-  }
-
-  public String getBrokerReplacementCommand() {
-    String command = drkafkaConfiguration.getString(BROKER_REPLACEMENT_COMMAND);
-    command = command.replaceAll("^\"|\"$", "");
-    return command;
   }
 
   public String getTsdHostPort() {
@@ -222,24 +203,6 @@ public class DoctorKafkaConfig {
 
   public DoctorKafkaClusterConfig getClusterConfigByName(String clusterName) {
     return clusterConfigurations.get(clusterName);
-  }
-
-  /**
-   * The emails for sending notification. The message can be for informational purpose.
-   * @return an array of email addresses for sending notification to.
-   */
-  public String[] getNotificationEmails() {
-    String emailsStr = drkafkaConfiguration.getString(NOTIFICATION_EMAILS);
-    return emailsStr.split(",");
-  }
-
-  /**
-   * The email addresses for sending alerts that the team needs to take actions.
-   * @return an array of email addresses for sending alerts to.
-   */
-  public String[] getAlertEmails() {
-    String emailsStr = drkafkaConfiguration.getString(ALERT_EMAILS);
-    return emailsStr.split(",");
   }
 
   public boolean getRestartDisabled(){

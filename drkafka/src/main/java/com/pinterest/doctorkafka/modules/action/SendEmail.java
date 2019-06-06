@@ -1,6 +1,7 @@
 package com.pinterest.doctorkafka.modules.action;
 
 import com.pinterest.doctorkafka.modules.errors.ModuleConfigurationException;
+import com.pinterest.doctorkafka.modules.event.Event;
 
 import org.apache.commons.configuration2.AbstractConfiguration;
 import org.apache.logging.log4j.LogManager;
@@ -9,40 +10,41 @@ import org.apache.logging.log4j.Logger;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.Collection;
 
-public class EmailSendEvent implements SendEvent {
+public class SendEmail extends Action {
 
-  private static final Logger LOG = LogManager.getLogger(EmailSendEvent.class);
+  private static final Logger LOG = LogManager.getLogger(SendEmail.class);
   private static final String TITLE_PREFIX = "doctorkafka : ";
   private static final String TMP_FILE_PREFIX = "/tmp/doctorkafka_";
 
-  private static final String CONFIG_NOTIFY_EMAILS_KEY = "notification.emails";
-  private static final String CONFIG_ALERT_EMAILS_KEY = "alert.emails";
+  private static final String CONFIG_EMAILS_KEY = "emails";
 
-  private String[] configNotifyEmails;
-  private String[] configAlertEmails;
+  private String[] configEmails;
+
+  private static final String EVENT_TITLE_KEY = "title";
+  private static final String EVENT_MESSAGE_KEY = "message";
 
   @Override
   public void configure(AbstractConfiguration config) throws ModuleConfigurationException {
-    if(!config.containsKey(CONFIG_NOTIFY_EMAILS_KEY)){
-      throw new ModuleConfigurationException("Missing config " + CONFIG_NOTIFY_EMAILS_KEY + " in plugin " + EmailSendEvent.class);
+    super.configure(config);
+    if(!config.containsKey(CONFIG_EMAILS_KEY)){
+      throw new ModuleConfigurationException("Missing config " + CONFIG_EMAILS_KEY + " in action " + SendEmail.class);
     }
-    configNotifyEmails = config.getStringArray(CONFIG_NOTIFY_EMAILS_KEY);
-    if(!config.containsKey(CONFIG_ALERT_EMAILS_KEY)){
-      throw new ModuleConfigurationException("Missing config " + CONFIG_ALERT_EMAILS_KEY + " in plugin " + EmailSendEvent.class);
-    }
-    configAlertEmails = config.getStringArray(CONFIG_ALERT_EMAILS_KEY);
+    configEmails = config.getStringArray(CONFIG_EMAILS_KEY);
   }
 
   @Override
-  public void notify(String title, String message) {
-    sendTo(configNotifyEmails,title, message);
+  public Collection<Event> execute(Event event) throws Exception {
+    if(isDryRun()) {
+      LOG.info("Dry run: Action {} triggered by event {}", this.getClass(), event.getName());
+    } else if(event.containsAttribute(EVENT_TITLE_KEY) && event.containsAttribute(EVENT_MESSAGE_KEY)) {
+      String title = (String) event.getAttribute(EVENT_TITLE_KEY);
+      String message = (String) event.getAttribute(EVENT_MESSAGE_KEY);
+      sendTo(configEmails,title, message);
+    }
+    return null;
   }
-  @Override
-  public void alert(String title, String message) {
-    sendTo(configAlertEmails,title, message);
-  }
-
 
   public static void sendTo(String[] emails, String title, String content) {
     String tmpFileName = TMP_FILE_PREFIX + "_" + System.currentTimeMillis() + ".txt";

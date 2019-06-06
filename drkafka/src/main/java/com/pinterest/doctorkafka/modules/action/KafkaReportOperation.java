@@ -1,8 +1,8 @@
 package com.pinterest.doctorkafka.modules.action;
 
 import com.pinterest.doctorkafka.OperatorAction;
-import com.pinterest.doctorkafka.modules.action.errors.ReportActionFailedException;
 import com.pinterest.doctorkafka.modules.errors.ModuleConfigurationException;
+import com.pinterest.doctorkafka.modules.event.Event;
 import com.pinterest.doctorkafka.util.OperatorUtil;
 
 import org.apache.avro.io.BinaryEncoder;
@@ -21,12 +21,13 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.ByteArrayOutputStream;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.Properties;
 import java.util.concurrent.Future;
 
-public class KafkaReportAction implements ReportOperation {
-  private static final Logger LOG = LogManager.getLogger(KafkaReportAction.class);
+public class KafkaReportOperation extends Action {
+  private static final Logger LOG = LogManager.getLogger(KafkaReportOperation.class);
   private static final int MAX_RETRIES = 5;
   private static final EncoderFactory avroEncoderFactory = EncoderFactory.get();
   private static final SpecificDatumWriter<OperatorAction> avroWriter
@@ -39,18 +40,46 @@ public class KafkaReportAction implements ReportOperation {
 
   private final static SecurityProtocol DEFAULT_SECURITY_PROTOCOL = SecurityProtocol.PLAINTEXT;
 
+  private static String configTopic;
+
+  private final static String EVENT_SUBJECT_KEY = "subject";
+  private final static String EVENT_MESSAGE_KEY = "message";
+
   private static boolean configured = false;
   private static Producer<byte[], byte[]> kafkaProducer;
 
-  private static String configTopic;
+  @Override
+  public synchronized void configure(AbstractConfiguration config) throws
+                                                                   ModuleConfigurationException {
+    super.configure(config);
+    if (!configured) {
+      if(!config.containsKey(CONFIG_TOPIC_KEY)){
+        throw new ModuleConfigurationException("Missing config " + CONFIG_TOPIC_KEY + " in plugin " + KafkaReportOperation.class);
+      }
+      configTopic = config.getString(CONFIG_TOPIC_KEY);
+      kafkaProducer = createReportKafkaProducerFromConfig(config);
+      configured = true;
+    }
+  }
 
   @Override
-  public synchronized void report(String entity, String message) throws Exception {
+  public Collection<Event> execute(Event event) throws Exception {
+    if(isDryRun()) {
+      LOG.info("Dry run: Action {} triggered by event {}", this.getClass(), event.getName());
+    } else if(event.containsAttribute(EVENT_SUBJECT_KEY) && event.containsAttribute(EVENT_MESSAGE_KEY)){
+      String subject = (String) event.getAttribute(EVENT_SUBJECT_KEY);
+      String message = (String) event.getAttribute(EVENT_MESSAGE_KEY);
+      report(subject, message);
+    }
+    return null;
+  }
+
+  public synchronized void report(String subject, String message) throws Exception {
     int numRetries = 0;
     while (numRetries < MAX_RETRIES) {
       try {
         long timestamp = System.currentTimeMillis();
-        OperatorAction operatorAction = new OperatorAction(timestamp, entity, message);
+        OperatorAction operatorAction = new OperatorAction(timestamp, subject, message);
 
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
         BinaryEncoder binaryEncoder = avroEncoderFactory.binaryEncoder(stream, null);
@@ -66,31 +95,18 @@ public class KafkaReportAction implements ReportOperation {
         LOG.info("Send an message {} to action report : ", message);
         return;
       } catch (Exception e) {
-        LOG.error("Failed to publish report message {}: {}", entity, message, e);
+        LOG.error("Failed to publish report message {}: {}", subject, message, e);
         numRetries++;
       }
     }
-    throw new ReportActionFailedException("Failed to report " + entity + " action: " + message);
-  }
-
-  @Override
-  public synchronized void configure(AbstractConfiguration config) throws
-                                                                   ModuleConfigurationException {
-    if (!configured) {
-      if(!config.containsKey(CONFIG_TOPIC_KEY)){
-        throw new ModuleConfigurationException("Missing config " + CONFIG_TOPIC_KEY + " in plugin " + KafkaReportAction.class);
-      }
-      configTopic = config.getString(CONFIG_TOPIC_KEY);
-      kafkaProducer = createReportKafkaProducerFromConfig(config);
-      configured = true;
-    }
+    LOG.error("Failed to report " + subject + " action: " + message);
   }
 
   protected KafkaProducer<byte[], byte[]> createReportKafkaProducerFromConfig(AbstractConfiguration config)
       throws ModuleConfigurationException {
 
     if(!config.containsKey(CONFIG_ZKURL_KEY)){
-      throw new ModuleConfigurationException("Missing config " + CONFIG_ZKURL_KEY + " in plugin " + KafkaReportAction.class);
+      throw new ModuleConfigurationException("Missing config " + CONFIG_ZKURL_KEY + " in plugin " + KafkaReportOperation.class);
     }
     String zkUrl = config.getString(CONFIG_ZKURL_KEY);
     SecurityProtocol securityProtocol = config.containsKey(CONFIG_SECURITY_PROTOCOL_KEY) ?

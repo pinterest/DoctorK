@@ -4,12 +4,11 @@ import com.pinterest.doctorkafka.BrokerStats;
 import com.pinterest.doctorkafka.DoctorKafkaMetrics;
 import com.pinterest.doctorkafka.KafkaBroker;
 import com.pinterest.doctorkafka.KafkaCluster;
-import com.pinterest.doctorkafka.modules.action.ReportOperation;
-import com.pinterest.doctorkafka.modules.action.SendEvent;
-import com.pinterest.doctorkafka.modules.action.cluster.kafka.ReassignPartition;
-import com.pinterest.doctorkafka.modules.action.errors.ReportActionFailedException;
 import com.pinterest.doctorkafka.modules.context.cluster.kafka.KafkaContext;
 import com.pinterest.doctorkafka.modules.errors.ModuleConfigurationException;
+import com.pinterest.doctorkafka.modules.event.Event;
+import com.pinterest.doctorkafka.modules.event.GenericEvent;
+import com.pinterest.doctorkafka.modules.event.NotificationEvent;
 import com.pinterest.doctorkafka.modules.state.cluster.kafka.KafkaState;
 import com.pinterest.doctorkafka.util.OpenTsdbMetricConverter;
 import com.pinterest.doctorkafka.util.OperatorUtil;
@@ -46,62 +45,40 @@ public class URPReassignor extends KafkaOperator {
   //The number of broker stats that we need to examine to tell if a broker dies or not.
   private static final int NUM_BROKER_STATS = 4;
 
-  private static final String CONFIG_NAME = "urp_reassignor";
-
   private static final String CONFIG_RACK_AWARENESS_KEY = "rack.awareness.enabled";
   private static final String CONFIG_PROLONG_URP_ALERT_SECONDS_KEY = "prolong.urp.alert.seconds";
   private static final String CONFIG_NETWORK_BANDWIDTH_MAX_KEY = "network.bandwidth.max.mb";
-  private static final String CONFIG_ALERT_COOLDOWN_SECONDS_KEY = "alert.cooldown.seconds";
-  private static final String CONFIG_NOTIFY_COOLDOWN_SECONDS_KEY = "notify.cooldown.seconds";
 
-  private static final boolean DEFAULT_RACK_AWARENESS = false;
-  private static final int DEFAULT_PROLONG_URP_ALERT_SECONDS = 7200;
-  private static final int DEFAULT_COOLDOWN_SECONDS = 1200;
-
-  private boolean configRackAwarenessEnabled;
-  private int configProlongURPAlertInSec;
+  private boolean configRackAwarenessEnabled = false;
+  private int configProlongURPAlertInSec = 7200;
   private long configNetworkBandwidthMaxMb;
-  private int configAlertCooldownSeconds;
-  private int configNotifyCooldownSeconds;
 
-  private long prevProlongURPAlertTime = -1L;
-  private long prevFailedToHandleURPAlertTime = -1L;
+  private static final String EVENT_KAFKA_PARTITION_REASSIGNMENT_NAME = "reassign_partitions";
+  private static final String EVENT_URP_HANDLING_FAILURE_ALERT_NAME = "alert_urp_handling_failure";
+  private static final String EVENT_ALERT_PROLONG_URP_NAME = "alert_prolong_urp";
+  private static final String EVENT_ZKURL_KEY = "zkurl";
+  private static final String EVENT_CLUSTER_NAME_KEY = "cluster_name";
+  private static final String EVENT_JSON_REASSIGNMENT_KEY = "json_reassignment";
+
   private boolean foundUrps = false;
   private long firstSeenUrpsTimestamp = Long.MAX_VALUE;
 
   private Map<String, scala.collection.Map<Object, Seq<Object>>> topicPartitionAssignments = new HashMap<>();
   private List<MutablePair<KafkaBroker, TopicPartition>> reassignmentFailures = new ArrayList<>();
 
-  private SendEvent sendEvent;
-  private ReassignPartition reassignPartition;
-  private ReportOperation reportOperation;
-
-  public URPReassignor(SendEvent sendEvent, ReassignPartition reassignPartition, ReportOperation reportOperation){
-    this.sendEvent = sendEvent;
-    this.reassignPartition = reassignPartition;
-    this.reportOperation = reportOperation;
-  }
-
-  @Override
-  public String getConfigName() {
-    return CONFIG_NAME;
-  }
-
   @Override
   public void configure(AbstractConfiguration config) throws ModuleConfigurationException {
     super.configure(config);
     configProlongURPAlertInSec = config.getInteger(
         CONFIG_PROLONG_URP_ALERT_SECONDS_KEY,
-        DEFAULT_PROLONG_URP_ALERT_SECONDS
+        configProlongURPAlertInSec
     );
 
-    configRackAwarenessEnabled = config.getBoolean(CONFIG_RACK_AWARENESS_KEY, DEFAULT_RACK_AWARENESS);
+    configRackAwarenessEnabled = config.getBoolean(CONFIG_RACK_AWARENESS_KEY, configRackAwarenessEnabled);
     if (!config.containsKey(CONFIG_NETWORK_BANDWIDTH_MAX_KEY)){
       throw new ModuleConfigurationException("Missing config " + CONFIG_NETWORK_BANDWIDTH_MAX_KEY + " for plugin " + this.getClass());
     }
     configNetworkBandwidthMaxMb = config.getLong(CONFIG_NETWORK_BANDWIDTH_MAX_KEY);
-    configAlertCooldownSeconds = config.getInt(CONFIG_ALERT_COOLDOWN_SECONDS_KEY, DEFAULT_COOLDOWN_SECONDS);
-    configNotifyCooldownSeconds = config.getInt(CONFIG_NOTIFY_COOLDOWN_SECONDS_KEY, DEFAULT_COOLDOWN_SECONDS);
   }
 
   @Override
@@ -116,20 +93,14 @@ public class URPReassignor extends KafkaOperator {
       } else {
         // send out an alert if the cluster has been under-replicated for a while
         long now = System.currentTimeMillis();
-        long underReplicatedTimeMills = now - firstSeenUrpsTimestamp;
-        if (underReplicatedTimeMills > configProlongURPAlertInSec * 1000) {
-          String title = ctx.getClusterName() + " has been under-replicated for > "
-              + underReplicatedTimeMills + " seconds (" + underReplicatedPartitions.size() + ") under-replicated partitions";
-          StringBuilder msgSB = new StringBuilder();
-          for (PartitionInfo partitionInfo : underReplicatedPartitions) {
-            msgSB.append(partitionInfo + "\n");
-          }
-          LOG.warn(title, msgSB.toString());
-          if ((now - prevProlongURPAlertTime)/1000L > configAlertCooldownSeconds){
-            sendEvent.alert(title, msgSB.toString());
-            prevProlongURPAlertTime = now;
-          }
+        long underReplicatedTimeMillis = now - firstSeenUrpsTimestamp;
+        Event event = maybeCreateProlongURPAlertEvent(ctx.getClusterName(), underReplicatedPartitions, underReplicatedTimeMillis);
+        try {
+          emit(event);
+        } catch (Exception e){
+          LOG.error("Failed to emit prolong URP alert event", e);
         }
+
       }
       LOG.info("Under-replicated partitions in cluster {} : {}",
           ctx.getClusterName(), underReplicatedPartitions.size());
@@ -140,6 +111,21 @@ public class URPReassignor extends KafkaOperator {
       firstSeenUrpsTimestamp = Long.MAX_VALUE;
     }
     return false;
+  }
+
+  protected Event maybeCreateProlongURPAlertEvent(String clusterName, List<PartitionInfo> underReplicatedPartitions, long underReplicatedTimeMillis){
+    Event event = null;
+    if (underReplicatedTimeMillis > configProlongURPAlertInSec * 1000) {
+      String title = clusterName + " has been under-replicated for > "
+          + underReplicatedTimeMillis + " seconds (" + underReplicatedPartitions.size() + ") under-replicated partitions";
+      StringBuilder msg = new StringBuilder();
+      for (PartitionInfo partitionInfo : underReplicatedPartitions) {
+        msg.append(partitionInfo + "\n");
+      }
+      LOG.warn(title, msg.toString());
+      event = new NotificationEvent(EVENT_ALERT_PROLONG_URP_NAME, title, msg.toString());
+    }
+    return event;
   }
 
   /**
@@ -252,27 +238,20 @@ public class URPReassignor extends KafkaOperator {
   protected void reassignTopicPartitions(
       KafkaContext ctx,
       String jsonReassignmentData) {
-    String clusterName = ctx.getClusterName();
-    if (!super.isDryRun()) {
-      try{
-        reassignPartition.reassign(clusterName, jsonReassignmentData);
-        reportOperation.report(clusterName,
-            "partition reassignment : " + jsonReassignmentData);
-        String title = clusterName + " partition reassignment ";
-        String content = "Assignment json: \n\n" + jsonReassignmentData;
-        LOG.info(title, content);
-        long now = System.currentTimeMillis();
-        if ((now - prevProlongURPAlertTime) / 1000L > configNotifyCooldownSeconds){
-          sendEvent.notify(title, content);
-        }
-      } catch (ReportActionFailedException e){
-        LOG.error("Failed reporting action:", e);
-      } catch (Exception e){
-        LOG.error("Failed to reassign partitions: ", e);
-      }
-    } else {
-      LOG.info("Dry run: cluster {} partition reassignment: {}", clusterName, jsonReassignmentData);
+    try{
+      emit(createReassignmentEvent(ctx.getZkUrl(), ctx.getClusterName(), jsonReassignmentData));
+      LOG.info("cluster {} reassignment {}", ctx.getClusterName(), jsonReassignmentData);
+    } catch (Exception e){
+      LOG.error("Failed to emit reassignment event", e);
     }
+  }
+
+  protected Event createReassignmentEvent(String zkUrl, String clusterName, String jsonReassignmentData){
+    Map<String, Object> reassignmentEventAttributes = new HashMap<>();
+    reassignmentEventAttributes.put(EVENT_ZKURL_KEY, zkUrl);
+    reassignmentEventAttributes.put(EVENT_CLUSTER_NAME_KEY, clusterName);
+    reassignmentEventAttributes.put(EVENT_JSON_REASSIGNMENT_KEY, jsonReassignmentData);
+    return new GenericEvent(EVENT_KAFKA_PARTITION_REASSIGNMENT_NAME,reassignmentEventAttributes);
   }
 
 
@@ -518,10 +497,10 @@ public class URPReassignor extends KafkaOperator {
     }
     String content = sb.toString();
     LOG.warn(title, content);
-    long now = System.currentTimeMillis();
-    if ((now - prevFailedToHandleURPAlertTime) / 1000L > configAlertCooldownSeconds){
-      sendEvent.alert(title, content);
-      prevFailedToHandleURPAlertTime = now;
+    try {
+      emit(new NotificationEvent(EVENT_URP_HANDLING_FAILURE_ALERT_NAME, title, content));
+    } catch (Exception e){
+      LOG.error("Failed to emit URP handling failure event", e);
     }
   }
 }

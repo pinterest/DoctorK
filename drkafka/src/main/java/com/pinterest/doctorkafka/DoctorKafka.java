@@ -2,12 +2,8 @@ package com.pinterest.doctorkafka;
 
 import com.pinterest.doctorkafka.config.DoctorKafkaClusterConfig;
 import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
-import com.pinterest.doctorkafka.modules.manager.ActionManager;
-import com.pinterest.doctorkafka.modules.manager.DoctorKafkaActionManager;
-import com.pinterest.doctorkafka.modules.manager.DoctorKafkaMonitorManager;
-import com.pinterest.doctorkafka.modules.manager.DoctorKafkaOperatorManager;
-import com.pinterest.doctorkafka.modules.manager.MonitorManager;
-import com.pinterest.doctorkafka.modules.manager.OperatorManager;
+import com.pinterest.doctorkafka.modules.manager.DoctorKafkaModuleManager;
+import com.pinterest.doctorkafka.modules.manager.ModuleManager;
 import com.pinterest.doctorkafka.replicastats.BrokerStatsProcessor;
 import com.pinterest.doctorkafka.replicastats.ReplicaStatsManager;
 import com.pinterest.doctorkafka.util.ZookeeperClient;
@@ -33,18 +29,18 @@ public class DoctorKafka {
   private ZookeeperClient zookeeperClient = null;
   private DoctorKafkaHeartbeat heartbeat = null;
   private ReplicaStatsManager replicaStatsManager = null;
-  private MonitorManager monitorManager;
-  private ActionManager actionManager;
-  private OperatorManager operatorManager;
+  private ModuleManager moduleManager;
 
   public DoctorKafka(ReplicaStatsManager replicaStatsManager) throws Exception{
     this.replicaStatsManager = replicaStatsManager;
     this.drkafkaConf = replicaStatsManager.getConfig();
     this.clusterZkUrls = drkafkaConf.getClusterZkUrls();
     this.zookeeperClient = new ZookeeperClient(drkafkaConf.getDoctorKafkaZkurl());
-    this.monitorManager = new DoctorKafkaMonitorManager(drkafkaConf.getMonitorsConfiguration());
-    this.actionManager = new DoctorKafkaActionManager(drkafkaConf.getActionsConfiguration());
-    this.operatorManager = new DoctorKafkaOperatorManager(drkafkaConf.getOperatorsConfiguration());
+    this.moduleManager = new DoctorKafkaModuleManager(
+        drkafkaConf.getMonitorsConfiguration(),
+        drkafkaConf.getOperatorsConfiguration(),
+        drkafkaConf.getActionsConfiguration()
+    );
   }
 
   public void start() throws Exception {
@@ -70,8 +66,7 @@ public class DoctorKafka {
         continue;
       }
       KafkaClusterManager clusterManager = new KafkaClusterManager(
-          clusterZkUrl, kafkaCluster, clusterConf, drkafkaConf, zookeeperClient,
-          monitorManager, actionManager, operatorManager);
+          clusterZkUrl, kafkaCluster, clusterConf, drkafkaConf, zookeeperClient, moduleManager);
       clusterManagers.put(clusterConf.getClusterName(), clusterManager);
       clusterManager.start();
       LOG.info("Starting cluster manager for " + clusterZkUrl);

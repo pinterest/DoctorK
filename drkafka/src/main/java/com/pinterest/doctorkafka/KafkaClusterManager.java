@@ -2,26 +2,19 @@ package com.pinterest.doctorkafka;
 
 import com.pinterest.doctorkafka.config.DoctorKafkaClusterConfig;
 import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
-import com.pinterest.doctorkafka.modules.action.ReportOperation;
-import com.pinterest.doctorkafka.modules.action.SendEvent;
-import com.pinterest.doctorkafka.modules.action.cluster.ReplaceInstance;
-import com.pinterest.doctorkafka.modules.action.cluster.kafka.ReassignPartition;
+import com.pinterest.doctorkafka.modules.action.Action;
 import com.pinterest.doctorkafka.modules.context.cluster.kafka.KafkaContext;
-import com.pinterest.doctorkafka.modules.manager.ActionManager;
-import com.pinterest.doctorkafka.modules.manager.DoctorKafkaActionManager;
-import com.pinterest.doctorkafka.modules.manager.MonitorManager;
-import com.pinterest.doctorkafka.modules.manager.OperatorManager;
+import com.pinterest.doctorkafka.modules.event.NotificationEvent;
+import com.pinterest.doctorkafka.modules.event.SingleThreadEventHandler;
+import com.pinterest.doctorkafka.modules.manager.ModuleManager;
 import com.pinterest.doctorkafka.modules.monitor.Monitor;
 import com.pinterest.doctorkafka.modules.operator.Operator;
-import com.pinterest.doctorkafka.modules.operator.cluster.kafka.BrokerReplacer;
-import com.pinterest.doctorkafka.modules.operator.cluster.kafka.NoStatsBrokersOperator;
-import com.pinterest.doctorkafka.modules.operator.cluster.kafka.URPReassignor;
+import com.pinterest.doctorkafka.modules.state.State;
 import com.pinterest.doctorkafka.modules.state.cluster.kafka.KafkaState;
 import com.pinterest.doctorkafka.util.KafkaUtils;
 import com.pinterest.doctorkafka.util.ZookeeperClient;
 
 import kafka.cluster.Broker;
-import org.apache.commons.configuration2.Configuration;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -31,30 +24,17 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 
-
-  /**
-   *  There are primarily three reasons for partition under-replication:
-   *    1. network saturation on leader broker
-   *    2. dead broker
-   *    3. degraded hardware
-   */
 public class KafkaClusterManager implements Runnable {
 
-  private static final Logger
-      LOG = LogManager.getLogger(KafkaClusterManager.class);
-
-  /**
-   *  The number of broker stats that we need to examine to tell if a broker dies or not.
-   */
+  private static final Logger LOG = LogManager.getLogger(KafkaClusterManager.class);
+  private static final String EVENT_NOTIFY_MAINTENANCE_MODE_NAME = "notify_maintenance_mode";
+  private static final String EVENT_NOTIFY_DECOMMISSION_NAME = "notify_decommission";
 
   private KafkaContext ctx;
   private KafkaState currentState;
   private Collection<Monitor> monitors = new ArrayList<>();
-  private Operator noStatsBrokersOperator;
-  private Operator brokerReplacer;
-  private Operator urpReassignor;
-
-  private SendEvent sendEvent;
+  private Collection<Operator> operators = new ArrayList<>();
+  private SingleThreadEventHandler eventHandler;
 
   private boolean stopped = false;
   private Thread thread = null;
@@ -63,9 +43,7 @@ public class KafkaClusterManager implements Runnable {
                              DoctorKafkaClusterConfig clusterConfig,
                              DoctorKafkaConfig drkafkaConfig,
                              ZookeeperClient zookeeperClient,
-                             MonitorManager monitorManager,
-                             ActionManager actionManager,
-                             OperatorManager operatorManager) throws Exception {
+                             ModuleManager moduleManager) throws Exception {
     assert clusterConfig != null;
     ctx = new KafkaContext();
     ctx.setKafkaCluster(kafkaCluster);
@@ -75,52 +53,70 @@ public class KafkaClusterManager implements Runnable {
     ctx.setKafkaClusterZookeeperClient(zookeeperClient);
 
     // try to get cluster-specific monitor plugins, if null, get top-level default plugins
-    String[] monitors;
-    monitors = clusterConfig.getEnabledMonitors();
-    if (monitors == null) {
-      monitors = drkafkaConfig.getEnabledMonitors();
+    String[] monitorNames = clusterConfig.getEnabledMonitors();
+    if (monitorNames == null) {
+      monitorNames = drkafkaConfig.getEnabledMonitors();
     }
 
     // Load monitor plugins
-    for(String monitor : monitors){
-      this.monitors.add(monitorManager.getMonitor(
-          monitor,
-          clusterConfig.getMonitorConfiguration(monitor)
-      ));
+    for(String monitorName : monitorNames){
+      try {
+        this.monitors.add(moduleManager.getMonitor(
+            monitorName,
+            clusterConfig.getMonitorConfiguration(monitorName)
+        ));
+      } catch (ClassCastException e){
+        LOG.error("Module {} is not a monitor module", monitorName, e);
+        throw e;
+      }
     }
 
-    // Load actions and inject to operators
-    SendEvent sendEvent = actionManager.getSendEvent(
-        clusterConfig.getActionConfiguration(DoctorKafkaActionManager.ACTION_SEND_EVENT_NAME)
-    );
-    ReportOperation reportOperation = actionManager.getReportOperation(
-        clusterConfig.getActionConfiguration(DoctorKafkaActionManager.ACTION_REPORT_OPERATION_NAME)
-    );
-    ReplaceInstance replaceInstance = actionManager.getReplaceInstance(
-        clusterConfig.getActionConfiguration(DoctorKafkaActionManager.ACTION_REPLACE_INSTANCE_NAME)
-    );
-    ReassignPartition reassignPartition = actionManager.getReassignPartition(
-        clusterConfig.getActionConfiguration(DoctorKafkaActionManager.ACTION_REASSIGN_PARTITION_NAME)
-    );
+    // create event handler
+    this.eventHandler = new SingleThreadEventHandler();
 
-    this.sendEvent = sendEvent;
-
-    noStatsBrokersOperator = new NoStatsBrokersOperator(sendEvent);
-    brokerReplacer = new BrokerReplacer(sendEvent, replaceInstance, reportOperation);
-    urpReassignor = new URPReassignor(sendEvent, reassignPartition, reportOperation);
-
-    Operator[] operators = new Operator[]{
-        noStatsBrokersOperator,
-        brokerReplacer,
-        urpReassignor
-    };
-
-    // Configure operators
-    for(Operator operator : operators){
-      Configuration clusterOperatorConfig = clusterConfig.getOperatorConfiguration(operator.getConfigName());
-      operatorManager.configureOperator(operator, clusterOperatorConfig);
+    // Load operator plugins
+    String[] operatorNames = clusterConfig.getEnabledOperators();
+    if (operatorNames  == null) {
+      operatorNames  = drkafkaConfig.getEnabledOperators();
     }
 
+    for(String operatorName: operatorNames ){
+      try {
+        Operator operator = moduleManager.getOperator(
+            operatorName,
+            clusterConfig.getOperatorConfiguration(operatorName)
+        );
+        operator.setEventEmitter(eventHandler);
+        this.operators.add(operator);
+      } catch (ClassCastException e){
+        LOG.error("Module {} is not a operator module", operatorName, e);
+        throw e;
+      }
+    }
+
+    String[] actionNames = clusterConfig.getEnabledActions();
+    if (actionNames == null){
+      actionNames = drkafkaConfig.getEnabledActions();
+    }
+
+    for (String actionName: actionNames){
+      try {
+        Action action = moduleManager.getAction(
+            actionName,
+            clusterConfig.getActionConfiguration(actionName)
+        );
+        if (action.getSubscribedEvents().length == 0){
+          LOG.warn("Action {} is not subscribing to any event.");
+          continue;
+        }
+        for (String eventName : action.getSubscribedEvents()){
+          eventHandler.subscribe(eventName, action);
+        }
+      } catch (ClassCastException e){
+        LOG.error("Module {} is not a action module", actionName, e);
+        throw e;
+      }
+    }
   }
 
   public KafkaCluster getCluster() {
@@ -134,6 +130,7 @@ public class KafkaClusterManager implements Runnable {
   }
 
   public void stop() {
+    eventHandler.stop();
     stopped = true;
   }
 
@@ -168,11 +165,13 @@ public class KafkaClusterManager implements Runnable {
     ctx.setUnderMaintenance(true);
     LOG.info("Enabled maintenace mode for:" + ctx.getClusterName());
     try {
-      sendEvent.notify(
+      eventHandler.emit(new NotificationEvent(
+          EVENT_NOTIFY_MAINTENANCE_MODE_NAME,
           ctx.getClusterName() + " is in maintenance mode",
-          ctx.getClusterName() + " is placed in maintenance mode on " + new Date());
+          ctx.getClusterName() + " is placed in maintenance mode on " + new Date()
+      ));
     } catch (Exception e){
-      LOG.error("Failed to notify enable of maintenance mode event.");
+      LOG.error("Failed to emit enable maintenance mode notification event.");
     }
   }
 
@@ -180,11 +179,13 @@ public class KafkaClusterManager implements Runnable {
     ctx.setUnderMaintenance(false);
     LOG.info("Disabled maintenace mode for:" + ctx.getClusterName());
     try {
-      sendEvent.notify(
+      eventHandler.emit(new NotificationEvent(
+          EVENT_NOTIFY_MAINTENANCE_MODE_NAME,
           ctx.getClusterName() + " is out of maintenance mode",
-          ctx.getClusterName() + " is removed from maintenance mode on " + new Date());
+          ctx.getClusterName() + " is removed from maintenance mode on " + new Date()
+      ));
     } catch (Exception e) {
-      LOG.error("Failed to notify disable of maintenance mode event.");
+      LOG.error("Failed to emit disable maintenance mode notification event.");
     }
   }
 
@@ -194,10 +195,13 @@ public class KafkaClusterManager implements Runnable {
     // only notify if state changed
     if (prevState == false) {
       try {
-        sendEvent.notify("Decommissioning broker " + brokerId + " on " + ctx.getClusterName(),
-            "Broker:" + brokerId + " Cluster:" + ctx.getClusterName()+ " is getting decommissioned");
+        eventHandler.emit(new NotificationEvent(
+            EVENT_NOTIFY_DECOMMISSION_NAME,
+            "Decommissioning broker " + brokerId + " on " + ctx.getClusterName(),
+            "Broker:" + brokerId + " Cluster:" + ctx.getClusterName()+ " is getting decommissioned"
+        ));
       } catch (Exception e) {
-        LOG.error("Failed to notify broker decommission event.");
+        LOG.error("Failed to emit broker decommission notification event.");
       }
     }
   }
@@ -208,10 +212,13 @@ public class KafkaClusterManager implements Runnable {
     // only notify if state changed
     if (prevState == true) {
       try {
-        sendEvent.notify("Cancelled decommissioning broker " + brokerId + " on " + ctx.getClusterName(),
-            "Broker:" + brokerId + " Cluster:" + ctx.getClusterName() + " decommission cancelled");
+        eventHandler.emit(new NotificationEvent(
+            EVENT_NOTIFY_DECOMMISSION_NAME,
+            "Cancelled decommissioning broker " + brokerId + " on " + ctx.getClusterName(),
+            "Broker:" + brokerId + " Cluster:" + ctx.getClusterName() + " decommission cancelled"
+        ));
       } catch (Exception e) {
-        LOG.error("Failed to notify cancelled broker decommissioning event.");
+        LOG.error("Failed to emit cancelled broker decommissioning notification event.");
       }
     }
   }
@@ -228,20 +235,14 @@ public class KafkaClusterManager implements Runnable {
   public void run() {
 
     while(!stopped) {
-      KafkaState newState = new KafkaState();
-
-      try {
-        Thread.sleep(5000L);
-      } catch (InterruptedException e){
-
-      }
+      State newState = new KafkaState();
 
       for (Monitor plugin: monitors) {
         if (newState.isStopped()){
           break;
         }
         try{
-          plugin.observe(ctx, newState);
+          newState = plugin.observe(ctx, newState);
         } catch (Exception e) {
           LOG.error("Error when evaluating monitor: {}", plugin.getClass(), e);
         }
@@ -252,19 +253,17 @@ public class KafkaClusterManager implements Runnable {
         continue;
       }
 
-      currentState = newState;
+      currentState = (KafkaState) newState;
 
-      try {
-        if(!noStatsBrokersOperator.operate(ctx, currentState)){
-          continue;
+      for (Operator operator: operators) {
+        try {
+          if(!operator.operate(ctx, currentState)){
+            break;
+          }
+        } catch (Exception e){
+          LOG.error("Failed when performing operation {}:", operator.getClass(), e);
         }
-        urpReassignor.operate(ctx, currentState);
-        brokerReplacer.operate(ctx, currentState);
-      } catch (Exception e){
-        LOG.error("Failed when performing operations:", e);
       }
-
-
     }
   }
 
