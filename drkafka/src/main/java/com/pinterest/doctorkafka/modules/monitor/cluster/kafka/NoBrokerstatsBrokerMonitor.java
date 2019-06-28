@@ -10,6 +10,9 @@ import scala.collection.Seq;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * This monitor detects brokers that don't have brokerstats
+ */
 public class NoBrokerstatsBrokerMonitor extends KafkaMonitor {
   public KafkaState observe(KafkaContext ctx, KafkaState state) {
     // check if there is any broker that do not have stats.

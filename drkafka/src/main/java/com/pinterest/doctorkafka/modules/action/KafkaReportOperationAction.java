@@ -27,6 +27,25 @@ import java.util.Iterator;
 import java.util.Properties;
 import java.util.concurrent.Future;
 
+/**
+ * This action logs operational events to a Kafka topic
+ *
+ * Configuration:
+ * [required]
+ * config.topic=< topic to log events to>
+ * config.zkurl=< zkurl of the kafka cluster>
+ * [optional]
+ * config.producer.< any kafka-specific configs needed >=< value >
+ * config.producer.security.protocol=< security protocol for the kafka consumer>
+ *
+ * Input Event Format:
+ * {
+ *   subject: str,
+ *   message: str
+ * }
+ *
+ */
+
 public class KafkaReportOperationAction extends Action {
   private static final Logger LOG = LogManager.getLogger(KafkaReportOperationAction.class);
   private static final int MAX_RETRIES = 5;

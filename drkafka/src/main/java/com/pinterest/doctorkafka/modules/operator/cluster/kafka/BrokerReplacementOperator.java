@@ -17,6 +17,23 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * This operator selects a offline broker, checks the record on zookeeper to see if the cooldown period has passed,
+ * and emits an event to replace the broker if appropriate.
+ *
+ * Configuration:
+ * config.replacement.cooldown.seconds=<number of seconds before next replacement is allowed (Default: 43200)>
+ *
+ * Output Events Format:
+ * Event: replace_instance:
+ * triggered to replace an instance
+ * {
+ *   cluster_name: str,
+ *   hostname: str,
+ *   zookeeper_client: com.pinterest.doctorkafka.util.ZookeeperClient
+ * }
+ *
+ */
 public class BrokerReplacementOperator extends KafkaOperator {
   private static final Logger LOG = LogManager.getLogger(BrokerReplacementOperator.class);
 

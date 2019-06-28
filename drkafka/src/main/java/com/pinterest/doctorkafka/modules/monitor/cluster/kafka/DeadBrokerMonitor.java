@@ -13,6 +13,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * This monitor detects dead brokers
+ *
+ * Configuration:
+ * [optional]
+ * config.no_stats.seconds=<number of seconds not receiving brokerstats before marking a broker dead>
+ */
 public class DeadBrokerMonitor extends KafkaMonitor {
   private static final Logger LOG = LogManager.getLogger(DeadBrokerMonitor.class);
 

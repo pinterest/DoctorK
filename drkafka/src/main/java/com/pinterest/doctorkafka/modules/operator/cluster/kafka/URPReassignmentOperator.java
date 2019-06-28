@@ -38,6 +38,40 @@ import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * This operator verifies URPs and reassign follower_failure URPs to other brokers to restore ISRs back to the replication factor
+ *
+ * Configuration:
+ * [required]
+ * config.network.bandwidth.max.mb=<network bandwidth of brokers>
+ * [optional]
+ * config.rack.awareness.enabled=< true if rack awareness reassignments are enabled (Default: false)>
+ * config.prolong.urp.alert.seconds=< number of seconds before sending alert on prolong URPs>
+ *
+ * Output Events Format:
+ * Event: reassign_partitions:
+ * triggered when a reassignment is initiated
+ * {
+ *   zkurl: str,
+ *   reassignment_json: str (JSON format),
+ *   cluster_name: str (Default: "n/a")
+ * }
+ *
+ * Event: alert_urp_handling_failure:
+ * triggered when URP cannot be handled
+ * {
+ *   title: str,
+ *   message: str
+ * }
+ *
+ * Event: alert_prolong_urp:
+ * triggered when URP reassignment took too long
+ * {
+ *   title: str,
+ *   message: str
+ * }
+ */
+
 public class URPReassignmentOperator extends KafkaOperator {
   private final static Logger LOG = LogManager.getLogger(URPReassignmentOperator.class);
   //The time-out for machine reboot etc.
@@ -57,6 +91,7 @@ public class URPReassignmentOperator extends KafkaOperator {
   private static final String EVENT_KAFKA_PARTITION_REASSIGNMENT_NAME = "reassign_partitions";
   private static final String EVENT_URP_HANDLING_FAILURE_ALERT_NAME = "alert_urp_handling_failure";
   private static final String EVENT_ALERT_PROLONG_URP_NAME = "alert_prolong_urp";
+
   private static final String EVENT_REASSIGNMENT_JSON_KEY = "reassignment_json";
 
   private boolean foundUrps = false;

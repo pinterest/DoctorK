@@ -19,6 +19,46 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Collection;
 
+/**
+ * This action runs a script on a different thread to replace instances
+ *
+ * Configuration:
+ * [required]
+ * config.script=<path to replacement script that takes hostname as the first argument>
+ * [optional]
+ * config.prolong.replacement.alert.seconds=< time in seconds before alerting on prolong previous replacement>
+ *
+ * Input Event Format:
+ * {
+ *   cluster_name: str (Default: "n/a"),
+ *   hostname: str,
+ *   zookeeper_client: com.pinterest.doctorkafka.util.ZookeeperClient
+ * }
+ *
+ * Output Events Format:
+ *
+ * Event: notify_prolong_replacement
+ * triggered when replacement has taken more than configured time
+ * {
+ *   title: str,
+ *   message: str
+ * }
+ *
+ * Event: notify_replacement:
+ * triggered when replacement is kicked off
+ * {
+ *   title: str,
+ *   message: str
+ * }
+ *
+ * Event: report_operation:
+ * triggered when replacement is kicked off
+ * {
+ *   subject: str,
+ *   message: str
+ * }
+ *
+ */
 public class ScriptReplaceInstanceAction extends Action implements Runnable {
   private static final Logger LOG = LogManager.getLogger(ScriptReplaceInstanceAction.class);
 
@@ -35,7 +75,7 @@ public class ScriptReplaceInstanceAction extends Action implements Runnable {
   private static final String EVENT_HOSTNAME_KEY = "hostname";
   private static final String EVENT_ZOOKEEPER_CLIENT_KEY = "zookeeper_client";
 
-  private static final String DEFAULT_EVENT_SUBJECT = "n/a";
+  private static final String DEFAULT_EVENT_CLUSTER_NAME = "n/a";
 
   private volatile boolean isBusy = false;
   private String currentHostname;
@@ -60,7 +100,7 @@ public class ScriptReplaceInstanceAction extends Action implements Runnable {
     if(event.containsAttribute(EVENT_HOSTNAME_KEY) && event.containsAttribute(EVENT_ZOOKEEPER_CLIENT_KEY)){
       String clusterName = event.containsAttribute(EventUtils.EVENT_CLUSTER_NAME_KEY) ?
                        (String) event.getAttribute(EventUtils.EVENT_CLUSTER_NAME_KEY) :
-                       DEFAULT_EVENT_SUBJECT;
+                           DEFAULT_EVENT_CLUSTER_NAME;
       String hostname = (String) event.getAttribute(EVENT_HOSTNAME_KEY);
       ZookeeperClient zookeeperClient = (ZookeeperClient) event.getAttribute(EVENT_ZOOKEEPER_CLIENT_KEY);
       return replace(clusterName, hostname, zookeeperClient);

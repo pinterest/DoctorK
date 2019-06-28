@@ -11,6 +11,18 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.List;
 
+/**
+ * This operator detects brokers that haven't published brokerstats and sends notifications
+ *
+ * Output Events Format:
+ * Event: alert_no_brokerstats_brokers:
+ * triggered when there are brokers that haven't published brokerstats
+ * {
+ *   title: str,
+ *   message: str,
+ * }
+ */
+
 public class NoBrokerstatsBrokerOperator extends KafkaOperator {
   private static final Logger LOG = LogManager.getLogger(NoBrokerstatsBrokerOperator.class);
   private static final String EVENT_ALERT_NO_BROKERSTATS_BROKERS_NAME = "alert_no_brokerstats_brokers";

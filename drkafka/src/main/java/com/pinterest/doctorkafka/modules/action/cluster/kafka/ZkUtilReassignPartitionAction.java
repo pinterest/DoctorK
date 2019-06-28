@@ -18,6 +18,33 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+/**
+ * This action uses ZkUtil to reassign partitions based on a JSON reassignment
+ *
+ * Input Event Format:
+ * {
+ *   zkurl: str,
+ *   reassignment_json: str (JSON format),
+ *   cluster_name: str (Default: "n/a")
+ * }
+ *
+ * Output Events Format:
+ *
+ * Event: notify_reassignment:
+ * triggered when reassignment is kicked off
+ * {
+ *   title: str,
+ *   message: str
+ * }
+ *
+ * Event: report_operation:
+ * triggered when reassignment is kicked off
+ * {
+ *   subject: str,
+ *   message: str
+ * }
+ *
+ */
 public class ZkUtilReassignPartitionAction extends Action {
   private static final Logger LOG = LogManager.getLogger(ZkUtilReassignPartitionAction.class);
 

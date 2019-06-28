@@ -13,6 +13,20 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Collection;
 
+/**
+ * This action sends emails to a list of email addresses
+ *
+ * Configuration:
+ * [required]
+ * config.emails=< comma separated list of email addresses to send >
+ *
+ * Input Event Format:
+ * {
+ *   title: str,
+ *   message: str
+ * }
+ *
+ */
 public class SendEmailAction extends Action {
 
   private static final Logger LOG = LogManager.getLogger(SendEmailAction.class);

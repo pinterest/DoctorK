@@ -26,6 +26,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * This monitor detects URPs in a Kafka cluster
+ *
+ * Configuration:
+ * [optional]
+ * config.consumer.<sub-configs>=<values>
+ * config.consumer.security.protocol=<cluster security protocol>
+ */
 public class URPMonitor extends KafkaMonitor {
 
   private static final Logger LOG = LogManager.getLogger(URPMonitor.class);
