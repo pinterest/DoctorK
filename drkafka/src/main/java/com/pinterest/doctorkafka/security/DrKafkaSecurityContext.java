@@ -2,7 +2,6 @@ package com.pinterest.doctorkafka.security;
 
 import java.security.Principal;
 import java.util.Set;
-
 import javax.ws.rs.core.SecurityContext;
 
 public class DrKafkaSecurityContext implements SecurityContext {

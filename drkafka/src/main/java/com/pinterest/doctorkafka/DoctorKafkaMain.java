@@ -1,19 +1,9 @@
 package com.pinterest.doctorkafka;
 
-import java.util.Collections;
-import java.util.NoSuchElementException;
-import java.util.concurrent.Executors;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature;
-
-import com.google.common.collect.ImmutableList;
-
-import com.pinterest.doctorkafka.api.BrokersDecommissionApi;
-import com.pinterest.doctorkafka.api.ClustersMaintenanceApi;
 import com.pinterest.doctorkafka.api.BrokersApi;
+import com.pinterest.doctorkafka.api.BrokersDecommissionApi;
 import com.pinterest.doctorkafka.api.ClustersApi;
+import com.pinterest.doctorkafka.api.ClustersMaintenanceApi;
 import com.pinterest.doctorkafka.config.DoctorKafkaAppConfig;
 import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
 import com.pinterest.doctorkafka.replicastats.ReplicaStatsManager;
@@ -26,6 +16,7 @@ import com.pinterest.doctorkafka.servlet.KafkaTopicStatsServlet;
 import com.pinterest.doctorkafka.servlet.UnderReplicatedPartitionsServlet;
 import com.pinterest.doctorkafka.util.OperatorUtil;
 
+import com.google.common.collect.ImmutableList;
 import io.dropwizard.Application;
 import io.dropwizard.assets.AssetsBundle;
 import io.dropwizard.jetty.GzipHandlerFactory;
@@ -34,6 +25,13 @@ import io.dropwizard.request.logging.LogbackAccessRequestLogFactory;
 import io.dropwizard.server.DefaultServerFactory;
 import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature;
+
+import java.util.Collections;
+import java.util.NoSuchElementException;
+import java.util.concurrent.Executors;
 
 /**
  * DoctorKafka is the central service for managing kafka operation.

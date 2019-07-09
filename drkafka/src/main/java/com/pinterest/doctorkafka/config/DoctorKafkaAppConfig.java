@@ -1,9 +1,8 @@
 package com.pinterest.doctorkafka.config;
 
+import io.dropwizard.Configuration;
 import org.codehaus.jackson.annotate.JsonProperty;
 import org.hibernate.validator.constraints.NotEmpty;
-
-import io.dropwizard.Configuration;
 
 public class DoctorKafkaAppConfig extends Configuration {
 

@@ -6,6 +6,7 @@ import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
 import com.pinterest.doctorkafka.util.OperatorUtil;
 
 import com.google.common.collect.Lists;
+import com.google.gson.Gson;
 import org.apache.avro.Schema;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DecoderFactory;
@@ -16,9 +17,6 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonArray;
 
 import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
@@ -39,31 +37,6 @@ public class DoctorKafkaActionsServlet extends DoctorKafkaServlet {
   private static final DecoderFactory avroDecoderFactory = DecoderFactory.get();
   private static Schema operatorActionSchema = OperatorAction.getClassSchema();
   private static SimpleDateFormat dtFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss z");
-
-  @Override
-  public void renderJSON(PrintWriter writer, Map<String, String> params) {
-    JsonArray json = new JsonArray();
-
-    for (ConsumerRecord<byte[], byte[]> record : Lists.reverse(retrieveActionReportMessages())) {
-      try {
-	JsonObject jsonRecord = new JsonObject();
-	BinaryDecoder binaryDecoder = avroDecoderFactory.binaryDecoder(record.value(), null);
-	SpecificDatumReader<OperatorAction> reader =
-	  new SpecificDatumReader<>(operatorActionSchema);
-
-	OperatorAction result = new OperatorAction();
-	reader.read(result, binaryDecoder);
-
-	jsonRecord.add("date",gson.toJsonTree(new Date(result.getTimestamp())));
-	jsonRecord.add("clusterName",gson.toJsonTree(result.getClusterName()));
-	jsonRecord.add("description",gson.toJsonTree(result.getDescription()));
-	json.add(jsonRecord);
-      } catch (Exception e) {
-	LOG.info("Fail to decode an message", e);
-      }
-    }
-    writer.print(json);
-  }
 
   @Override
   public void renderHTML(PrintWriter writer, Map<String, String> params) {

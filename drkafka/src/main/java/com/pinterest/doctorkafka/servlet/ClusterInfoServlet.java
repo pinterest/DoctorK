@@ -1,12 +1,11 @@
 package com.pinterest.doctorkafka.servlet;
 
-import com.google.gson.Gson;
-import com.pinterest.doctorkafka.KafkaBroker;
 import com.pinterest.doctorkafka.DoctorKafkaMain;
+import com.pinterest.doctorkafka.KafkaBroker;
 import com.pinterest.doctorkafka.KafkaCluster;
 import com.pinterest.doctorkafka.KafkaClusterManager;
-import com.pinterest.doctorkafka.errors.ClusterInfoError;
 
+import com.google.gson.Gson;
 import kafka.cluster.Broker;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -22,30 +21,6 @@ public class ClusterInfoServlet extends DoctorKafkaServlet {
 
   private static final Logger LOG = LogManager.getLogger(ClusterInfoServlet.class);
   private static final Gson gson = new Gson();
-
-  @Override
-  public void renderJSON(PrintWriter writer, Map<String, String> params) {
-    String clusterName;
-    try {
-      clusterName = params.get("name");
-    } catch (Exception e) {
-      LOG.error("'name' parameter not found");
-      return ;
-    }
-
-    try {
-      KafkaClusterManager clusterManager = DoctorKafkaMain.doctorKafka.getClusterManager(clusterName);
-      if (clusterManager == null) {
-        ClusterInfoError error = new ClusterInfoError("Failed to find cluster manager for " + clusterName);
-        writer.print(gson.toJson(error));
-        return ;
-      }
-      writer.print(gson.toJson(clusterManager.toJson()));
-    } catch (Exception e) {
-      LOG.error("Unexpected error: {}", e);
-      throw(e);
-    }
-  }
 
   @Override
   public void renderHTML(PrintWriter writer, Map<String, String> params) {
@@ -73,7 +48,7 @@ public class ClusterInfoServlet extends DoctorKafkaServlet {
           totalMbIn, totalMbOut));
 
       List<Broker> noStatsBrokers = clusterMananger.getNoStatsBrokers();
-      if (!noStatsBrokers.isEmpty()) {
+      if (noStatsBrokers != null && !noStatsBrokers.isEmpty()) {
         writer.print(
             "<div class=\"container\"> No stats brokers (" + noStatsBrokers.size() + ") : ");
         for (Broker broker : noStatsBrokers) {

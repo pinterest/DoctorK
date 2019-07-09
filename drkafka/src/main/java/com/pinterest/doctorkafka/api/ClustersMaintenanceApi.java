@@ -1,5 +1,13 @@
 package com.pinterest.doctorkafka.api;
 
+import com.pinterest.doctorkafka.DoctorKafka;
+import com.pinterest.doctorkafka.KafkaClusterManager;
+import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
+import com.pinterest.doctorkafka.util.ApiUtils;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import javax.annotation.security.RolesAllowed;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
@@ -11,14 +19,6 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
-import com.pinterest.doctorkafka.DoctorKafka;
-import com.pinterest.doctorkafka.KafkaClusterManager;
-import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
-import com.pinterest.doctorkafka.util.ApiUtils;
 
 @Path("/clusters/{clusterName}/admin/maintenance")
 @Produces({ MediaType.APPLICATION_JSON })

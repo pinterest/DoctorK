@@ -1,12 +1,10 @@
 package com.pinterest.doctorkafka.replicastats;
 
 import com.pinterest.doctorkafka.BrokerStats;
-import com.pinterest.doctorkafka.DoctorKafka;
 import com.pinterest.doctorkafka.DoctorKafkaMetrics;
 import com.pinterest.doctorkafka.util.OpenTsdbMetricConverter;
 import com.pinterest.doctorkafka.util.OperatorUtil;
 
-import java.util.Map;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -15,6 +13,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Properties;
 
 /**

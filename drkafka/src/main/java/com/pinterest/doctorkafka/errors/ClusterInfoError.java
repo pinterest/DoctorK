@@ -1,9 +1,5 @@
 package com.pinterest.doctorkafka.errors;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.lang.Exception;
-
 public class ClusterInfoError extends Exception {
     String[] errors;
 

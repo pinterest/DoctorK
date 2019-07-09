@@ -1,8 +1,8 @@
 package com.pinterest.doctorkafka.security;
 
-import javax.ws.rs.container.ContainerRequestFilter;
-
 import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
+
+import javax.ws.rs.container.ContainerRequestFilter;
 
 /**
  * This extends JAX-RS containter request filter for authorization. 
