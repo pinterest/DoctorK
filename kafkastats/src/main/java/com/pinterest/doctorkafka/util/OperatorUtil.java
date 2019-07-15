@@ -244,7 +244,7 @@ public class OperatorUtil {
 
 
   public static Properties createKafkaConsumerProperties(String zkUrl, String consumerGroupName,
-      SecurityProtocol securityProtocol, Map<String, String> consumerConfigs) {
+      SecurityProtocol securityProtocol, Properties consumerConfigs) {
     String bootstrapBrokers = OperatorUtil.getBrokers(zkUrl, securityProtocol);
     Properties props = new Properties();
     props.put(KafkaUtils.BOOTSTRAP_SERVERS, bootstrapBrokers);
@@ -255,9 +255,7 @@ public class OperatorUtil {
     props.put("value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
 
     if (consumerConfigs != null) {
-      for (Map.Entry<String, String> entry : consumerConfigs.entrySet()) {
-        props.put(entry.getKey(), entry.getValue());
-      }
+      props.putAll(consumerConfigs);
     }
     return props;
   }
@@ -277,16 +275,26 @@ public class OperatorUtil {
 
 
   public static void startOstrichService(String serviceName, String tsdbHostPort, int ostrichPort) {
+    String tsdbHost = null;
+    int tsdbPort = 0;
+    if (tsdbHostPort != null){
+      HostAndPort pushHostPort = HostAndPort.fromString(tsdbHostPort);
+      tsdbHost = pushHostPort.getHost();
+      tsdbPort = pushHostPort.getPort();
+    }
+    startOstrichService(serviceName, tsdbHost, tsdbPort, ostrichPort);
+  }
+
+  public static void startOstrichService(String serviceName, String tsdbHost, int tsdbPort, int ostrichPort) {
     final int TSDB_METRICS_PUSH_INTERVAL_IN_MILLISECONDS = 10 * 1000;
     OstrichAdminService ostrichService = new OstrichAdminService(ostrichPort);
     ostrichService.startAdminHttpService();
-    if (tsdbHostPort != null) {
+    if (tsdbHost != null && tsdbPort != 0) {
       LOG.info("Starting the OpenTsdb metrics pusher");
       try {
-        HostAndPort pushHostPort = HostAndPort.fromString(tsdbHostPort);
         MetricsPusher metricsPusher = new MetricsPusher(
-            pushHostPort.getHost(),
-            pushHostPort.getPort(),
+            tsdbHost,
+            tsdbPort,
             new OpenTsdbMetricConverter(serviceName, HostName),
             TSDB_METRICS_PUSH_INTERVAL_IN_MILLISECONDS);
         metricsPusher.start();

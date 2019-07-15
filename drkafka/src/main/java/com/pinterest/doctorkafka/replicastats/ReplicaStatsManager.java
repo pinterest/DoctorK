@@ -2,6 +2,7 @@ package com.pinterest.doctorkafka.replicastats;
 
 import com.pinterest.doctorkafka.BrokerStats;
 import com.pinterest.doctorkafka.KafkaCluster;
+import com.pinterest.doctorkafka.config.DoctorKafkaClusterConfig;
 import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
 import com.pinterest.doctorkafka.util.KafkaUtils;
 import com.pinterest.doctorkafka.util.ReplicaStatsUtil;
@@ -55,7 +56,10 @@ public class ReplicaStatsManager {
       return;
     }
 
-    KafkaCluster cluster = clusters.computeIfAbsent(brokerZkUrl, url -> new KafkaCluster(url, config.getClusterConfigByZkUrl(url)));
+    KafkaCluster cluster = clusters.computeIfAbsent(brokerZkUrl, url -> new KafkaCluster(url));
+    DoctorKafkaClusterConfig clusterConfig = config.getClusterConfigByZkUrl(brokerZkUrl);
+    cluster.setBytesInPerSecLimit(clusterConfig.getBytesInPerSecond());
+    cluster.setBytesOutPerSecLimit(clusterConfig.getBytesOutPerSecond());
     cluster.recordBrokerStats(brokerStats);
   }
 

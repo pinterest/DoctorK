@@ -16,9 +16,9 @@ import java.util.Collection;
 /**
  * This action sends emails to a list of email addresses
  *
- * Configuration:
+ * config:
  * [required]
- * config.emails=< comma separated list of email addresses to send >
+ *   emails: < comma separated list of email addresses to send >
  *
  * Input Event Format:
  * {

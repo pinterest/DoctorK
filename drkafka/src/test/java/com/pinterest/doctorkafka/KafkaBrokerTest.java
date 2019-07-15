@@ -13,12 +13,12 @@ public class KafkaBrokerTest {
   @Test
   public void kafkaBrokerComparatorTest() throws Exception {
 
-    DoctorKafkaConfig config = new DoctorKafkaConfig("./config/doctorkafka.properties");
+    DoctorKafkaConfig config = new DoctorKafkaConfig("./config/doctorkafka.yaml");
     DoctorKafkaClusterConfig clusterConfig = config.getClusterConfigByName("cluster1");
-    KafkaCluster kafkaCluster = new KafkaCluster(clusterConfig.getZkUrl(), clusterConfig);
+    KafkaCluster kafkaCluster = new KafkaCluster(clusterConfig.getZkUrl());
 
-    KafkaBroker a = new KafkaBroker(clusterConfig, kafkaCluster, 0);
-    KafkaBroker b = new KafkaBroker(clusterConfig, kafkaCluster, 1);
+    KafkaBroker a = new KafkaBroker("", kafkaCluster, 0, 0, 0);
+    KafkaBroker b = new KafkaBroker("", kafkaCluster, 1, 0, 0);
 
     KafkaBroker.KafkaBrokerComparator comparator = new KafkaBroker.KafkaBrokerComparator();
     assertEquals(0, comparator.compare(a, b));

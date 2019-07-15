@@ -18,6 +18,7 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -75,15 +76,13 @@ public class DoctorKafkaActionsServlet extends DoctorKafkaServlet {
     printFooter(writer);
   }
 
-
-  private List<ConsumerRecord<byte[], byte[]>> retrieveActionReportMessages() {
+  private List<ConsumerRecord<byte[], byte[]>> retrieveActionReportMessages() throws IOException {
     DoctorKafkaConfig doctorKafkaConfig = DoctorKafkaMain.doctorKafka.getDoctorKafkaConfig();
-    String zkUrl = doctorKafkaConfig.getBrokerstatsZkurl();
+    String zkUrl = doctorKafkaConfig.getActionReportZkurl();
     String actionReportTopic = doctorKafkaConfig.getActionReportTopic();
     Properties properties =
-        OperatorUtil.createKafkaConsumerProperties(zkUrl, OPERATOR_ACTIONS_CONSUMER_GROUP,
-            doctorKafkaConfig.getActionReportProducerSecurityProtocol(),
-            doctorKafkaConfig.getActionReportProducerSslConfigs());
+        OperatorUtil.createKafkaConsumerProperties(zkUrl, OPERATOR_ACTIONS_CONSUMER_GROUP
+            , doctorKafkaConfig.getActionReportSecurityProtocol(), doctorKafkaConfig.getActionReportConsumerConfig());
     KafkaConsumer<byte[], byte[]> consumer = new KafkaConsumer<>(properties);
 
     TopicPartition operatorReportTopicPartition = new TopicPartition(actionReportTopic, 0);

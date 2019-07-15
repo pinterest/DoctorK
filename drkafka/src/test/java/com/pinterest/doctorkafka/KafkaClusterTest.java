@@ -48,12 +48,17 @@ class KafkaClusterTest {
   private static String zookeeper_url;
   private static KafkaCluster kafkaCluster;
 
+  private static double bytesInPerSecLimit;
+  private static double bytesOutPerSecLimit;
+
   @BeforeAll
   static void setup() throws Exception {
-    DoctorKafkaConfig config = new DoctorKafkaConfig("./config/doctorkafka.properties");
+    DoctorKafkaConfig config = new DoctorKafkaConfig("./config/doctorkafka.yaml");
     doctorKafkaClusterConfig = config.getClusterConfigByName(CLUSTER_NAME);
     zookeeper_url = doctorKafkaClusterConfig.getZkUrl();
-    kafkaCluster = new KafkaCluster(zookeeper_url, doctorKafkaClusterConfig);
+    kafkaCluster = new KafkaCluster(zookeeper_url);
+    bytesInPerSecLimit = doctorKafkaClusterConfig.getBytesInPerSecond();
+    bytesOutPerSecLimit = doctorKafkaClusterConfig.getBytesOutPerSecond();
   }
 
   /**
@@ -86,11 +91,11 @@ class KafkaClusterTest {
 
 
     KafkaBroker[] brokers = new KafkaBroker[]{
-        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 0),
-        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 1),
-        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 2),
-        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 3),
-        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 4)
+        new KafkaBroker(zookeeper_url, spyKafkaCluster, 0, bytesInPerSecLimit, bytesOutPerSecLimit),
+        new KafkaBroker(zookeeper_url, spyKafkaCluster, 1, bytesInPerSecLimit, bytesOutPerSecLimit),
+        new KafkaBroker(zookeeper_url, spyKafkaCluster, 2, bytesInPerSecLimit, bytesOutPerSecLimit),
+        new KafkaBroker(zookeeper_url, spyKafkaCluster, 3, bytesInPerSecLimit, bytesOutPerSecLimit),
+        new KafkaBroker(zookeeper_url, spyKafkaCluster, 4, bytesInPerSecLimit, bytesOutPerSecLimit)
     };
 
     Set<TopicPartition> replicaSet = new HashSet<>();
@@ -164,13 +169,13 @@ class KafkaClusterTest {
 
 
     KafkaBroker[] brokers = new KafkaBroker[]{
-        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 0),
-        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 1),
-        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 2),
-        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 3),
-        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 4),
-        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 5),
-        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 6)
+        new KafkaBroker(zookeeper_url, spyKafkaCluster, 0, bytesInPerSecLimit, bytesOutPerSecLimit),
+        new KafkaBroker(zookeeper_url, spyKafkaCluster, 1, bytesInPerSecLimit, bytesOutPerSecLimit),
+        new KafkaBroker(zookeeper_url, spyKafkaCluster, 2, bytesInPerSecLimit, bytesOutPerSecLimit),
+        new KafkaBroker(zookeeper_url, spyKafkaCluster, 3, bytesInPerSecLimit, bytesOutPerSecLimit),
+        new KafkaBroker(zookeeper_url, spyKafkaCluster, 4, bytesInPerSecLimit, bytesOutPerSecLimit),
+        new KafkaBroker(zookeeper_url, spyKafkaCluster, 5, bytesInPerSecLimit, bytesOutPerSecLimit),
+        new KafkaBroker(zookeeper_url, spyKafkaCluster, 6, bytesInPerSecLimit, bytesOutPerSecLimit)
     };
 
     for ( KafkaBroker broker : brokers ){
@@ -286,13 +291,13 @@ class KafkaClusterTest {
 
 
     KafkaBroker[] brokers = new KafkaBroker[]{
-        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 0),
-        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 1),
-        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 2),
-        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 3),
-        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 4),
-        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 5),
-        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 6)
+        new KafkaBroker(zookeeper_url, spyKafkaCluster, 0, bytesInPerSecLimit, bytesOutPerSecLimit),
+        new KafkaBroker(zookeeper_url, spyKafkaCluster, 1, bytesInPerSecLimit, bytesOutPerSecLimit),
+        new KafkaBroker(zookeeper_url, spyKafkaCluster, 2, bytesInPerSecLimit, bytesOutPerSecLimit),
+        new KafkaBroker(zookeeper_url, spyKafkaCluster, 3, bytesInPerSecLimit, bytesOutPerSecLimit),
+        new KafkaBroker(zookeeper_url, spyKafkaCluster, 4, bytesInPerSecLimit, bytesOutPerSecLimit),
+        new KafkaBroker(zookeeper_url, spyKafkaCluster, 5, bytesInPerSecLimit, bytesOutPerSecLimit),
+        new KafkaBroker(zookeeper_url, spyKafkaCluster, 6, bytesInPerSecLimit, bytesOutPerSecLimit)
     };
 
     for ( KafkaBroker broker : brokers ){
@@ -371,11 +376,11 @@ class KafkaClusterTest {
 
 
     KafkaBroker[] brokers = new KafkaBroker[]{
-        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 0),
-        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 1),
-        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 2),
-        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 3),
-        new KafkaBroker(doctorKafkaClusterConfig, spyKafkaCluster, 4)
+        new KafkaBroker(zookeeper_url, spyKafkaCluster, 0, bytesInPerSecLimit, bytesOutPerSecLimit),
+        new KafkaBroker(zookeeper_url, spyKafkaCluster, 1, bytesInPerSecLimit, bytesOutPerSecLimit),
+        new KafkaBroker(zookeeper_url, spyKafkaCluster, 2, bytesInPerSecLimit, bytesOutPerSecLimit),
+        new KafkaBroker(zookeeper_url, spyKafkaCluster, 3, bytesInPerSecLimit, bytesOutPerSecLimit),
+        new KafkaBroker(zookeeper_url, spyKafkaCluster, 4, bytesInPerSecLimit, bytesOutPerSecLimit)
     };
 
     for ( KafkaBroker broker : brokers ){

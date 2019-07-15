@@ -92,7 +92,7 @@ public class KafkaUtils {
                                                String valueDeserializer,
                                                int maxPoolRecords,
                                                SecurityProtocol securityProtocol,
-                                               Map<String, String> otherConsumerConfigs) {
+                                               Properties otherConsumerConfigs) {
     String key = zkUrl;
     if (!kafkaConsumers.containsKey(key)) {
       String brokers = getBrokers(zkUrl, securityProtocol);
@@ -107,9 +107,7 @@ public class KafkaUtils {
       props.put(ConsumerConfig.MAX_PARTITION_FETCH_BYTES_CONFIG, 1048576 * 4);
 
       if (otherConsumerConfigs != null) {
-        for (Map.Entry<String, String> entry : otherConsumerConfigs.entrySet()) {
-          props.put(entry.getKey(), entry.getValue());
-        }
+        props.putAll(otherConsumerConfigs);
       }
       kafkaConsumers.put(key, new KafkaConsumer<>(props));
     }
@@ -125,7 +123,7 @@ public class KafkaUtils {
 
   public static KafkaConsumer<byte[], byte[]> getKafkaConsumer(String zkUrl,
       SecurityProtocol securityProtocol,
-      Map<String, String> consumerConfigs) {
+      Properties consumerConfigs) {
     return getKafkaConsumer(zkUrl,
         "org.apache.kafka.common.serialization.ByteArrayDeserializer",
         "org.apache.kafka.common.serialization.ByteArrayDeserializer",

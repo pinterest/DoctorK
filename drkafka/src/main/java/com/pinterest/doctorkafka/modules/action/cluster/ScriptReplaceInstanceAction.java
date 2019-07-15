@@ -22,11 +22,11 @@ import java.util.Collection;
 /**
  * This action runs a script on a different thread to replace instances
  *
- * Configuration:
+ * config:
  * [required]
- * config.script=<path to replacement script that takes hostname as the first argument>
+ *    script: <path to replacement script that takes hostname as the first argument>
  * [optional]
- * config.prolong.replacement.alert.seconds=< time in seconds before alerting on prolong previous replacement>
+ *    prolong_replacement_alert_seconds: <time in seconds before alerting on prolong previous replacement>
  *
  * Input Event Format:
  * {
@@ -63,7 +63,7 @@ public class ScriptReplaceInstanceAction extends Action implements Runnable {
   private static final Logger LOG = LogManager.getLogger(ScriptReplaceInstanceAction.class);
 
   private static final String CONFIG_SCRIPT_KEY = "script";
-  private static final String CONFIG_PROLONG_REPLACEMENT_ALERT_SECONDS_KEY = "prolong.replacement.alert.seconds";
+  private static final String CONFIG_PROLONG_REPLACEMENT_ALERT_SECONDS_KEY = "prolong_replacement_alert_seconds";
 
   private String configScript;
   private long configProlongReplacementAlertSeconds = 1800L;

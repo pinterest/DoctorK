@@ -21,8 +21,8 @@ import java.util.Map;
  * This operator selects a offline broker, checks the record on zookeeper to see if the cooldown period has passed,
  * and emits an event to replace the broker if appropriate.
  *
- * Configuration:
- * config.replacement.cooldown.seconds=<number of seconds before next replacement is allowed (Default: 43200)>
+ * config:
+ *   replacement_cooldown_seconds: <number of seconds before next replacement is allowed (Default: 43200)>
  *
  * Output Events Format:
  * Event: replace_instance:
@@ -37,7 +37,7 @@ import java.util.Map;
 public class BrokerReplacementOperator extends KafkaOperator {
   private static final Logger LOG = LogManager.getLogger(BrokerReplacementOperator.class);
 
-  private static final String CONFIG_REPLACEMENT_COOLDOWN_SECONDS_KEY = "replacement.cooldown.seconds";
+  private static final String CONFIG_REPLACEMENT_COOLDOWN_SECONDS_KEY = "replacement_cooldown_seconds";
 
   private long configReplacementCooldownSeconds = 43200L;
 

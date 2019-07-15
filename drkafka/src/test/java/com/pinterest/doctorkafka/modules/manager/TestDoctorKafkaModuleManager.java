@@ -12,70 +12,61 @@ import com.pinterest.doctorkafka.modules.errors.ModuleException;
 import com.pinterest.doctorkafka.modules.utils.DummyStub;
 
 import org.apache.commons.configuration2.AbstractConfiguration;
-import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.MapConfiguration;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
-import java.util.Map;
 
 class TestDoctorKafkaModuleManager {
 
   @Test
   public void testGetModule() throws Exception{
     DummyStub spyDummyStub = spy(new DummyStub());
-    DummyStub spyDummyStubNotCalled = spy(new DummyStub());
-    Map<String, Object> configMap = new HashMap<>();
-    configMap.put("noclasspathmodule.config.key","value");
-    configMap.put("badclasspathmodule.class","bad.module.classpath");
-    configMap.put("notaconfigurablemodule.class",this.getClass().getName());
-    configMap.put("missingnoargctrmodule.class",BadConfigurableStub.class.getName());
-    configMap.put("goodmodule.class",ConfigurableStub.class.getName());
-    configMap.put("goodmodule.config.test",spyDummyStub);
-    configMap.put("goodmodulewithadditionalconfig.class",ConfigurableStub.class.getName());
-    configMap.put("goodmodulewithadditionalconfig.config.test",spyDummyStubNotCalled);
-    Configuration config = new MapConfiguration(configMap);
+    AbstractConfiguration config = new MapConfiguration(new HashMap<>());
 
-    DoctorKafkaModuleManager moduleManager = new DoctorKafkaModuleManager(null,null,null);
+    DoctorKafkaModuleManager moduleManager = new DoctorKafkaModuleManager();
+    try {
+      moduleManager.getModule(config);
+      fail("Should fail since name not provided in the config");
+    } catch (Exception e){
+      assertTrue(e instanceof ModuleException);
+    }
     try{
-      moduleManager.getModule("noclasspathmodule",config,null);
-      fail("Should fail since class not been provided in the config");
+      config.setProperty("name","test");
+      moduleManager.getModule(config);
+      fail("Should fail since class not provided in the config");
     } catch (Exception e){
       assertTrue(e instanceof ModuleException);
     }
 
     try{
-      moduleManager.getModule("badclasspathmodule", config, null);
+      config.setProperty("class", "bad.module.classpath");
+      moduleManager.getModule(config);
       fail("Should fail since class in config is a invalid class name");
     } catch (Exception e){
       assertTrue(e instanceof ClassNotFoundException);
     }
 
     try {
-      moduleManager.getModule("notaconfigurablemodule", config, null);
+      config.setProperty("class", this.getClass().getName());
+      moduleManager.getModule(config);
       fail("Should fail since class is not a Configurable");
     } catch (Exception e){
       assertTrue(e instanceof ClassCastException);
     }
 
     try {
-      moduleManager.getModule("missingnoargctrmodule", config, null);
+      config.setProperty("class", BadConfigurableStub.class.getName());
+      moduleManager.getModule(config);
       fail("Should fail since class has no nullary constructor");
     } catch (Exception e){
       assertTrue(e instanceof InstantiationException);
     }
 
-    moduleManager.getModule("goodmodule", config, null);
+    config.setProperty("class", ConfigurableStub.class.getName());
+    config.setProperty("config.test", spyDummyStub);
+    moduleManager.getModule(config);
     verify(spyDummyStub,times(1)).dummy();
-
-    DummyStub spyDummyStubAdditional = spy(new DummyStub());
-    Map<String, Object> additionalConfigMap = new HashMap<>();
-    additionalConfigMap.put("test",spyDummyStubAdditional);
-    Configuration additionalConfig = new MapConfiguration(additionalConfigMap);
-
-    moduleManager.getModule("goodmodulewithadditionalconfig", config, additionalConfig);
-    verify(spyDummyStubNotCalled, never()).dummy();
-    verify(spyDummyStubAdditional,times(1)).dummy();
   }
 
   public static class ConfigurableStub implements Configurable {

@@ -12,11 +12,11 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * This action sends emails to a list of email addresses, but with a cooldown time for each type of event
  *
- * Configuration:
+ * config:
  * [required]
- * config.emails=< comma separated list of email addresses to send >
+ *   emails: <comma separated list of email addresses to send >
  * [optional]
- * config.snooze.seconds=< snooze time for each event. Default: 20 minutes >
+ *   snooze_seconds: <snooze time for each event. Default: 20 minutes >
  *
  * Input Event Format:
  * {
@@ -25,7 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * }
  */
 public class SnoozedSendEmailAction extends SendEmailAction {
-  private static final String CONFIG_SNOOZE_SECONDS_KEY = "snooze.seconds";
+  private static final String CONFIG_SNOOZE_SECONDS_KEY = "snooze_seconds";
 
   private long configSnoozeSeconds = 1200L;
 

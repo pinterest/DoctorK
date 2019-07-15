@@ -22,6 +22,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.StringReader;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Properties;
@@ -55,8 +57,8 @@ public class KafkaReportOperationAction extends Action {
 
   private final static String CONFIG_TOPIC_KEY = "topic";
   private final static String CONFIG_ZKURL_KEY = "zkurl";
-  private final static String CONFIG_PRODUCER_CONFIG_KEY = "producer";
-  private final static String CONFIG_SECURITY_PROTOCOL_KEY = CONFIG_PRODUCER_CONFIG_KEY + ".security.protocol";
+  private final static String CONFIG_PRODUCER_CONFIG_KEY = "producer_config";
+  private final static String CONFIG_SECURITY_PROTOCOL_KEY = "security.protocol";
 
   private final static SecurityProtocol DEFAULT_SECURITY_PROTOCOL = SecurityProtocol.PLAINTEXT;
 
@@ -124,13 +126,22 @@ public class KafkaReportOperationAction extends Action {
       throw new ModuleConfigurationException("Missing config " + CONFIG_ZKURL_KEY + " in plugin " + KafkaReportOperationAction.class);
     }
     String zkUrl = config.getString(CONFIG_ZKURL_KEY);
-    SecurityProtocol securityProtocol = config.containsKey(CONFIG_SECURITY_PROTOCOL_KEY) ?
-                                        Enum.valueOf(SecurityProtocol.class, config.getString(CONFIG_SECURITY_PROTOCOL_KEY)) :
-                                        DEFAULT_SECURITY_PROTOCOL;
+
+    Properties producerConfig = new Properties();
+    if(config.containsKey(CONFIG_PRODUCER_CONFIG_KEY)){
+      try {
+        producerConfig.load(new StringReader(config.getString(CONFIG_PRODUCER_CONFIG_KEY)));
+      } catch (IOException e){
+        throw new ModuleConfigurationException("Failed to parse properties from key: " + CONFIG_PRODUCER_CONFIG_KEY + " in plugin " + KafkaReportOperationAction.class);
+      }
+    }
+
+    SecurityProtocol securityProtocol = DEFAULT_SECURITY_PROTOCOL;
+    if(producerConfig.containsKey(CONFIG_SECURITY_PROTOCOL_KEY)){
+      securityProtocol = Enum.valueOf(SecurityProtocol.class, config.getString(CONFIG_SECURITY_PROTOCOL_KEY));
+    }
 
     String bootstrapBrokers = OperatorUtil.getBrokers(zkUrl, securityProtocol);
-    Configuration tmpProducerConfig = config.subset(CONFIG_PRODUCER_CONFIG_KEY);
-    Iterator<String> keys = tmpProducerConfig.getKeys();
 
     Properties props = new Properties();
     props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapBrokers);
@@ -142,7 +153,7 @@ public class KafkaReportOperationAction extends Action {
     props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.ByteArraySerializer");
     props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.ByteArraySerializer");
 
-    keys.forEachRemaining(k -> props.put(k, tmpProducerConfig.getString(k)));
+    props.putAll(producerConfig);
     return new KafkaProducer<>(props);
   }
 }

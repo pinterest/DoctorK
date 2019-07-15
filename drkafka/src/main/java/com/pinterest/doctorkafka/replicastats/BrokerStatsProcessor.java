@@ -30,11 +30,11 @@ public class BrokerStatsProcessor implements Runnable {
   private String zkUrl;
   private String topic;
   private SecurityProtocol securityProtocol;
-  private Map<String, String> consumerConfigs;
+  private Properties consumerConfigs;
   private ReplicaStatsManager replicaStatsManager;
 
   public BrokerStatsProcessor(String zkUrl, SecurityProtocol securityProtocol,
-      String topic, Map<String, String> consumerConfigs, ReplicaStatsManager replicaStatsManager) {
+      String topic, Properties consumerConfigs, ReplicaStatsManager replicaStatsManager) {
     this.zkUrl = zkUrl;
     this.topic = topic;
     this.securityProtocol = securityProtocol;
