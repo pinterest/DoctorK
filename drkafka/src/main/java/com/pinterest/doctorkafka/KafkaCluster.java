@@ -1,7 +1,5 @@
 package com.pinterest.doctorkafka;
 
-
-import com.pinterest.doctorkafka.config.DoctorKafkaClusterConfig;
 import com.pinterest.doctorkafka.util.OutOfSyncReplica;
 
 import com.codahale.metrics.Histogram;
@@ -51,28 +49,31 @@ public class KafkaCluster {
   private static final long REASSIGNMENT_COOLDOWN_WINDOW_IN_MS = 1800 * 1000L;
   private static final int SLIDING_WINDOW_SIZE = 1440 * 4;
 
-  private DoctorKafkaClusterConfig clusterConfig;
   public String zkUrl;
-  public ConcurrentMap<Integer, KafkaBroker> brokers;
-  private ConcurrentMap<Integer, LinkedList<BrokerStats>> brokerStatsMap;
+  private double bytesInPerSecLimit;
+  private double bytesOutPerSecLimit;
+
+  public ConcurrentMap<Integer, KafkaBroker> brokers = new ConcurrentHashMap<>();
+  private ConcurrentMap<Integer, LinkedList<BrokerStats>> brokerStatsMap = new ConcurrentHashMap<>();
   public ConcurrentMap<String, Set<TopicPartition>> topicPartitions = new ConcurrentHashMap<>();
   private ConcurrentMap<TopicPartition, Histogram> bytesInHistograms = new ConcurrentHashMap<>();
   private ConcurrentMap<TopicPartition, Histogram> bytesOutHistograms = new ConcurrentHashMap<>();
   private ConcurrentMap<TopicPartition, Long> reassignmentTimestamps = new ConcurrentHashMap<>();
 
-  public KafkaCluster(String zookeeper, DoctorKafkaClusterConfig clusterConfig) {
-    this.zkUrl = zookeeper;
-    this.brokers = new ConcurrentHashMap<>();
-    this.clusterConfig = clusterConfig;
-    this.brokerStatsMap = new ConcurrentHashMap<>();
+  public KafkaCluster(String zkUrl) {
+    this.zkUrl = zkUrl;
+  }
+
+  public void setBytesInPerSecLimit(double bytesInPerSecLimit) {
+    this.bytesInPerSecLimit = bytesInPerSecLimit;
+  }
+
+  public void setBytesOutPerSecLimit(double bytesOutPerSecLimit) {
+    this.bytesOutPerSecLimit = bytesOutPerSecLimit;
   }
 
   public int size() {
     return brokers.size();
-  }
-
-  public String name() {
-    return clusterConfig.getClusterName();
   }
 
   /**
@@ -97,7 +98,9 @@ public class KafkaCluster {
 
       if (!brokerStats.getHasFailure()) {
         // only record brokerstat when there is no failure on that broker.
-        KafkaBroker broker = brokers.computeIfAbsent(brokerId, i -> new KafkaBroker(clusterConfig, this, i));
+        KafkaBroker broker = brokers.computeIfAbsent(brokerId, i -> new KafkaBroker(
+            zkUrl, this, i, bytesInPerSecLimit, bytesOutPerSecLimit
+        ));
         broker.update(brokerStats);
       }
 
@@ -204,8 +207,6 @@ public class KafkaCluster {
   public List<KafkaBroker> getHighTrafficBrokers() {
     double averageBytesIn = getMaxBytesIn() / (double) brokers.size();
     double averageBytesOut = getMaxBytesOut() / (double) brokers.size();
-    double bytesInLimit = clusterConfig.getNetworkInLimitInBytes();
-    double bytesOutLimit = clusterConfig.getNetworkOutLimitInBytes();
 
     List<KafkaBroker> result = new ArrayList<>();
     synchronized (brokers) {
@@ -215,7 +216,7 @@ public class KafkaCluster {
         if (brokerBytesIn < averageBytesIn && brokerBytesOut < averageBytesOut) {
           continue;
         }
-        if (brokerBytesIn < bytesInLimit && brokerBytesOut < bytesOutLimit) {
+        if (brokerBytesIn < bytesInPerSecLimit && brokerBytesOut < bytesOutPerSecLimit) {
           continue;
         }
         LOG.debug("High traffic broker: {} : [{}, {}]",

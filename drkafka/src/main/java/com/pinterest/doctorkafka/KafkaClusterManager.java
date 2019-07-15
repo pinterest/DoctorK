@@ -15,6 +15,8 @@ import com.pinterest.doctorkafka.util.KafkaUtils;
 import com.pinterest.doctorkafka.util.ZookeeperClient;
 
 import kafka.cluster.Broker;
+import org.apache.commons.configuration2.AbstractConfiguration;
+import org.apache.commons.configuration2.Configuration;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -23,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 public class KafkaClusterManager implements Runnable {
 
@@ -39,6 +42,8 @@ public class KafkaClusterManager implements Runnable {
   private boolean stopped = false;
   private Thread thread = null;
 
+  private long evaluationFrequency;
+
   public KafkaClusterManager(String zkUrl, KafkaCluster kafkaCluster,
                              DoctorKafkaClusterConfig clusterConfig,
                              DoctorKafkaConfig drkafkaConfig,
@@ -52,19 +57,15 @@ public class KafkaClusterManager implements Runnable {
     ctx.setClusterName(clusterConfig.getClusterName());
     ctx.setKafkaClusterZookeeperClient(zookeeperClient);
 
-    // try to get cluster-specific monitor plugins, if null, get top-level default plugins
-    String[] monitorNames = clusterConfig.getEnabledMonitors();
-    if (monitorNames == null) {
-      monitorNames = drkafkaConfig.getEnabledMonitors();
-    }
+    evaluationFrequency = drkafkaConfig.getEvaluationFrequency();
 
     // Load monitor plugins
-    for(String monitorName : monitorNames){
+    Map<String, Configuration> baseMonitorsConfigs = drkafkaConfig.getMonitorsConfigs();
+    for(Map.Entry<String, AbstractConfiguration> entry: clusterConfig.getEnabledMonitorsConfigs(baseMonitorsConfigs).entrySet() ){
+      String monitorName = entry.getKey();
+      AbstractConfiguration monitorConfig = entry.getValue();
       try {
-        this.monitors.add(moduleManager.getMonitor(
-            monitorName,
-            clusterConfig.getMonitorConfiguration(monitorName)
-        ));
+        this.monitors.add(moduleManager.getMonitor(monitorConfig));
       } catch (ClassCastException e){
         LOG.error("Module {} is not a monitor module", monitorName, e);
         throw e;
@@ -74,18 +75,12 @@ public class KafkaClusterManager implements Runnable {
     // create event handler
     this.eventHandler = new SingleThreadEventHandler();
 
-    // Load operator plugins
-    String[] operatorNames = clusterConfig.getEnabledOperators();
-    if (operatorNames  == null) {
-      operatorNames  = drkafkaConfig.getEnabledOperators();
-    }
-
-    for(String operatorName: operatorNames ){
+    Map<String, Configuration> baseOperatorsConfigs = drkafkaConfig.getOperatorsConfigs();
+    for(Map.Entry<String, AbstractConfiguration> entry: clusterConfig.getEnabledOperatorsConfigs(baseOperatorsConfigs).entrySet() ){
+      String operatorName = entry.getKey();
+      AbstractConfiguration operatorConfig = entry.getValue();
       try {
-        Operator operator = moduleManager.getOperator(
-            operatorName,
-            clusterConfig.getOperatorConfiguration(operatorName)
-        );
+        Operator operator = moduleManager.getOperator(operatorConfig);
         operator.setEventEmitter(eventHandler);
         this.operators.add(operator);
       } catch (ClassCastException e){
@@ -94,17 +89,12 @@ public class KafkaClusterManager implements Runnable {
       }
     }
 
-    String[] actionNames = clusterConfig.getEnabledActions();
-    if (actionNames == null){
-      actionNames = drkafkaConfig.getEnabledActions();
-    }
-
-    for (String actionName: actionNames){
+    Map<String, Configuration> baseActionsConfigs = drkafkaConfig.getActionsConfigs();
+    for(Map.Entry<String, AbstractConfiguration> entry: clusterConfig.getEnabledActionsConfigs(baseActionsConfigs).entrySet()){
+      String actionName = entry.getKey();
+      AbstractConfiguration actionConfig = entry.getValue();
       try {
-        Action action = moduleManager.getAction(
-            actionName,
-            clusterConfig.getActionConfiguration(actionName)
-        );
+        Action action = moduleManager.getAction(actionConfig);
         if (action.getSubscribedEvents().length == 0){
           LOG.warn("Action {} is not subscribing to any event.");
           continue;
@@ -236,6 +226,13 @@ public class KafkaClusterManager implements Runnable {
   public void run() {
 
     while(!stopped) {
+      try {
+        Thread.sleep(evaluationFrequency);
+      } catch (InterruptedException e){
+        LOG.error("KafkaClusterManager interrupted, stopping evaluation loop...");
+        stop();
+        break;
+      }
       State newState = new KafkaState();
 
       for (Monitor plugin: monitors) {

@@ -16,14 +16,14 @@ import java.util.Map;
 /**
  * This monitor detects dead brokers
  *
- * Configuration:
+ * config:
  * [optional]
- * config.no_stats.seconds=<number of seconds not receiving brokerstats before marking a broker dead>
+ *   no_stats_seconds: <number of seconds not receiving brokerstats before marking a broker dead>
  */
 public class DeadBrokerMonitor extends KafkaMonitor {
   private static final Logger LOG = LogManager.getLogger(DeadBrokerMonitor.class);
 
-  private static final String CONFIG_NO_STATS_SECONDS_KEY = "no_stats.seconds";
+  private static final String CONFIG_NO_STATS_SECONDS_KEY = "no_stats_seconds";
 
   private long configNoStatsSeconds = 1200L;
 

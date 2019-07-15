@@ -56,11 +56,6 @@ public class ZkUtilReassignPartitionAction extends Action {
   private final static String DEFAULT_EVENT_SUBJECT = "n/a";
 
   @Override
-  public void configure(AbstractConfiguration config) throws ModuleConfigurationException {
-    super.configure(config);
-  }
-
-  @Override
   public Collection<Event> execute(Event event) throws Exception {
     if(event.containsAttribute(EventUtils.EVENT_ZKURL_KEY) && event.containsAttribute(
         EVENT_REASSIGNMENT_JSON_KEY)) {

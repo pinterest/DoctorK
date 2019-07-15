@@ -33,8 +33,9 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
   private String rackId;
   private BrokerStats latestStats;
 
-  private Set<TopicPartition> leaderReplicas;
-  private Set<TopicPartition> followerReplicas;
+  private Set<TopicPartition> leaderReplicas = new HashSet<>();
+  private Set<TopicPartition> followerReplicas = new HashSet<>();
+  private Set<TopicPartition>  toBeAddedReplicas = new HashSet<>();
 
   private double bytesInPerSecLimit;
   private double bytesOutPerSecLimit;
@@ -42,25 +43,21 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
   // reserved bytes in and bytes out rate per second
   private long reservedBytesIn;
   private long reservedBytesOut;
-  private Set<TopicPartition>  toBeAddedReplicas;
 
   private KafkaCluster kafkaCluster;
   private AtomicBoolean isDecommissioned = new AtomicBoolean(false);
 
-  public KafkaBroker(DoctorKafkaClusterConfig clusterConfig, KafkaCluster kafkaCluster, int brokerId) {
-    assert clusterConfig != null;
-    this.zkUrl = clusterConfig.getZkUrl();
+  public KafkaBroker(
+      String zkUrl,
+      KafkaCluster kafkaCluster,
+      int brokerId,
+      double bytesInPerSecLimit,
+      double bytesOutPerSecLimit
+  ) {
+    this.zkUrl = zkUrl;
     this.brokerId = brokerId;
-    this.latestStats = null;
-    this.rackId = null;
-    this.leaderReplicas = new HashSet<>();
-    this.followerReplicas = new HashSet<>();
-    this.toBeAddedReplicas = new HashSet<>();
-    this.clusterConfig = clusterConfig;
-    this.reservedBytesIn = 0L;
-    this.reservedBytesOut = 0L;
-    this.bytesInPerSecLimit = clusterConfig.getNetworkInLimitInBytes();
-    this.bytesOutPerSecLimit = clusterConfig.getNetworkOutLimitInBytes();
+    this.bytesInPerSecLimit = bytesInPerSecLimit;
+    this.bytesOutPerSecLimit = bytesOutPerSecLimit;
     this.kafkaCluster = kafkaCluster;
   }
 
@@ -110,33 +107,6 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
   public long getLastStatsTimestamp() {
     return latestStats == null ? 0 : latestStats.getTimestamp();
   }
-
-  @JsonIgnore
-  public List<TopicPartition> getLeaderTopicPartitions() {
-    BrokerStats brokerStats = getLatestStats();
-    if (brokerStats == null) {
-      LOG.error("Failed to get brokerstats for {}:{}", clusterConfig.getClusterName(), brokerId);
-      return null;
-    }
-    List<TopicPartition> topicPartitions = new ArrayList<>();
-    brokerStats.getLeaderReplicas().stream().forEach(atp ->
-        topicPartitions.add(new TopicPartition(atp.getTopic(), atp.getPartition())));
-    return topicPartitions;
-  }
-
-  @JsonIgnore
-  public List<TopicPartition> getFollowerTopicPartitions() {
-    BrokerStats brokerStats = getLatestStats();
-    if (brokerStats == null) {
-      LOG.error("Failed to get brokerstats for {}:{}", clusterConfig.getClusterName(), brokerId);
-      return null;
-    }
-    List<TopicPartition> topicPartitions = new ArrayList<>();
-    brokerStats.getFollowerReplicas().stream().forEach(atp ->
-        topicPartitions.add(new TopicPartition(atp.getTopic(), atp.getPartition())));
-    return topicPartitions;
-  }
-
 
   public void clearResourceAllocationCounters() {
     this.reservedBytesIn = 0L;

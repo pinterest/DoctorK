@@ -41,12 +41,13 @@ import java.util.stream.Collectors;
 /**
  * This operator verifies URPs and reassign follower_failure URPs to other brokers to restore ISRs back to the replication factor
  *
- * Configuration:
+ * config:
  * [required]
- * config.network.bandwidth.max.mb=<network bandwidth of brokers>
+ *   network_bandwidth_max_mb:<network bandwidth of brokers>
  * [optional]
- * config.rack.awareness.enabled=< true if rack awareness reassignments are enabled (Default: false)>
- * config.prolong.urp.alert.seconds=< number of seconds before sending alert on prolong URPs>
+ *   rack_awareness:
+ *     enabled: <true if rack awareness reassignments are enabled (Default: false)>
+ *   prolong_urp_alert_seconds: <number of seconds before sending alert on prolong URPs>
  *
  * Output Events Format:
  * Event: reassign_partitions:
@@ -80,9 +81,9 @@ public class URPReassignmentOperator extends KafkaOperator {
   //The number of broker stats that we need to examine to tell if a broker dies or not.
   private static final int NUM_BROKER_STATS = 4;
 
-  private static final String CONFIG_RACK_AWARENESS_KEY = "rack.awareness.enabled";
-  private static final String CONFIG_PROLONG_URP_ALERT_SECONDS_KEY = "prolong.urp.alert.seconds";
-  private static final String CONFIG_NETWORK_BANDWIDTH_MAX_KEY = "network.bandwidth.max.mb";
+  private static final String CONFIG_RACK_AWARENESS_KEY = "rack_awareness.enabled";
+  private static final String CONFIG_PROLONG_URP_ALERT_SECONDS_KEY = "prolong_urp_alert_seconds";
+  private static final String CONFIG_NETWORK_BANDWIDTH_MAX_KEY = "network_bandwidth_max_mb";
 
   private boolean configRackAwarenessEnabled = false;
   private int configProlongURPAlertInSec = 7200;

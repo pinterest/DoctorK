@@ -18,44 +18,49 @@ import org.apache.logging.log4j.Logger;
 import scala.collection.JavaConverters;
 import scala.collection.Seq;
 
+import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 
 /**
  * This monitor detects URPs in a Kafka cluster
  *
- * Configuration:
+ * config:
  * [optional]
- * config.consumer.<sub-configs>=<values>
- * config.consumer.security.protocol=<cluster security protocol>
+ *  consumer_config: <property string>
  */
 public class URPMonitor extends KafkaMonitor {
 
   private static final Logger LOG = LogManager.getLogger(URPMonitor.class);
 
-
-  private static final String CONFIG_CONSUMER_CONFIG_KEY = "consumer";
-  private static final String CONFIG_SECURITY_PROTOCOL_KEY = CONFIG_CONSUMER_CONFIG_KEY + ".security.protocol";
+  private static final String CONFIG_CONSUMER_CONFIG_KEY = "consumer_config";
+  private static final String CONSUMER_CONFIG_SECURITY_PROTOCOL_KEY = "security.protocol";
 
   private SecurityProtocol configSecurityProtocol = SecurityProtocol.PLAINTEXT;
-  private Map<String, String> configConsumerConfigs = new HashMap<>();
+  private Properties configConsumerConfigs = new Properties();
 
   @Override
   public void configure(AbstractConfiguration config) throws ModuleConfigurationException {
     super.configure(config);
 
-    Configuration tmpConsumerConfig = config.subset(CONFIG_CONSUMER_CONFIG_KEY);
-    Iterator<String> keys = tmpConsumerConfig.getKeys();
-    keys.forEachRemaining(k -> configConsumerConfigs.put(k, tmpConsumerConfig.getString(k)));
+    if(config.containsKey(CONFIG_CONSUMER_CONFIG_KEY)){
+      String consumerConfigStr = config.getString(CONFIG_CONSUMER_CONFIG_KEY);
+      try{
+        configConsumerConfigs.load(new StringReader(consumerConfigStr));
+      } catch (Exception e){
+        throw new ModuleConfigurationException("Error while parsing properties of " + CONFIG_CONSUMER_CONFIG_KEY + " for module " + this.getClass(), e);
+      }
+    }
 
-    configSecurityProtocol = config.containsKey(CONFIG_SECURITY_PROTOCOL_KEY) ?
-                             Enum.valueOf(SecurityProtocol.class, config.getString(CONFIG_SECURITY_PROTOCOL_KEY)) :
-                             configSecurityProtocol;
+    if(config.containsKey(CONSUMER_CONFIG_SECURITY_PROTOCOL_KEY)){
+      configSecurityProtocol = Enum.valueOf(SecurityProtocol.class, config.getString(CONSUMER_CONFIG_SECURITY_PROTOCOL_KEY));
+    }
   }
 
   public KafkaState observe(KafkaContext ctx, KafkaState state){
@@ -94,13 +99,13 @@ public class URPMonitor extends KafkaMonitor {
    * We need to handle this special case in detecting under replicated topic partitions.
    */
   public static List<PartitionInfo> getUnderReplicatedPartitions(
-      String zkUrl, SecurityProtocol securityProtocol, Map<String, String> consumerConfigs,
+      String zkUrl, SecurityProtocol securityProtocol, Properties consumerConfigs,
       List<String> topics,
       scala.collection.mutable.Map<String, scala.collection.Map<Object, Seq<Object>>> partitionAssignments,
       Map<String, Integer> replicationFactors,
       Map<String, Integer> partitionCounts) {
     List<PartitionInfo> underReplicated = new ArrayList<>();
-    KafkaConsumer
+    KafkaConsumer<byte[], byte[]>
         kafkaConsumer = KafkaUtils.getKafkaConsumer(zkUrl, securityProtocol, consumerConfigs);
     for (String topic : topics) {
       List<PartitionInfo> partitionInfoList = kafkaConsumer.partitionsFor(topic);

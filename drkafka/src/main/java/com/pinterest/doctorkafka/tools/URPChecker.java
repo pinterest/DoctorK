@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 public class URPChecker {
 
@@ -99,13 +100,13 @@ public class URPChecker {
    * We need to handle this special case in detecting under replicated topic partitions.
    */
   protected static List<PartitionInfo> getUnderReplicatedPartitions(
-      String zkUrl, SecurityProtocol securityProtocol, Map<String, String> consumerConfigs,
+      String zkUrl, SecurityProtocol securityProtocol, Properties consumerConfigs,
       List<String> topics,
       scala.collection.mutable.Map<String, scala.collection.Map<Object, Seq<Object>>> partitionAssignments,
       Map<String, Integer> replicationFactors,
       Map<String, Integer> partitionCounts) {
-    List<PartitionInfo> underReplicated = new ArrayList();
-    KafkaConsumer
+    List<PartitionInfo> underReplicated = new ArrayList<>();
+    KafkaConsumer<byte[], byte[]>
         kafkaConsumer = KafkaUtils.getKafkaConsumer(zkUrl, securityProtocol, consumerConfigs);
     for (String topic : topics) {
       List<PartitionInfo> partitionInfoList = kafkaConsumer.partitionsFor(topic);

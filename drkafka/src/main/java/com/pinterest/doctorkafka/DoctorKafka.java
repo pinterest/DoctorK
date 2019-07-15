@@ -36,15 +36,11 @@ public class DoctorKafka {
     this.drkafkaConf = replicaStatsManager.getConfig();
     this.clusterZkUrls = drkafkaConf.getClusterZkUrls();
     this.zookeeperClient = new ZookeeperClient(drkafkaConf.getDoctorKafkaZkurl());
-    this.moduleManager = new DoctorKafkaModuleManager(
-        drkafkaConf.getMonitorsConfiguration(),
-        drkafkaConf.getOperatorsConfiguration(),
-        drkafkaConf.getActionsConfiguration()
-    );
+    this.moduleManager = new DoctorKafkaModuleManager();
   }
 
   public void start() throws Exception {
-    String brokerstatsZkurl = drkafkaConf.getBrokerstatsZkurl();
+    String brokerstatsZkurl = drkafkaConf.getBrokerStatsZkurl();
     String statsTopic = drkafkaConf.getBrokerStatsTopic();
     SecurityProtocol statsSecurityProtocol = drkafkaConf.getBrokerStatsConsumerSecurityProtocol();
 
@@ -54,7 +50,7 @@ public class DoctorKafka {
     LOG.info("Finish rebuilding the replica stats");
 
     brokerStatsProcessor = new BrokerStatsProcessor(brokerstatsZkurl, statsSecurityProtocol, statsTopic,
-        drkafkaConf.getBrokerStatsConsumerSslConfigs(), replicaStatsManager);
+        drkafkaConf.getBrokerStatsConsumerConfigs(), replicaStatsManager);
     brokerStatsProcessor.start();
 
     for (String clusterZkUrl : clusterZkUrls) {

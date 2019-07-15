@@ -1,11 +1,13 @@
 package com.pinterest.doctorkafka.modules.manager;
 
+import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
 import com.pinterest.doctorkafka.modules.Configurable;
 import com.pinterest.doctorkafka.modules.action.Action;
 import com.pinterest.doctorkafka.modules.errors.ModuleException;
 import com.pinterest.doctorkafka.modules.monitor.Monitor;
 import com.pinterest.doctorkafka.modules.operator.Operator;
 
+import org.apache.commons.configuration2.AbstractConfiguration;
 import org.apache.commons.configuration2.Configuration;
 
 import java.util.Map;
@@ -17,38 +19,31 @@ import java.util.concurrent.ConcurrentHashMap;
 public class DoctorKafkaModuleManager implements ModuleManager {
   private static final String MODULE_CLASS_KEY = "class";
   private static final String MODULE_CONFIG_KEY = "config";
-  private Configuration monitorsConfig;
-  private Configuration operatorsConfig;
-  private Configuration actionsConfig;
   private Map<String, Class> moduleMap = new ConcurrentHashMap<>();
 
-  public DoctorKafkaModuleManager(Configuration monitorsConfig,
-                                  Configuration operatorsConfig,
-                                  Configuration actionsConfig){
-    this.monitorsConfig = monitorsConfig;
-    this.operatorsConfig = operatorsConfig;
-    this.actionsConfig = actionsConfig;
+  @Override
+  public Monitor getMonitor(AbstractConfiguration monitorConfig) throws Exception {
+    return (Monitor) getModule(monitorConfig);
   }
 
   @Override
-  public Monitor getMonitor(String name, Configuration additionalConfig) throws Exception {
-    return (Monitor) getModule(name, monitorsConfig, additionalConfig);
+  public Operator getOperator(AbstractConfiguration operatorConfig) throws Exception {
+    return (Operator) getModule(operatorConfig);
   }
 
   @Override
-  public Operator getOperator(String name, Configuration additionalConfig) throws Exception {
-    return (Operator) getModule(name, operatorsConfig, additionalConfig);
+  public Action getAction(AbstractConfiguration actionConfig) throws Exception {
+    return (Action) getModule(actionConfig);
   }
 
-  @Override
-  public Action getAction(String name, Configuration additionalConfig) throws Exception {
-    return (Action) getModule(name, actionsConfig, additionalConfig);
-  }
-
-  protected Configurable getModule(String name, Configuration baseConfig, Configuration additionalModuleConfig) throws Exception {
-    String moduleClass = baseConfig.getString(String.join(".",name,MODULE_CLASS_KEY));
-    if (moduleClass == null){
-      throw new ModuleException("Could not find class in plugin config: " + name);
+  protected Configurable getModule(AbstractConfiguration moduleConfig) throws Exception {
+    String moduleName = moduleConfig.getString(DoctorKafkaConfig.NAME_KEY);
+    if(moduleName == null) {
+      throw new ModuleException("Could not find name in plugin config");
+    }
+    String moduleClass = moduleConfig.getString(MODULE_CLASS_KEY);
+    if (moduleClass == null) {
+      throw new ModuleException("Could not find class in plugin config: " + moduleName);
     }
     Class<?> clazz = moduleMap.computeIfAbsent(moduleClass, c -> {
       try{
@@ -58,13 +53,11 @@ public class DoctorKafkaModuleManager implements ModuleManager {
       }
     });
     if (clazz == null){
-      throw new ClassNotFoundException("Could not find class in classpath for plugin " + name + " (" + moduleClass + ")");
+      throw new ClassNotFoundException("Could not find class in classpath for plugin " + moduleName + " (" + moduleClass + ")");
     }
 
-    Configuration config = baseConfig.subset(String.join(".", name, MODULE_CONFIG_KEY));
-
     Configurable configurable = clazz.asSubclass(Configurable.class).newInstance();
-    configurable.configure(additionalModuleConfig, config);
+    configurable.configure(moduleConfig.subset(MODULE_CONFIG_KEY));
     return configurable;
   }
 }

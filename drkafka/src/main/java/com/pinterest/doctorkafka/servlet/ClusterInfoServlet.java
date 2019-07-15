@@ -115,21 +115,21 @@ public class ClusterInfoServlet extends DoctorKafkaServlet {
         writer.print("</tr>");
       }
       writer.print("</tbody> </table>");
-      printTopicPartitionInfo(cluster, writer);
+      printTopicPartitionInfo(cluster, clusterName, writer);
     } catch (Exception e) {
       LOG.error("Unexpected error", e);
     }
     printFooter(writer);
   }
 
-  private void printTopicPartitionInfo(KafkaCluster cluster, PrintWriter writer) {
+  private void printTopicPartitionInfo(KafkaCluster cluster, String clusterName, PrintWriter writer) {
     writer.print("<div> <h4> Topics </h4> </div>");
     writer.print("<div> <table class=\"table\"> <tbody>");
     int topicId = 1;
     TreeSet<String> topics = new TreeSet<>(cluster.topicPartitions.keySet());
     for (String topic : topics) {
       writer.print("<tr> <td> " + topicId + "</td> <td>");
-      writer.print("<a href=\"/servlet/topicstats?cluster=" + cluster.name()
+      writer.print("<a href=\"/servlet/topicstats?cluster=" + clusterName
           + "&topic=" + topic + "\">" + topic + "</a> </td> </tr>");
       topicId++;
     }

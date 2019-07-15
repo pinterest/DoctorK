@@ -16,7 +16,7 @@ import java.util.Collection;
  */
 public abstract class Action implements Configurable {
   private static final Logger LOG = LogManager.getLogger(Action.class);
-  private static final String CONFIG_SUBSCRIBED_EVENTS_KEY = "subscribed.events";
+  private static final String CONFIG_SUBSCRIBED_EVENTS_KEY = "subscribed_events";
   private static final String CONFIG_DRY_RUN_KEY = "dryrun";
 
   private String[] subscribedEvents;

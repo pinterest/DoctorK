@@ -1,8 +1,20 @@
 package com.pinterest.doctorkafka.config;
 
 
+import static com.pinterest.doctorkafka.config.DoctorKafkaConfig.NAME_KEY;
+
 import org.apache.commons.configuration2.AbstractConfiguration;
-import org.apache.commons.configuration2.SubsetConfiguration;
+import org.apache.commons.configuration2.CompositeConfiguration;
+import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.HierarchicalConfiguration;
+import org.apache.commons.configuration2.tree.ImmutableNode;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * kafkacluster.data07.dryrun=true
@@ -15,17 +27,41 @@ import org.apache.commons.configuration2.SubsetConfiguration;
  *
  */
 public class DoctorKafkaClusterConfig {
-
   private static final String ZKURL = "zkurl";
-  private static final String NETWORK_IN_LIMIT_MB = "network.inbound.limit.mb";
-  private static final String NETWORK_OUT_MB = "network.outbound.limit.mb";
+  private static final String ENABLED = "enabled";
+  private static final String MB_IN_PER_SECOND = "inbound_limit_mb";
+  private static final String MB_OUT_PER_SECOND = "outbound_limit_mb";
 
   private String clusterName;
-  private AbstractConfiguration clusterConfiguration;
+  private String zkurl;
 
-  public DoctorKafkaClusterConfig(String clusterName, AbstractConfiguration configuration) {
+  private Double bytesInPerSecond;
+  private Double bytesOutPerSecond;
+
+  private ConcurrentMap<String, Configuration> monitorConfigs = new ConcurrentHashMap<>();
+  private ConcurrentMap<String, Configuration> operatorConfigs = new ConcurrentHashMap<>();
+  private ConcurrentMap<String, Configuration> actionConfigs = new ConcurrentHashMap<>();
+
+  public DoctorKafkaClusterConfig(String clusterName, HierarchicalConfiguration<ImmutableNode> configuration) {
     this.clusterName = clusterName;
-    this.clusterConfiguration = configuration;
+    this.zkurl = configuration.getString(ZKURL);
+    this.bytesInPerSecond = configuration.getDouble(MB_IN_PER_SECOND) * 1024 * 1024;
+    this.bytesOutPerSecond = configuration.getDouble(MB_OUT_PER_SECOND) * 1024 * 1024;
+
+    for(HierarchicalConfiguration monitorConfig: configuration.configurationsAt(DoctorKafkaConfig.MONITORS_PREFIX)){
+      String name = monitorConfig.getString(NAME_KEY);
+      monitorConfigs.put(name, monitorConfig);
+    }
+
+    for(HierarchicalConfiguration operatorConfig: configuration.configurationsAt(DoctorKafkaConfig.OPERATORS_PREFIX)){
+      String name = operatorConfig.getString(NAME_KEY);
+      operatorConfigs.put(name, operatorConfig);
+    }
+
+    for(HierarchicalConfiguration actionConfig: configuration.configurationsAt(DoctorKafkaConfig.ACTIONS_PREFIX)){
+      String name = actionConfig.getString(NAME_KEY);
+      actionConfigs.put(name, actionConfig);
+    }
   }
 
   public String getClusterName() {
@@ -33,64 +69,50 @@ public class DoctorKafkaClusterConfig {
   }
 
   public String getZkUrl() {
-    return clusterConfiguration.getString(ZKURL);
+    return this.zkurl;
   }
 
-  public double getNetworkInLimitInMb() {
-    return clusterConfiguration.getDouble(NETWORK_IN_LIMIT_MB);
+  public Double getBytesInPerSecond() {
+    return bytesInPerSecond;
   }
 
-  public double getNetworkInLimitInBytes() {
-    return getNetworkInLimitInMb() * 1024.0 * 1024.0;
+  public Double getBytesOutPerSecond() {
+    return bytesOutPerSecond;
   }
 
-  public double getNetworkOutLimitInMb() {
-    return clusterConfiguration.getDouble(NETWORK_OUT_MB);
+  public Map<String, AbstractConfiguration> getEnabledMonitorsConfigs(Map<String, Configuration> baseMonitorConfigs) {
+    return getEnabledModules(baseMonitorConfigs, monitorConfigs);
   }
 
-  public double getNetworkOutLimitInBytes() {
-    return getNetworkOutLimitInMb() * 1024.0 * 1024.0;
+  public Map<String, AbstractConfiguration> getEnabledOperatorsConfigs(Map<String, Configuration> baseOperatorConfigs) {
+    return getEnabledModules(baseOperatorConfigs, operatorConfigs);
   }
 
-  public String[] getEnabledMonitors() {
-    if (clusterConfiguration.containsKey(DoctorKafkaConfig.ENABLED_MONITORS)) {
-      String monitors = clusterConfiguration.getString((DoctorKafkaConfig.ENABLED_MONITORS));
-      if(monitors != null){
-        return monitors.split(",");
+  public Map<String, AbstractConfiguration> getEnabledActionsConfigs(Map<String, Configuration> baseActionConfigs) {
+    return getEnabledModules(baseActionConfigs, actionConfigs);
+  }
+
+  protected Map<String, AbstractConfiguration> getEnabledModules(
+      Map<String, Configuration> baseModuleConfigs,
+      Map<String, Configuration> additionalModuleConfigs){
+    Map<String, AbstractConfiguration> clusterModules = new HashMap<>();
+    for(Map.Entry<String, Configuration> entry : baseModuleConfigs.entrySet()){
+      String name = entry.getKey();
+      if(isModuleEnabled(additionalModuleConfigs, name)){
+        CompositeConfiguration newConfig = new CompositeConfiguration();
+        if(additionalModuleConfigs.containsKey(name)){
+          newConfig.addConfiguration(additionalModuleConfigs.get(name));
+        }
+        newConfig.addConfiguration(entry.getValue());
+        clusterModules.put(name, newConfig);
       }
     }
-    return null;
+    return clusterModules;
   }
 
-  public String[] getEnabledOperators() {
-    if (clusterConfiguration.containsKey(DoctorKafkaConfig.ENABLED_OPERATORS)) {
-      String operators = clusterConfiguration.getString((DoctorKafkaConfig.ENABLED_OPERATORS));
-      if(operators != null){
-        return operators.split(",");
-      }
-    }
-    return null;
-  }
-
-  public String[] getEnabledActions() {
-    if (clusterConfiguration.containsKey(DoctorKafkaConfig.ENABLED_ACTIONS)) {
-      String actions = clusterConfiguration.getString((DoctorKafkaConfig.ENABLED_ACTIONS));
-      if(actions != null){
-        return actions.split(",");
-      }
-    }
-    return null;
-  }
-
-  public AbstractConfiguration getMonitorConfiguration(String moduleName) {
-    return new SubsetConfiguration(clusterConfiguration, DoctorKafkaConfig.MONITORS_PREFIX + moduleName);
-  }
-
-  public AbstractConfiguration getActionConfiguration(String moduleName) {
-    return new SubsetConfiguration(clusterConfiguration, DoctorKafkaConfig.ACTIONS_PREFIX + moduleName);
-  }
-
-  public AbstractConfiguration getOperatorConfiguration(String moduleName) {
-    return new SubsetConfiguration(clusterConfiguration, DoctorKafkaConfig.OPERATORS_PREFIX + moduleName);
+  protected boolean isModuleEnabled(Map<String, Configuration> configs, String moduleName){
+    return ( !configs.containsKey(moduleName) ||
+             !configs.get(moduleName).containsKey(ENABLED) ||
+             configs.get(moduleName).getString(ENABLED).equals("true"));
   }
 }
