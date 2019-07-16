@@ -6,7 +6,6 @@ import com.pinterest.doctorkafka.api.ClustersApi;
 import com.pinterest.doctorkafka.api.ClustersMaintenanceApi;
 import com.pinterest.doctorkafka.config.DoctorKafkaAppConfig;
 import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
-import com.pinterest.doctorkafka.replicastats.ReplicaStatsManager;
 import com.pinterest.doctorkafka.security.DrKafkaAuthorizationFilter;
 import com.pinterest.doctorkafka.servlet.ClusterInfoServlet;
 import com.pinterest.doctorkafka.servlet.DoctorKafkaActionsServlet;
@@ -44,7 +43,6 @@ public class DoctorKafkaMain extends Application<DoctorKafkaAppConfig> {
 
   public static DoctorKafka doctorKafka = null;
   private static DoctorKafkaWatcher operatorWatcher = null;
-  public static ReplicaStatsManager replicaStatsManager = null;
 
   @Override
   public void initialize(Bootstrap<DoctorKafkaAppConfig> bootstrap) {
@@ -57,18 +55,18 @@ public class DoctorKafkaMain extends Application<DoctorKafkaAppConfig> {
 
     LOG.info("Configuration path : {}", configuration.getConfig());
 
-    replicaStatsManager = new ReplicaStatsManager(new DoctorKafkaConfig(configuration.getConfig()));
+    DoctorKafkaConfig drkafkaConfig = new DoctorKafkaConfig(configuration.getConfig());
 
-    if (!replicaStatsManager.getConfig().getRestartDisabled()){
-      operatorWatcher = new DoctorKafkaWatcher(replicaStatsManager.getConfig().getRestartIntervalInSeconds());
+    if (!drkafkaConfig.getRestartDisabled()){
+      operatorWatcher = new DoctorKafkaWatcher(drkafkaConfig.getRestartIntervalInSeconds());
       operatorWatcher.start();
     }
 
-    configureServerRuntime(configuration, replicaStatsManager.getConfig());
+    configureServerRuntime(configuration, drkafkaConfig);
 
-    doctorKafka = new DoctorKafka(replicaStatsManager);
+    doctorKafka = new DoctorKafka(drkafkaConfig);
 
-    registerAPIs(environment, doctorKafka, replicaStatsManager.getConfig());
+    registerAPIs(environment, doctorKafka, drkafkaConfig);
     registerServlets(environment);
 
     Executors.newCachedThreadPool().submit(() -> {
@@ -80,7 +78,7 @@ public class DoctorKafkaMain extends Application<DoctorKafkaAppConfig> {
       }
     });
 
-    startMetricsService();
+    startMetricsService(drkafkaConfig);
     LOG.info("DoctorKafka API server started");
   }
 
@@ -140,10 +138,10 @@ public class DoctorKafkaMain extends Application<DoctorKafkaAppConfig> {
     }
   }
 
-  private void startMetricsService() {
-    int ostrichPort = replicaStatsManager.getConfig().getOstrichPort();
-    String tsdHost = replicaStatsManager.getConfig().getTsdHost();
-    int tsdPort = replicaStatsManager.getConfig().getTsdPort();
+  private void startMetricsService(DoctorKafkaConfig drkafkaConfig) {
+    int ostrichPort = drkafkaConfig.getOstrichPort();
+    String tsdHost = drkafkaConfig.getTsdHost();
+    int tsdPort = drkafkaConfig.getTsdPort();
     if (tsdHost == null && tsdPort == 0 && ostrichPort == 0) {
       LOG.info("OpenTSDB and Ostrich options missing, not starting Ostrich service");
     } else if (ostrichPort == 0) {

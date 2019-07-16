@@ -2,7 +2,7 @@ package com.pinterest.doctorkafka.modules.action;
 
 import com.pinterest.doctorkafka.modules.Configurable;
 import com.pinterest.doctorkafka.modules.errors.ModuleConfigurationException;
-import com.pinterest.doctorkafka.modules.event.Event;
+import com.pinterest.doctorkafka.modules.context.event.Event;
 
 import org.apache.commons.configuration2.AbstractConfiguration;
 import org.apache.logging.log4j.LogManager;

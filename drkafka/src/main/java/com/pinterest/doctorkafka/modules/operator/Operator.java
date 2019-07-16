@@ -2,9 +2,9 @@ package com.pinterest.doctorkafka.modules.operator;
 
 import com.pinterest.doctorkafka.modules.Configurable;
 import com.pinterest.doctorkafka.modules.context.Context;
-import com.pinterest.doctorkafka.modules.event.Event;
-import com.pinterest.doctorkafka.modules.event.EventEmitter;
-import com.pinterest.doctorkafka.modules.state.State;
+import com.pinterest.doctorkafka.modules.context.event.Event;
+import com.pinterest.doctorkafka.modules.context.event.EventEmitter;
+import com.pinterest.doctorkafka.modules.context.state.State;
 
 
 /**
@@ -28,10 +28,9 @@ public abstract class Operator implements Configurable {
   }
 
   /**
-   * @param ctx The context of the service
    * @param state The state derived from {@link com.pinterest.doctorkafka.modules.monitor.Monitor Monitors}
    * @return false if later operations should not be executed, true otherwise.
    * @throws Exception
    */
-  public abstract boolean operate(Context ctx, State state) throws Exception;
+  public abstract boolean operate(State state) throws Exception;
 }

@@ -32,22 +32,18 @@ public class DoctorKafkaConfig {
   private static final Logger LOG = LogManager.getLogger(DoctorKafkaConfig.class);
   private static final String DOCTORKAFKA_PREFIX = "doctorkafka";
   private static final String CLUSTER_PREFIX = "kafkaclusters";
-  private static final String ACTION_REPORT_TOPIC = "action.report.topic";
-  private static final String ACTION_REPORT_ZKURL = "action.report.zkurl";
-  private static final String ACTION_REPORT_CONSUMER_CONFIG = "action.report.consumer_config";
-  private static final String BROKERSTATS_ZKURL = "brokerstats.zkurl";
-  private static final String BROKERSTATS_TOPIC = "brokerstats.topic";
-  private static final String BROKERSTATS_BACKTRACK_WINDOW_IN_SECONDS = "brokerstats.backtrack_window_seconds";
-  private static final String BROKERSTATS_CONSUMER_CONFIG = "brokerstats.consumer_config";
+  private static final String ACTION_REPORT_TOPIC = "action_report.topic";
+  private static final String ACTION_REPORT_ZKURL = "action_report.zkurl";
+  private static final String ACTION_REPORT_CONSUMER_CONFIG = "action_report.consumer_config";
   private static final String SECURITY_PROTOCOL = "security.protocol";
-  private static final String OSTRICH_PORT = "ostrich.port";
   private static final String RESTART_DISABLE = "restart.disabled";
-  private static final String RESTART_INTERVAL_SECONDS = "restart.interval.seconds";
+  private static final String RESTART_INTERVAL_SECONDS = "restart.interval_seconds";
   private static final String DOCTORKAFKA_ZKURL = "zkurl";
   private static final String TSD_HOST = "tsd.host";
   private static final String TSD_PORT = "tsd.port";
-  private static final String WEB_HOST = "web.host";
-  private static final String WEB_PORT = "web.port";
+  private static final String OSTRICH_PORT = "ostrich.port";
+  private static final String UI_HOST = "ui.host";
+  private static final String UI_PORT = "ui.port";
   public static final String DRKAFKA_ADMIN_ROLE = "drkafka_admin";
   private static final String DRKAFKA_ADMIN_GROUPS = "admin.groups";
   private static final String AUTHORIZATION_FILTER_CLASS = "authorization.filter.class";
@@ -110,7 +106,7 @@ public class DoctorKafkaConfig {
   }
 
   public Set<String> getClusterZkUrls() {
-    return clusterConfigs.values().stream().map(clusterConfig -> clusterConfig.getZkUrl())
+    return clusterConfigs.values().stream().map(DoctorKafkaClusterConfig::getZkUrl)
         .collect(Collectors.toSet());
   }
 
@@ -143,29 +139,6 @@ public class DoctorKafkaConfig {
     return properties;
   }
 
-  public String getBrokerStatsZkurl(){ return drkafkaConfiguration.getString(BROKERSTATS_ZKURL); }
-
-  public String getBrokerStatsTopic(){ return drkafkaConfiguration.getString(BROKERSTATS_TOPIC); }
-
-  public int getBrokerStatsBacktrackWindowsInSeconds() {
-    return drkafkaConfiguration.getInteger(BROKERSTATS_BACKTRACK_WINDOW_IN_SECONDS, 86400);
-  }
-
-  public SecurityProtocol getBrokerStatsConsumerSecurityProtocol() throws IOException {
-    Properties props = getBrokerStatsConsumerConfigs();
-    SecurityProtocol securityProtocol = SecurityProtocol.PLAINTEXT;
-    if( props.containsKey(SECURITY_PROTOCOL)){
-      securityProtocol = SecurityProtocol.valueOf(props.getProperty(SECURITY_PROTOCOL));
-    }
-    return securityProtocol;
-  }
-
-  public Properties getBrokerStatsConsumerConfigs() throws IOException {
-    Properties props = new Properties();
-    props.load(new StringReader(drkafkaConfiguration.getString(BROKERSTATS_CONSUMER_CONFIG)));
-    return props;
-  }
-
   public String getTsdHost() {
     return drkafkaConfiguration.getString(TSD_HOST);
   }
@@ -183,11 +156,11 @@ public class DoctorKafkaConfig {
   }
 
   public int getWebserverPort() {
-    return drkafkaConfiguration.getInteger(WEB_PORT, 8080);
+    return drkafkaConfiguration.getInteger(UI_PORT, 8080);
   }
   
   public String getWebserverBindHost() {
-    return drkafkaConfiguration.getString(WEB_HOST, "0.0.0.0");
+    return drkafkaConfiguration.getString(UI_HOST, "0.0.0.0");
   }
 
   public DoctorKafkaClusterConfig getClusterConfigByZkUrl(String clusterZkUrl) {

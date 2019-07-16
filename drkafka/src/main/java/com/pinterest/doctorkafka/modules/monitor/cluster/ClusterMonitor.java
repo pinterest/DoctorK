@@ -1,19 +1,17 @@
 package com.pinterest.doctorkafka.modules.monitor.cluster;
 
-import com.pinterest.doctorkafka.modules.context.Context;
-import com.pinterest.doctorkafka.modules.context.cluster.ClusterContext;
 import com.pinterest.doctorkafka.modules.monitor.Monitor;
-import com.pinterest.doctorkafka.modules.state.State;
-import com.pinterest.doctorkafka.modules.state.cluster.ClusterState;
+import com.pinterest.doctorkafka.modules.context.state.State;
+import com.pinterest.doctorkafka.modules.context.state.cluster.ClusterState;
 
 public abstract class ClusterMonitor implements Monitor {
   @Override
-  public final State observe(Context ctx, State state) throws Exception {
-    if (ctx instanceof ClusterContext && state instanceof ClusterState){
-      return observe((ClusterContext) ctx, (ClusterState) state);
+  public final State observe(State state) throws Exception {
+    if (state instanceof ClusterState){
+      return observe((ClusterState) state);
     }
     return state;
   }
 
-  public abstract ClusterState observe(ClusterContext ctx, ClusterState state) throws Exception;
+  public abstract ClusterState observe(ClusterState state) throws Exception;
 }

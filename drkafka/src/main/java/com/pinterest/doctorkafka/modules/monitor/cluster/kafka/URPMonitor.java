@@ -1,14 +1,12 @@
 package com.pinterest.doctorkafka.modules.monitor.cluster.kafka;
 
-import com.pinterest.doctorkafka.modules.context.cluster.kafka.KafkaContext;
 import com.pinterest.doctorkafka.modules.errors.ModuleConfigurationException;
-import com.pinterest.doctorkafka.modules.state.cluster.kafka.KafkaState;
+import com.pinterest.doctorkafka.modules.context.state.cluster.kafka.KafkaState;
 import com.pinterest.doctorkafka.util.KafkaUtils;
 import com.pinterest.doctorkafka.util.OperatorUtil;
 
 import kafka.utils.ZkUtils;
 import org.apache.commons.configuration2.AbstractConfiguration;
-import org.apache.commons.configuration2.Configuration;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.PartitionInfo;
@@ -22,7 +20,6 @@ import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -63,8 +60,8 @@ public class URPMonitor extends KafkaMonitor {
     }
   }
 
-  public KafkaState observe(KafkaContext ctx, KafkaState state){
-    ZkUtils zkUtils = ctx.getZkUtils();
+  public KafkaState observe(KafkaState state){
+    ZkUtils zkUtils = state.getZkUtils();
     Seq<String> topicsSeq = zkUtils.getAllTopics();
     List<String> topics = scala.collection.JavaConverters.seqAsJavaList(topicsSeq);
     scala.collection.mutable.Map<String, scala.collection.Map<Object, Seq<Object>>>
@@ -80,7 +77,7 @@ public class URPMonitor extends KafkaMonitor {
     });
 
     List<PartitionInfo> underReplicatedPartitions = getUnderReplicatedPartitions(
-        ctx.getZkUrl(), configSecurityProtocol, configConsumerConfigs,
+        state.getZkUrl(), configSecurityProtocol, configConsumerConfigs,
         topics, partitionAssignments, replicationFactors, partitionCounts
     );
     List<PartitionInfo> filteredURPs = filterOutInReassignmentUrps(underReplicatedPartitions, replicationFactors);
