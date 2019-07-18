@@ -10,6 +10,7 @@ import com.pinterest.doctorkafka.util.KafkaUtils;
 import kafka.common.TopicAndPartition;
 import kafka.controller.ReassignedPartitionsContext;
 import kafka.utils.ZkUtils;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.PartitionInfo;
@@ -274,10 +275,10 @@ public class BrokerStatsRetriever {
   private void retrieveStatsThroughKafkaApi() {
     Properties props = new Properties();
     String bootstrapBrokers = OperatorUtil.getBrokers(this.zkUrl, this.securityProtocol);
-    props.put(KafkaUtils.BOOTSTRAP_SERVERS, bootstrapBrokers);
-    props.put("group.id", "brokerstats_local");
-    props.put("key.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
-    props.put("value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
+    props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapBrokers);
+    props.put(ConsumerConfig.GROUP_ID_CONFIG, "brokerstats_local");
+    props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, KafkaUtils.BYTE_ARRAY_DESERIALIZER);
+    props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, KafkaUtils.BYTE_ARRAY_DESERIALIZER);
     KafkaConsumer<String, String> kafkaConsumer = new KafkaConsumer<>(props);
 
     leaderReplicas = new HashSet<>();

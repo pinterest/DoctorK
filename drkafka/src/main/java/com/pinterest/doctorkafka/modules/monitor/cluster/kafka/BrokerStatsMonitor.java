@@ -32,6 +32,25 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+/**
+ * This monitor ingests BrokerStats sent from the KafkaStats agent on each broker. The stats are sent
+ * through a Kafka topic. The monitor first backfills from the topic to reconstruct historical stats,
+ * then ingests the messages after the historical stats have been rebuilt. This implementation is meant
+ * to ingest from a single topic containing all BrokerStats from every broker in each cluster DoctorKafka
+ * is managing. We use a singleton ingestion instance to handle the stats from all clusters to save traffic volume.
+ *
+ * config:
+ * [required]
+ *   topic: <Topic containing BrokerStats sent from brokers>
+ *   zkurl: <zookeeper connect string to the topic we are consuming of>
+ *   backfill_seconds: <number of seconds to backfill>
+ *   network:
+ *     inbound_limit_mb: <bandwidth limit of the inbound traffic for brokers on this cluster>
+ *     outbound_limit_mb <bandwidth limit of the outbound traffic for brokers on this cluster>
+ * [optional]
+ *   consumer_config: <properties used to initialize stat ingestion kafka consumer>
+ *
+ */
 public class BrokerStatsMonitor extends KafkaMonitor {
   private static final Logger LOG = LogManager.getLogger(BrokerStatsMonitor.class);
 
@@ -75,8 +94,8 @@ public class BrokerStatsMonitor extends KafkaMonitor {
     public void run() {
       LOG.info("Start rebuilding the replica stats by reading the past 24 hours brokerstats");
       KafkaConsumer<?, ?> kafkaConsumer = KafkaUtils.getKafkaConsumer(zkUrl,
-          "org.apache.kafka.common.serialization.ByteArrayDeserializer",
-          "org.apache.kafka.common.serialization.ByteArrayDeserializer",
+          KafkaUtils.BYTE_ARRAY_DESERIALIZER,
+          KafkaUtils.BYTE_ARRAY_DESERIALIZER,
           1, securityProtocol, consumerConfigs);
       long startTimestampInMillis = System.currentTimeMillis() - backfillWindowSeconds * 1000L;
       Map<TopicPartition, Long> offsets = ReplicaStatsUtil
@@ -146,12 +165,10 @@ public class BrokerStatsMonitor extends KafkaMonitor {
       props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, brokers);
       props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
       props.put(ConsumerConfig.GROUP_ID_CONFIG, "doctorkafka_" + topicPartition);
-      props.put(KafkaUtils.KEY_DESERIALIZER,
-          "org.apache.kafka.common.serialization.ByteArrayDeserializer");
-      props.put(KafkaUtils.VALUE_DESERIALIZER,
-          "org.apache.kafka.common.serialization.ByteArrayDeserializer");
-      props.put(KafkaUtils.MAX_POLL_RECORDS, 2000);
-      props.put("max.partition.fetch.bytes", 1048576 * 4);
+      props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, KafkaUtils.BYTE_ARRAY_DESERIALIZER);
+      props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, KafkaUtils.BYTE_ARRAY_DESERIALIZER);
+      props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 2000);
+      props.put(ConsumerConfig.MAX_PARTITION_FETCH_BYTES_CONFIG, 1048576 * 4);
 
       consumer = new KafkaConsumer<>(props);
       Set<TopicPartition> topicPartitions = new HashSet<>();

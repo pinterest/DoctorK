@@ -73,7 +73,7 @@ doctorkafka:
 monitors:
   - name: brokerstats_monitor
     class: com.pinterest.doctorkafka.modules.monitor.cluster.kafka.BrokerStatsMonitor
-    config:
+    config: # documentation of the plugins are in plugins' class
       zkurl: zookeeper001:2181,zookeeper002:2181,zookeeper003:2181/cluster1
       topic: brokerstats
       backfill_seconds: 86400
