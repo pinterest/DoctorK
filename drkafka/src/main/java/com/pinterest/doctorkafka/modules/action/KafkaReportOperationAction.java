@@ -2,8 +2,8 @@ package com.pinterest.doctorkafka.modules.action;
 
 import com.pinterest.doctorkafka.OperatorAction;
 import com.pinterest.doctorkafka.modules.errors.ModuleConfigurationException;
-import com.pinterest.doctorkafka.modules.event.Event;
-import com.pinterest.doctorkafka.modules.event.EventUtils;
+import com.pinterest.doctorkafka.modules.context.event.Event;
+import com.pinterest.doctorkafka.modules.context.event.EventUtils;
 import com.pinterest.doctorkafka.util.OperatorUtil;
 
 import org.apache.avro.io.BinaryEncoder;

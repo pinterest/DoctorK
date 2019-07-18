@@ -4,13 +4,12 @@ import com.pinterest.doctorkafka.BrokerStats;
 import com.pinterest.doctorkafka.DoctorKafkaMetrics;
 import com.pinterest.doctorkafka.KafkaBroker;
 import com.pinterest.doctorkafka.KafkaCluster;
-import com.pinterest.doctorkafka.modules.context.cluster.kafka.KafkaContext;
 import com.pinterest.doctorkafka.modules.errors.ModuleConfigurationException;
-import com.pinterest.doctorkafka.modules.event.Event;
-import com.pinterest.doctorkafka.modules.event.EventUtils;
-import com.pinterest.doctorkafka.modules.event.GenericEvent;
-import com.pinterest.doctorkafka.modules.event.NotificationEvent;
-import com.pinterest.doctorkafka.modules.state.cluster.kafka.KafkaState;
+import com.pinterest.doctorkafka.modules.context.event.Event;
+import com.pinterest.doctorkafka.modules.context.event.EventUtils;
+import com.pinterest.doctorkafka.modules.context.event.GenericEvent;
+import com.pinterest.doctorkafka.modules.context.event.NotificationEvent;
+import com.pinterest.doctorkafka.modules.context.state.cluster.kafka.KafkaState;
 import com.pinterest.doctorkafka.util.OpenTsdbMetricConverter;
 import com.pinterest.doctorkafka.util.OperatorUtil;
 import com.pinterest.doctorkafka.util.OutOfSyncReplica;
@@ -117,8 +116,8 @@ public class URPReassignmentOperator extends KafkaOperator {
   }
 
   @Override
-  public boolean operate(KafkaContext ctx, KafkaState state) throws Exception {
-    ctx.getKafkaCluster().clearResourceAllocationCounters();
+  public boolean operate(KafkaState state) throws Exception {
+    state.getKafkaCluster().clearResourceAllocationCounters();
     List<PartitionInfo> underReplicatedPartitions = state.getUnderReplicatedPartitions();
     if (underReplicatedPartitions.size() > 0) {
       // handle under-replicated partitions
@@ -129,7 +128,7 @@ public class URPReassignmentOperator extends KafkaOperator {
         // send out an alert if the cluster has been under-replicated for a while
         long now = System.currentTimeMillis();
         long underReplicatedTimeMillis = now - firstSeenUrpsTimestamp;
-        Event event = maybeCreateProlongURPAlertEvent(ctx.getClusterName(), underReplicatedPartitions, underReplicatedTimeMillis);
+        Event event = maybeCreateProlongURPAlertEvent(state.getClusterName(), underReplicatedPartitions, underReplicatedTimeMillis);
         try {
           emit(event);
         } catch (Exception e){
@@ -138,9 +137,9 @@ public class URPReassignmentOperator extends KafkaOperator {
 
       }
       LOG.info("Under-replicated partitions in cluster {} : {}",
-          ctx.getClusterName(), underReplicatedPartitions.size());
+          state.getClusterName(), underReplicatedPartitions.size());
 
-      handleUnderReplicatedPartitions(ctx, underReplicatedPartitions);
+      handleUnderReplicatedPartitions(state, underReplicatedPartitions);
     } else {
       foundUrps = false;
       firstSeenUrpsTimestamp = Long.MAX_VALUE;
@@ -174,26 +173,26 @@ public class URPReassignmentOperator extends KafkaOperator {
    *    2. there is no leader for that partition
    *
    */
-  protected void handleUnderReplicatedPartitions(KafkaContext ctx, List<PartitionInfo> urps) {
-    LOG.info("Start handling under-replicated partitions for {}", ctx.getClusterName());
+  protected void handleUnderReplicatedPartitions(KafkaState state, List<PartitionInfo> urps) {
+    LOG.info("Start handling under-replicated partitions for {}", state.getClusterName());
     this.topicPartitionAssignments.clear();
 
     // filter out topic partitions that have more replicas than what is required
     List<OutOfSyncReplica> oosReplicas = urps.stream().map(urp -> {
       TopicPartition tp = new TopicPartition(urp.topic(), urp.partition());
       OutOfSyncReplica oosReplica = new OutOfSyncReplica(urp);
-      oosReplica.replicaBrokers = getReplicaAssignment(ctx.getZkUtils(), tp);
+      oosReplica.replicaBrokers = getReplicaAssignment(state.getZkUtils(), tp);
       return oosReplica;
     }).collect(Collectors.toList());
 
     Map<MutablePair<Integer, Integer>, UnderReplicatedReason> urpReasons = new HashMap<>();
     Map<MutablePair<Integer, Integer>, Integer> triedTimes = new HashMap<>();
     Set<Integer> downBrokers = new HashSet<>();
-    KafkaCluster kafkaCluster = ctx.getKafkaCluster();
+    KafkaCluster kafkaCluster = state.getKafkaCluster();
     for (OutOfSyncReplica oosReplica : oosReplicas) {
       int leaderId = (oosReplica.leader == null) ? -1 : oosReplica.leader.id();
       for (int oosBrokerId : oosReplica.outOfSyncBrokers) {
-        KafkaBroker broker = ctx.getKafkaCluster().getBroker(oosBrokerId);
+        KafkaBroker broker = state.getKafkaCluster().getBroker(oosBrokerId);
         MutablePair<Integer, Integer> nodePair = new MutablePair<>(oosBrokerId, leaderId);
         Integer times = triedTimes.get(nodePair);
         if (times == null) {
@@ -252,17 +251,17 @@ public class URPReassignmentOperator extends KafkaOperator {
         String jsonReassignmentData = ZkUtils.formatAsReassignmentJson(proposedAssignment);
 
         LOG.info("Reassignment plan: {}", jsonReassignmentData);
-        reassignTopicPartitions(ctx, jsonReassignmentData);
+        reassignTopicPartitions(state, jsonReassignmentData);
         alertOnFailure = false;
       } else {
         LOG.error("Failed to generate a reassignment plan");
-        OpenTsdbMetricConverter.incr(DoctorKafkaMetrics.HANDLE_URP_FAILURE, 1, "cluster=" + ctx.getZkUrl());
+        OpenTsdbMetricConverter.incr(DoctorKafkaMetrics.HANDLE_URP_FAILURE, 1, "cluster=" + state.getZkUrl());
       }
     }
 
     if (alertOnFailure) {
       try {
-        alertOnFailedToHandleURP(ctx.getClusterName(), urps, downBrokers);
+        alertOnFailedToHandleURP(state.getClusterName(), urps, downBrokers);
       } catch (Exception e){
         LOG.error("Failed to alert FailedToHandleURP event", e);
       }
@@ -271,11 +270,11 @@ public class URPReassignmentOperator extends KafkaOperator {
 
 
   protected void reassignTopicPartitions(
-      KafkaContext ctx,
+      KafkaState state,
       String jsonReassignmentData) {
     try{
-      emit(createReassignmentEvent(ctx.getZkUrl(), ctx.getClusterName(), jsonReassignmentData));
-      LOG.info("cluster {} reassignment {}", ctx.getClusterName(), jsonReassignmentData);
+      emit(createReassignmentEvent(state.getZkUrl(), state.getClusterName(), jsonReassignmentData));
+      LOG.info("cluster {} reassignment {}", state.getClusterName(), jsonReassignmentData);
     } catch (Exception e){
       LOG.error("Failed to emit reassignment event", e);
     }

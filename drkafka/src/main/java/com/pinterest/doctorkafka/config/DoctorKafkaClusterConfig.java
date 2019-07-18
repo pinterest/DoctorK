@@ -1,17 +1,12 @@
 package com.pinterest.doctorkafka.config;
 
 
-import static com.pinterest.doctorkafka.config.DoctorKafkaConfig.NAME_KEY;
-
 import org.apache.commons.configuration2.AbstractConfiguration;
 import org.apache.commons.configuration2.CompositeConfiguration;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.HierarchicalConfiguration;
-import org.apache.commons.configuration2.tree.ImmutableNode;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -29,37 +24,30 @@ import java.util.concurrent.ConcurrentMap;
 public class DoctorKafkaClusterConfig {
   private static final String ZKURL = "zkurl";
   private static final String ENABLED = "enabled";
-  private static final String MB_IN_PER_SECOND = "inbound_limit_mb";
-  private static final String MB_OUT_PER_SECOND = "outbound_limit_mb";
 
   private String clusterName;
   private String zkurl;
-
-  private Double bytesInPerSecond;
-  private Double bytesOutPerSecond;
 
   private ConcurrentMap<String, Configuration> monitorConfigs = new ConcurrentHashMap<>();
   private ConcurrentMap<String, Configuration> operatorConfigs = new ConcurrentHashMap<>();
   private ConcurrentMap<String, Configuration> actionConfigs = new ConcurrentHashMap<>();
 
-  public DoctorKafkaClusterConfig(String clusterName, HierarchicalConfiguration<ImmutableNode> configuration) {
+  public DoctorKafkaClusterConfig(String clusterName, HierarchicalConfiguration<?> configuration) {
     this.clusterName = clusterName;
     this.zkurl = configuration.getString(ZKURL);
-    this.bytesInPerSecond = configuration.getDouble(MB_IN_PER_SECOND) * 1024 * 1024;
-    this.bytesOutPerSecond = configuration.getDouble(MB_OUT_PER_SECOND) * 1024 * 1024;
 
     for(HierarchicalConfiguration monitorConfig: configuration.configurationsAt(DoctorKafkaConfig.MONITORS_PREFIX)){
-      String name = monitorConfig.getString(NAME_KEY);
+      String name = monitorConfig.getString(DoctorKafkaConfig.NAME_KEY);
       monitorConfigs.put(name, monitorConfig);
     }
 
     for(HierarchicalConfiguration operatorConfig: configuration.configurationsAt(DoctorKafkaConfig.OPERATORS_PREFIX)){
-      String name = operatorConfig.getString(NAME_KEY);
+      String name = operatorConfig.getString(DoctorKafkaConfig.NAME_KEY);
       operatorConfigs.put(name, operatorConfig);
     }
 
     for(HierarchicalConfiguration actionConfig: configuration.configurationsAt(DoctorKafkaConfig.ACTIONS_PREFIX)){
-      String name = actionConfig.getString(NAME_KEY);
+      String name = actionConfig.getString(DoctorKafkaConfig.NAME_KEY);
       actionConfigs.put(name, actionConfig);
     }
   }
@@ -70,14 +58,6 @@ public class DoctorKafkaClusterConfig {
 
   public String getZkUrl() {
     return this.zkurl;
-  }
-
-  public Double getBytesInPerSecond() {
-    return bytesInPerSecond;
-  }
-
-  public Double getBytesOutPerSecond() {
-    return bytesOutPerSecond;
   }
 
   public Map<String, AbstractConfiguration> getEnabledMonitorsConfigs(Map<String, Configuration> baseMonitorConfigs) {

@@ -1,9 +1,8 @@
 package com.pinterest.doctorkafka.modules.monitor.cluster.kafka;
 
 import com.pinterest.doctorkafka.KafkaBroker;
-import com.pinterest.doctorkafka.modules.context.cluster.kafka.KafkaContext;
 import com.pinterest.doctorkafka.modules.errors.ModuleConfigurationException;
-import com.pinterest.doctorkafka.modules.state.cluster.kafka.KafkaState;
+import com.pinterest.doctorkafka.modules.context.state.cluster.kafka.KafkaState;
 
 import org.apache.commons.configuration2.AbstractConfiguration;
 import org.apache.logging.log4j.LogManager;
@@ -33,15 +32,15 @@ public class DeadBrokerMonitor extends KafkaMonitor {
     configNoStatsSeconds = config.getLong(CONFIG_NO_STATS_SECONDS_KEY, configNoStatsSeconds);
   }
 
-  public KafkaState observe(KafkaContext ctx, KafkaState state) {
+  public KafkaState observe(KafkaState state) {
     long now = System.currentTimeMillis();
-    state.setToBeReplacedBrokers(getBrokersToReplace(ctx, now));
+    state.setToBeReplacedBrokers(getBrokersToReplace(state, now));
     return state;
   }
 
-  protected List<KafkaBroker> getBrokersToReplace(KafkaContext ctx, long now) {
+  protected List<KafkaBroker> getBrokersToReplace(KafkaState state, long now) {
     List<KafkaBroker> toBeReplacedBrokers = new ArrayList<>();
-    for (Map.Entry<Integer, KafkaBroker> brokerEntry : ctx.getKafkaCluster().brokers.entrySet()) {
+    for (Map.Entry<Integer, KafkaBroker> brokerEntry : state.getKafkaCluster().brokers.entrySet()) {
       KafkaBroker broker = brokerEntry.getValue();
       double lastUpdateTime = (now - broker.getLastStatsTimestamp()) / 1000.0;
       // call broker replacement script to replace dead brokers

@@ -1,9 +1,8 @@
 package com.pinterest.doctorkafka.modules.operator.cluster.kafka;
 
-import com.pinterest.doctorkafka.modules.context.cluster.kafka.KafkaContext;
-import com.pinterest.doctorkafka.modules.event.Event;
-import com.pinterest.doctorkafka.modules.event.NotificationEvent;
-import com.pinterest.doctorkafka.modules.state.cluster.kafka.KafkaState;
+import com.pinterest.doctorkafka.modules.context.event.Event;
+import com.pinterest.doctorkafka.modules.context.event.NotificationEvent;
+import com.pinterest.doctorkafka.modules.context.state.cluster.kafka.KafkaState;
 
 import kafka.cluster.Broker;
 import org.apache.logging.log4j.LogManager;
@@ -29,11 +28,11 @@ public class NoBrokerstatsBrokerOperator extends KafkaOperator {
 
 
   @Override
-  public boolean operate(KafkaContext ctx, KafkaState state) throws Exception {
+  public boolean operate(KafkaState state) throws Exception {
     List<Broker> noStatsBrokers = state.getNoBrokerstatsBrokers();
     if(noStatsBrokers != null && noStatsBrokers.size() > 0){
       try {
-        emit(createNoBrokerstatsBrokerAlertEvent(ctx.getClusterName(), state.getNoBrokerstatsBrokers()));
+        emit(createNoBrokerstatsBrokerAlertEvent(state.getClusterName(), state.getNoBrokerstatsBrokers()));
       } catch (Exception e){
         LOG.error("Failed to emit alert on no stats brokers event", e);
       }

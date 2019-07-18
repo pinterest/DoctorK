@@ -12,9 +12,11 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.logging.log4j.LogManager;
@@ -83,15 +85,15 @@ public class BrokerStatsFilter {
       String brokers = KafkaUtils.getBrokers(zkUrl, SecurityProtocol.PLAINTEXT);
       LOG.info("ZkUrl: {}, Brokers: {}", zkUrl, brokers);
       Properties props = new Properties();
-      props.put(KafkaUtils.BOOTSTRAP_SERVERS, brokers);
-      props.put(KafkaUtils.ENABLE_AUTO_COMMIT, "false");
-      props.put(KafkaUtils.GROUP_ID, "kafka_operator" + topicPartition);
-      props.put(KafkaUtils.KEY_DESERIALIZER,
-          "org.apache.kafka.common.serialization.ByteArrayDeserializer");
-      props.put(KafkaUtils.VALUE_DESERIALIZER,
-          "org.apache.kafka.common.serialization.ByteArrayDeserializer");
-      props.put(KafkaUtils.MAX_POLL_RECORDS, 2000);
-      props.put("max.partition.fetch.bytes", 1048576 * 4);
+      props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, brokers);
+      props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
+      props.put(ConsumerConfig.GROUP_ID_CONFIG, "kafka_operator" + topicPartition);
+      props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
+          KafkaUtils.BYTE_ARRAY_DESERIALIZER);
+      props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
+          KafkaUtils.BYTE_ARRAY_DESERIALIZER);
+      props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 2000);
+      props.put(ConsumerConfig.MAX_PARTITION_FETCH_BYTES_CONFIG, 1048576 * 4);
 
       kafkaConsumer = new KafkaConsumer<>(props);
       Set<TopicPartition> topicPartitions = new HashSet<>();

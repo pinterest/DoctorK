@@ -45,22 +45,6 @@ doctorkafka:
       ssl.truststore.location=truststore_path
       ssl.truststore.password=truststore_password
       ssl.truststore.type=JKS
-  brokerstats:
-    topic: brokerstats
-    zkurl: zookeeper001:2181,zookeeper002:2181,zookeeper003:2181/cluster1
-    backtrack_window_seconds: 86400
-    consumer_config: |
-      security.protocol=SSL
-      ssl.client.auth=required
-      ssl.enabled.protocols=TLSv1.2,TLSv1.1,TLSv1
-      ssl.endpoint.identification.algorithm=HTTPS
-      ssl.keystore.location=keystore_path
-      ssl.keystore.password=keystore_password
-      ssl.keystore.type=JKS
-      ssl.secure.random.implementation=SHA1PRNG
-      ssl.truststore.location=truststore_path
-      ssl.truststore.password=truststore_password
-      ssl.truststore.type=JKS
   restart:
     disabled: false # optional, disable doctorkafka service restart
     interval_seconds: 86400 # doctorkafka service restart interval
@@ -87,6 +71,24 @@ doctorkafka:
 #
 
 monitors:
+  - name: brokerstats_monitor
+    class: com.pinterest.doctorkafka.modules.monitor.cluster.kafka.BrokerStatsMonitor
+    config: # documentation of the plugins are in plugins' class
+      zkurl: zookeeper001:2181,zookeeper002:2181,zookeeper003:2181/cluster1
+      topic: brokerstats
+      backfill_seconds: 86400
+      consumer_config: |
+        security.protocol=SSL
+        ssl.client.auth=required
+        ssl.enabled.protocols=TLSv1.2,TLSv1.1,TLSv1
+        ssl.endpoint.identification.algorithm=HTTPS
+        ssl.keystore.location=keystore_path
+        ssl.keystore.password=keystore_password
+        ssl.keystore.type=JKS
+        ssl.secure.random.implementation=SHA1PRNG
+        ssl.truststore.location=truststore_path
+        ssl.truststore.password=truststore_password
+        ssl.truststore.type=JKS
   - name: maintenance_monitor
     class: com.pinterest.doctorkafka.modules.monitor.cluster.MaintenanceMonitor
   - name: dead_broker_monitor
@@ -210,6 +212,11 @@ kafkaclusters:
     inbound_limit_mb: 35
     outbound_limit_mb: 80
     monitors:
+      - name: brokerstats_monitor
+        config:
+          network:
+            inbound_limit_mb: 35
+            outbound_limit_mb: 80
       - name: urp_monitor
         config:
           prolong_alert_seconds: 3600
@@ -235,9 +242,12 @@ kafkaclusters:
           dryrun: false
   - name: cluster2
     zkurl: zookeeper001:2181,zookeeper002:2181,zookeeper003:2181/cluster2
-    inbound_limit_mb: 35
-    outbound_limit_mb: 80
     monitors:
+      - name: brokerstats_monitor
+        config:
+          network:
+            inbound_limit_mb: 35
+            outbound_limit_mb: 80
       - name: maintenance_monitor
         enabled: false # disable the plugin for this cluster
     operators:

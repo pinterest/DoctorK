@@ -2,10 +2,10 @@ package com.pinterest.doctorkafka.modules.action.cluster.kafka;
 
 import com.pinterest.doctorkafka.modules.action.Action;
 import com.pinterest.doctorkafka.modules.errors.ModuleConfigurationException;
-import com.pinterest.doctorkafka.modules.event.Event;
-import com.pinterest.doctorkafka.modules.event.EventUtils;
-import com.pinterest.doctorkafka.modules.event.NotificationEvent;
-import com.pinterest.doctorkafka.modules.event.ReportEvent;
+import com.pinterest.doctorkafka.modules.context.event.Event;
+import com.pinterest.doctorkafka.modules.context.event.EventUtils;
+import com.pinterest.doctorkafka.modules.context.event.NotificationEvent;
+import com.pinterest.doctorkafka.modules.context.event.ReportEvent;
 import com.pinterest.doctorkafka.util.KafkaUtils;
 
 import kafka.utils.ZkUtils;

@@ -1,11 +1,10 @@
-package com.pinterest.doctorkafka.modules.context.cluster;
+package com.pinterest.doctorkafka.modules.context.state.cluster;
 
-import com.pinterest.doctorkafka.modules.context.Context;
-import com.pinterest.doctorkafka.modules.context.Maintainable;
+import com.pinterest.doctorkafka.modules.context.state.State;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class ClusterContext extends Context implements Maintainable {
+public abstract class ClusterState extends State {
   private AtomicBoolean underMaintenance = new AtomicBoolean(false);
   private String clusterName;
 

@@ -1,4 +1,4 @@
-package com.pinterest.doctorkafka.modules.event;
+package com.pinterest.doctorkafka.modules.context.event;
 
 import java.util.Map;
 

@@ -1,7 +1,5 @@
 package com.pinterest.doctorkafka;
 
-import com.pinterest.doctorkafka.config.DoctorKafkaClusterConfig;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.annotations.VisibleForTesting;
@@ -12,10 +10,8 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -25,24 +21,23 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
 
   private static final Logger LOG = LogManager.getLogger(KafkaBroker.class);
   private static final Gson gson = new Gson();
-  private DoctorKafkaClusterConfig clusterConfig;
   private String zkUrl;
   private int brokerId;
   private String brokerName;
   private int brokerPort = 9092;
-  private String rackId;
-  private BrokerStats latestStats;
+  private String rackId = null;
+  private BrokerStats latestStats = null;
 
   private Set<TopicPartition> leaderReplicas = new HashSet<>();
   private Set<TopicPartition> followerReplicas = new HashSet<>();
-  private Set<TopicPartition>  toBeAddedReplicas = new HashSet<>();
 
   private double bytesInPerSecLimit;
   private double bytesOutPerSecLimit;
 
   // reserved bytes in and bytes out rate per second
-  private long reservedBytesIn;
-  private long reservedBytesOut;
+  private long reservedBytesIn = 0L;
+  private long reservedBytesOut = 0L;
+  private Set<TopicPartition>  toBeAddedReplicas = new HashSet<>();
 
   private KafkaCluster kafkaCluster;
   private AtomicBoolean isDecommissioned = new AtomicBoolean(false);

@@ -1,4 +1,4 @@
-package com.pinterest.doctorkafka.modules.event;
+package com.pinterest.doctorkafka.modules.context.event;
 
 /**
  * Since operators are not registered in the {@link EventListener}, {@link EventEmitter}

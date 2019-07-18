@@ -1,4 +1,4 @@
-package com.pinterest.doctorkafka.modules.state;
+package com.pinterest.doctorkafka.modules.context.state;
 
 import com.pinterest.doctorkafka.modules.context.Context;
 

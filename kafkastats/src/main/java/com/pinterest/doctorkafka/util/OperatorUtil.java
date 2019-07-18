@@ -12,16 +12,15 @@ import kafka.api.FetchResponse;
 import kafka.api.Request;
 import kafka.cluster.Broker;
 import kafka.common.TopicAndPartition;
-import kafka.consumer.ConsumerConfig;
 import kafka.consumer.SimpleConsumer;
 import kafka.message.MessageSet;
 import kafka.utils.ZkUtils;
 import org.I0Itec.zkclient.ZkClient;
 import org.I0Itec.zkclient.ZkConnection;
-import org.apache.avro.Schema;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.specific.SpecificDatumReader;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -54,7 +53,6 @@ import javax.management.remote.JMXServiceURL;
 public class OperatorUtil {
 
   private static final Logger LOG = LogManager.getLogger(OperatorUtil.class);
-  public static final int WINDOW_SIZE = 6000;
   public static final String HostName = getHostname();
   private static final DecoderFactory avroDecoderFactory = DecoderFactory.get();
   private static final String FETCH_CLIENT_NAME = "DoctorKafka";
@@ -114,7 +112,7 @@ public class OperatorUtil {
   public static boolean canFetchData(String host, int port, String topic, int partition) {
     LOG.info("Fetching data from host {}, topic {}, partition {}", host, topic, partition);
     SimpleConsumer consumer = new SimpleConsumer(host, port,
-        FETCH_SOCKET_TIMEOUT, ConsumerConfig.SocketBufferSize(), FETCH_CLIENT_NAME);
+        FETCH_SOCKET_TIMEOUT, kafka.consumer.ConsumerConfig.SocketBufferSize(), FETCH_CLIENT_NAME);
     try {
       long earlyOffset = getOffset(consumer, topic, partition,
           kafka.api.OffsetRequest.EarliestTime());
@@ -128,7 +126,7 @@ public class OperatorUtil {
             .clientId(FETCH_CLIENT_NAME)
             .replicaId(Request.DebuggingConsumerId()) // this consumerId enable reads from follower
             .maxWait(FETCH_MAX_WAIT_MS)
-            .minBytes(ConsumerConfig.MinFetchBytes())
+            .minBytes(kafka.consumer.ConsumerConfig.MinFetchBytes())
             .addFetch(topic, partition, readOffset, FETCH_BUFFER_SIZE)
             .build();
         try {
@@ -231,13 +229,13 @@ public class OperatorUtil {
   public static Properties createKafkaProducerProperties(String zkUrl, SecurityProtocol securityProtocol) {
     String bootstrapBrokers = OperatorUtil.getBrokers(zkUrl, securityProtocol);
     Properties props = new Properties();
-    props.put(KafkaUtils.BOOTSTRAP_SERVERS, bootstrapBrokers);
+    props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapBrokers);
     props.put(ProducerConfig.ACKS_CONFIG, "1");
     props.put(ProducerConfig.RETRIES_CONFIG, 0);
     props.put(ProducerConfig.BATCH_SIZE_CONFIG, 1638400);
     props.put(ProducerConfig.BUFFER_MEMORY_CONFIG, 3554432);
     props.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "gzip");
-    props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.ByteArraySerializer");
+    props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, KafkaUtils.BYTE_ARRAY_DESERIALIZER);
     props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.ByteArraySerializer");
     return props;
   }
@@ -247,12 +245,12 @@ public class OperatorUtil {
       SecurityProtocol securityProtocol, Properties consumerConfigs) {
     String bootstrapBrokers = OperatorUtil.getBrokers(zkUrl, securityProtocol);
     Properties props = new Properties();
-    props.put(KafkaUtils.BOOTSTRAP_SERVERS, bootstrapBrokers);
-    props.put("group.id", consumerGroupName);
-    props.put("enable.auto.commit", "true");
-    props.put("auto.commit.interval.ms", "1000");
-    props.put("key.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
-    props.put("value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
+    props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapBrokers);
+    props.put(ConsumerConfig.GROUP_ID_CONFIG, consumerGroupName);
+    props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "true");
+    props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, "1000");
+    props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, KafkaUtils.BYTE_ARRAY_DESERIALIZER);
+    props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, KafkaUtils.BYTE_ARRAY_DESERIALIZER);
 
     if (consumerConfigs != null) {
       props.putAll(consumerConfigs);

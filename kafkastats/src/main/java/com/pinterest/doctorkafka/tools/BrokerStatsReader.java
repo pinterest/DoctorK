@@ -15,6 +15,7 @@ import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -66,12 +67,12 @@ public class BrokerStatsReader {
 
     String bootstrapBrokers = OperatorUtil.getBrokers(zkUrl, SecurityProtocol.PLAINTEXT);
     Properties props = new Properties();
-    props.put(KafkaUtils.BOOTSTRAP_SERVERS, bootstrapBrokers);
-    props.put("group.id", "broker_statsreader_group");
-    props.put("enable.auto.commit", "false");
-    props.put("auto.commit.interval.ms", "1000");
-    props.put("key.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
-    props.put("value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
+    props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapBrokers);
+    props.put(ConsumerConfig.GROUP_ID_CONFIG, "broker_statsreader_group");
+    props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
+    props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, "1000");
+    props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, KafkaUtils.BYTE_ARRAY_DESERIALIZER);
+    props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, KafkaUtils.BYTE_ARRAY_DESERIALIZER);
 
     Schema schema = BrokerStats.getClassSchema();
     KafkaConsumer<byte[], byte[]> consumer = new KafkaConsumer<>(props);
