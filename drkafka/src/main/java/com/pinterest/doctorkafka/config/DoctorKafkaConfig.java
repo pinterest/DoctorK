@@ -62,7 +62,7 @@ public class DoctorKafkaConfig {
       Parameters params = new Parameters();
       FileBasedConfigurationBuilder<YAMLConfiguration> builder =
           new FileBasedConfigurationBuilder<>(YAMLConfiguration.class)
-              .configure(params.hierarchical().setFileName("./config/doctorkafka.yaml"));
+              .configure(params.hierarchical().setFileName(configPath));
       YAMLConfiguration configuration = builder.getConfiguration();
 
       drkafkaConfiguration = (AbstractConfiguration) configuration.configurationAt(DOCTORKAFKA_PREFIX);
