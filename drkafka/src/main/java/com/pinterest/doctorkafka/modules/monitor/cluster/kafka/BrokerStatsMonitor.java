@@ -109,7 +109,7 @@ public class BrokerStatsMonitor extends KafkaMonitor {
       for(TopicPartition tp : latestOffsets.keySet()){
         Processor processor = new Processor(tp, offsets.get(tp), latestOffsets.get(tp), zkUrl, securityProtocol);
         processors.add(processor);
-        processor.run();
+        processor.start();
       }
 
       for (Processor processor : processors){

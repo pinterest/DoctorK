@@ -165,9 +165,6 @@ public class KafkaCluster {
    * @return KafkaBroker object for the broker with id @id
    */
   public KafkaBroker getBroker(int id) {
-    if (!brokers.containsKey(id)) {
-      return null;
-    }
     return brokers.get(id);
   }
 

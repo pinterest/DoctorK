@@ -13,7 +13,7 @@ public class KafkaBrokerTest {
   @Test
   public void kafkaBrokerComparatorTest() throws Exception {
 
-    DoctorKafkaConfig config = new DoctorKafkaConfig("./config/doctorkafka.yaml");
+    DoctorKafkaConfig config = new DoctorKafkaConfig("./config/doctorkafka.config.yaml");
     DoctorKafkaClusterConfig clusterConfig = config.getClusterConfigByName("cluster1");
     KafkaCluster kafkaCluster = new KafkaCluster(clusterConfig.getZkUrl());
 

@@ -13,7 +13,7 @@ public class MaintenanceMonitor extends ClusterMonitor {
 
   public ClusterState observe(ClusterState state) {
     if (state.isUnderMaintenance()) {
-      LOG.debug("Cluster:" + state.getClusterName() + " is in maintenance mode");
+      LOG.info("Cluster:" + state.getClusterName() + " is in maintenance mode");
       state.stopOperations();
     }
     return state;

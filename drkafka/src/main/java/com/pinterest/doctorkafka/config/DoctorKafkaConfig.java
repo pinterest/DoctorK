@@ -15,6 +15,7 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -52,9 +53,9 @@ public class DoctorKafkaConfig {
   private static final int DEFAULT_EVALUATION_FREQUENCY_SECONDS = 5;
 
   private AbstractConfiguration drkafkaConfiguration;
-  private ConcurrentMap<String, Configuration> monitorConfigs = new ConcurrentHashMap<>();
-  private ConcurrentMap<String, Configuration> operatorConfigs = new ConcurrentHashMap<>();
-  private ConcurrentMap<String, Configuration> actionConfigs = new ConcurrentHashMap<>();
+  private Map<String, Configuration> monitorConfigs = new LinkedHashMap<>();
+  private Map<String, Configuration> operatorConfigs = new LinkedHashMap<>();
+  private Map<String, Configuration> actionConfigs = new LinkedHashMap<>();
   private ConcurrentMap<String, DoctorKafkaClusterConfig> clusterConfigs = new ConcurrentHashMap<>();
 
   public DoctorKafkaConfig(String configPath) throws Exception {
