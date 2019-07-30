@@ -166,7 +166,7 @@ public class ScriptReplaceInstanceAction extends Action implements Runnable {
     Collection<Event> events = new ArrayList<>();
     events.add(new ReportEvent(EVENT_REPORT_OPERATION_NAME, clusterName, "Replacing instance: " + hostname));
 
-    String title = clusterName + "replacing instance " + hostname;
+    String title = clusterName + " replacing instance " + hostname;
     String message = "Replacing instance " + hostname + " on cluster " + clusterName;
     events.add(new NotificationEvent(EVENT_NOTIFY_REPLACEMENT_NAME, title, message));
 

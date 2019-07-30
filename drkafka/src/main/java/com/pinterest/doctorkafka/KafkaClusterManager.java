@@ -223,7 +223,6 @@ public class KafkaClusterManager implements Runnable {
   public void run() {
 
     while(!stopped) {
-      State newState = deepCloneBaseState();
       try {
         Thread.sleep(evaluationFrequency);
       } catch (InterruptedException e){
@@ -231,6 +230,7 @@ public class KafkaClusterManager implements Runnable {
         stop();
         break;
       }
+      State newState = deepCloneBaseState();
       for (Monitor plugin: monitors) {
         if (newState.isOperationsStopped()){
           break;
@@ -272,6 +272,7 @@ public class KafkaClusterManager implements Runnable {
     newState.setClusterName(baseState.getClusterName());
     newState.setZkUtils(baseState.getZkUtils());
     newState.setZkUrl(baseState.getZkUrl());
+    newState.setKafkaClusterZookeeperClient(baseState.getKafkaClusterZookeeperClient());
 
     return newState;
   }

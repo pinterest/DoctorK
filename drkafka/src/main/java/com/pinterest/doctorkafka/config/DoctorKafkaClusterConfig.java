@@ -6,10 +6,8 @@ import org.apache.commons.configuration2.CompositeConfiguration;
 import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.configuration2.HierarchicalConfiguration;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
 /**
  * kafkacluster.data07.dryrun=true
@@ -28,9 +26,9 @@ public class DoctorKafkaClusterConfig {
   private String clusterName;
   private String zkurl;
 
-  private ConcurrentMap<String, Configuration> monitorConfigs = new ConcurrentHashMap<>();
-  private ConcurrentMap<String, Configuration> operatorConfigs = new ConcurrentHashMap<>();
-  private ConcurrentMap<String, Configuration> actionConfigs = new ConcurrentHashMap<>();
+  private Map<String, Configuration> monitorConfigs = new LinkedHashMap<>();
+  private Map<String, Configuration> operatorConfigs = new LinkedHashMap<>();
+  private Map<String, Configuration> actionConfigs = new LinkedHashMap<>();
 
   public DoctorKafkaClusterConfig(String clusterName, HierarchicalConfiguration<?> configuration) {
     this.clusterName = clusterName;
@@ -75,7 +73,7 @@ public class DoctorKafkaClusterConfig {
   protected Map<String, AbstractConfiguration> getEnabledModules(
       Map<String, Configuration> baseModuleConfigs,
       Map<String, Configuration> additionalModuleConfigs){
-    Map<String, AbstractConfiguration> clusterModules = new HashMap<>();
+    Map<String, AbstractConfiguration> clusterModules = new LinkedHashMap<>();
     for(Map.Entry<String, Configuration> entry : baseModuleConfigs.entrySet()){
       String name = entry.getKey();
       if(isModuleEnabled(additionalModuleConfigs, name)){

@@ -53,7 +53,7 @@ class KafkaClusterTest {
 
   @BeforeAll
   static void setup() throws Exception {
-    DoctorKafkaConfig config = new DoctorKafkaConfig("./config/doctorkafka.yaml");
+    DoctorKafkaConfig config = new DoctorKafkaConfig("./config/doctorkafka.config.yaml");
     doctorKafkaClusterConfig = config.getClusterConfigByName(CLUSTER_NAME);
     zookeeper_url = doctorKafkaClusterConfig.getZkUrl();
     kafkaCluster = new KafkaCluster(zookeeper_url);

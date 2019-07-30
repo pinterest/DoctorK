@@ -9,7 +9,7 @@ public abstract class ClusterState extends State {
   private String clusterName;
 
   public Boolean isUnderMaintenance() {
-    return underMaintenance == null ? null : underMaintenance.get();
+    return underMaintenance.get();
   }
   public void setUnderMaintenance(boolean maintenance) {
     underMaintenance.set(maintenance);

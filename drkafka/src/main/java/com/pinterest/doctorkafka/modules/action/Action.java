@@ -30,9 +30,10 @@ public abstract class Action implements Configurable {
    */
   public final Collection<Event> on(Event event) throws Exception{
     if(dryrun) {
+      LOG.info("Dry run: Action {} triggered by event {}", this.getClass(), event.getName());
       return null;
     } else {
-      LOG.info("Dry run: Action {} triggered by event {}", this.getClass(), event.getName());
+      LOG.debug("Executing Action {} triggered by event {}", this.getClass(), event.getName());
       return execute(event);
     }
   }
