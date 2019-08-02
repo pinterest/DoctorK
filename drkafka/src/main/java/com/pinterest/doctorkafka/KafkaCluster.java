@@ -47,11 +47,11 @@ public class KafkaCluster {
    * cool down period to avoid inaccurate stats collection.
    */
   private static final long REASSIGNMENT_COOLDOWN_WINDOW_IN_MS = 1800 * 1000L;
-  private static final int SLIDING_WINDOW_SIZE = 1440 * 4;
 
   public String zkUrl;
   private double bytesInPerSecLimit;
   private double bytesOutPerSecLimit;
+  private int slidingWindowSize;
 
   public ConcurrentMap<Integer, KafkaBroker> brokers = new ConcurrentHashMap<>();
   private ConcurrentMap<Integer, LinkedList<BrokerStats>> brokerStatsMap = new ConcurrentHashMap<>();
@@ -60,8 +60,9 @@ public class KafkaCluster {
   private ConcurrentMap<TopicPartition, Histogram> bytesOutHistograms = new ConcurrentHashMap<>();
   private ConcurrentMap<TopicPartition, Long> reassignmentTimestamps = new ConcurrentHashMap<>();
 
-  public KafkaCluster(String zkUrl) {
+  public KafkaCluster(String zkUrl, int slidingWindowSize) {
     this.zkUrl = zkUrl;
+    this.slidingWindowSize = slidingWindowSize;
   }
 
   public void setBytesInPerSecLimit(double bytesInPerSecLimit) {
@@ -119,8 +120,8 @@ public class KafkaCluster {
           if (brokerStats.getTimestamp() - lastReassignment < REASSIGNMENT_COOLDOWN_WINDOW_IN_MS) {
             continue;
           }
-          bytesInHistograms.computeIfAbsent(topicPartition, k -> new Histogram(new SlidingWindowReservoir(SLIDING_WINDOW_SIZE)));
-          bytesOutHistograms.computeIfAbsent(topicPartition, k -> new Histogram(new SlidingWindowReservoir(SLIDING_WINDOW_SIZE)));
+          bytesInHistograms.computeIfAbsent(topicPartition, k -> new Histogram(new SlidingWindowReservoir(slidingWindowSize)));
+          bytesOutHistograms.computeIfAbsent(topicPartition, k -> new Histogram(new SlidingWindowReservoir(slidingWindowSize)));
 
           bytesInHistograms.get(topicPartition).update(replicaStat.getBytesIn15MinMeanRate());
           bytesOutHistograms.get(topicPartition).update(replicaStat.getBytesOut15MinMeanRate());

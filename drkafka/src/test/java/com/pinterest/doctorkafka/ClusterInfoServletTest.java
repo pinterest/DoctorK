@@ -21,7 +21,7 @@ public class ClusterInfoServletTest extends Mockito {
     DoctorKafka mockDoctor = mock(DoctorKafka.class);
     DoctorKafkaMain.doctorKafka = mockDoctor;
     KafkaClusterManager clusterManager = mock(KafkaClusterManager.class);
-    KafkaCluster cluster = new KafkaCluster(clusterName);
+    KafkaCluster cluster = new KafkaCluster(clusterName, 1440);
 
     when(mockDoctor.getClusterManager(clusterName)).thenReturn(clusterManager);
     when(clusterManager.getCluster()).thenReturn(cluster);
