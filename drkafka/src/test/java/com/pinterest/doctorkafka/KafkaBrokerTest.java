@@ -15,7 +15,7 @@ public class KafkaBrokerTest {
 
     DoctorKafkaConfig config = new DoctorKafkaConfig("./config/doctorkafka.config.yaml");
     DoctorKafkaClusterConfig clusterConfig = config.getClusterConfigByName("cluster1");
-    KafkaCluster kafkaCluster = new KafkaCluster(clusterConfig.getZkUrl());
+    KafkaCluster kafkaCluster = new KafkaCluster(clusterConfig.getZkUrl(), 1440);
 
     KafkaBroker a = new KafkaBroker("", kafkaCluster, 0, 0, 0);
     KafkaBroker b = new KafkaBroker("", kafkaCluster, 1, 0, 0);

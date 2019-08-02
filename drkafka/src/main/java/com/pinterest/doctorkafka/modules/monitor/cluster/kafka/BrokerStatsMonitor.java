@@ -23,7 +23,6 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.StringReader;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -49,6 +48,7 @@ import java.util.concurrent.ConcurrentMap;
  *     outbound_limit_mb <bandwidth limit of the outbound traffic for brokers on this cluster>
  * [optional]
  *   consumer_config: <properties used to initialize stat ingestion kafka consumer>
+ *   sliding_window_size: <number of brokerstats to keep per TopicPartition for metrics aggregation>
  *
  */
 public class BrokerStatsMonitor extends KafkaMonitor {
@@ -61,10 +61,17 @@ public class BrokerStatsMonitor extends KafkaMonitor {
   private static final String CONSUMER_CONFIG_SECURITY_PROTOCOL_KEY = "security.protocol";
   private static final String CONFIG_MB_IN_PER_SECOND_LIMIT_KEY = "network.inbound_limit_mb";
   private static final String CONFIG_MB_OUT_PER_SECOND_LIMIT_KEY = "network.outbound_limit_mb";
+  private static final String CONFIG_SLIDING_WINDOW_SIZE_KEY = "sliding_window_size";
 
   private static final ConcurrentMap<String, KafkaCluster> clusters = new ConcurrentHashMap<>();
   private static volatile boolean initialized = false;
   private static volatile boolean isBackfillComplete = false;
+
+  /*
+   * kafkastats agent sends 1 brokerstat message every minute.
+   * 1 days worth of brokerstats = 24 * 60 = 1440 data points.
+   */
+  private static final int DEFAULT_SLIDING_WINDOW_SIZE = 1440;
 
   private boolean isNetworkBandwidthSet = false;
 
@@ -79,11 +86,13 @@ public class BrokerStatsMonitor extends KafkaMonitor {
     private int backfillWindowSeconds;
     private SecurityProtocol securityProtocol = SecurityProtocol.PLAINTEXT;
     private Properties consumerConfigs;
+    private int slidingWindowSize;
 
-    public BrokerStatsCollector(String brokerStatsTopic, String zkUrl, int backfillWindowSeconds, Properties consumerConfigs) {
+    public BrokerStatsCollector(String brokerStatsTopic, String zkUrl, int backfillWindowSeconds, Properties consumerConfigs, int slidingWindowSize) {
       this.brokerStatsTopic = brokerStatsTopic;
       this.zkUrl = zkUrl;
       this.backfillWindowSeconds = backfillWindowSeconds;
+      this.slidingWindowSize = slidingWindowSize;
       this.consumerConfigs = consumerConfigs;
       if (consumerConfigs.containsKey(CONSUMER_CONFIG_SECURITY_PROTOCOL_KEY)) {
         this.securityProtocol = SecurityProtocol.valueOf(consumerConfigs.getProperty(CONSUMER_CONFIG_SECURITY_PROTOCOL_KEY));
@@ -98,16 +107,19 @@ public class BrokerStatsMonitor extends KafkaMonitor {
           KafkaUtils.BYTE_ARRAY_DESERIALIZER,
           1, securityProtocol, consumerConfigs);
       long startTimestampInMillis = System.currentTimeMillis() - backfillWindowSeconds * 1000L;
-      Map<TopicPartition, Long> offsets = ReplicaStatsUtil
+      Map<TopicPartition, Long> backfillStartOffsets = ReplicaStatsUtil
           .getProcessingStartOffsets(kafkaConsumer, brokerStatsTopic, startTimestampInMillis);
 
       kafkaConsumer.unsubscribe();
-      kafkaConsumer.assign(offsets.keySet());
-      Map<TopicPartition, Long> latestOffsets = kafkaConsumer.endOffsets(offsets.keySet());
+      kafkaConsumer.assign(backfillStartOffsets.keySet());
+
+      // backfillEndOffsets is the map of latest offsets at launch of doctorkafka.
+      // Backfill will finish at these offsets and the realtime consumer will pick up the stats from these offsets to avoid overlapping consumption.
+      Map<TopicPartition, Long> backfillEndOffsets = kafkaConsumer.endOffsets(backfillStartOffsets.keySet());
       KafkaUtils.closeConsumer(zkUrl);
 
-      for(TopicPartition tp : latestOffsets.keySet()){
-        Processor processor = new Processor(tp, offsets.get(tp), latestOffsets.get(tp), zkUrl, securityProtocol);
+      for(TopicPartition tp : backfillEndOffsets.keySet()){
+        Processor processor = new Processor(tp, backfillStartOffsets.get(tp), backfillEndOffsets.get(tp), zkUrl, securityProtocol, slidingWindowSize);
         processors.add(processor);
         processor.start();
       }
@@ -125,7 +137,7 @@ public class BrokerStatsMonitor extends KafkaMonitor {
       // Backfill complete, start long-running background processor
 
       processors.clear();
-      Processor processor = new Processor(brokerStatsTopic, zkUrl, securityProtocol, consumerConfigs);
+      Processor processor = new Processor(backfillEndOffsets, zkUrl, securityProtocol, consumerConfigs, slidingWindowSize);
       processors.add(processor);
       processor.start();
     }
@@ -145,32 +157,36 @@ public class BrokerStatsMonitor extends KafkaMonitor {
 
     private TopicPartition topicPartition;
     private long endOffset = -1L;
+    private int slidingWindowSize;
 
     // long running processor
-    public Processor(String topic, String zkUrl, SecurityProtocol securityProtocol, Properties consumerConfigs) {
+    public Processor(Map<TopicPartition, Long> partitionOffsets, String zkUrl, SecurityProtocol securityProtocol, Properties consumerConfigs, int slidingWindowSize) {
       Properties properties = OperatorUtil.createKafkaConsumerProperties(
           zkUrl, BROKERSTATS_CONSUMER_GROUP, securityProtocol, consumerConfigs);
       consumer = new KafkaConsumer<>(properties);
-      consumer.subscribe(Collections.singletonList(topic));
+
+      // seek from the end offsets we left off during backfilling
+      consumer.assign(partitionOffsets.keySet());
+      for (Map.Entry<TopicPartition, Long> entry : partitionOffsets.entrySet()){
+        consumer.seek(entry.getKey(), entry.getValue());
+      }
+      this.slidingWindowSize = slidingWindowSize;
     }
 
     // backfill processor
-    public Processor(TopicPartition topicPartition, long startOffset, long endOffset, String zkUrl, SecurityProtocol securityProtocol){
+    public Processor(TopicPartition topicPartition, long startOffset, long endOffset, String zkUrl, SecurityProtocol securityProtocol, int slidingWindowSize){
       this.topicPartition = topicPartition;
       this.endOffset = endOffset;
+      this.slidingWindowSize = slidingWindowSize;
 
       String brokers = KafkaUtils.getBrokers(zkUrl, securityProtocol);
       LOG.info("ZkUrl: {}, Brokers: {}", zkUrl, brokers);
-      Properties props = new Properties();
-      props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, brokers);
-      props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
-      props.put(ConsumerConfig.GROUP_ID_CONFIG, "doctorkafka_" + topicPartition);
-      props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, KafkaUtils.BYTE_ARRAY_DESERIALIZER);
-      props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, KafkaUtils.BYTE_ARRAY_DESERIALIZER);
-      props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 2000);
-      props.put(ConsumerConfig.MAX_PARTITION_FETCH_BYTES_CONFIG, 1048576 * 4);
+      Properties properties = OperatorUtil.createKafkaConsumerProperties(
+          zkUrl, BROKERSTATS_CONSUMER_GROUP + "_" + topicPartition, securityProtocol, null);
+      properties.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 2000);
+      properties.put(ConsumerConfig.MAX_PARTITION_FETCH_BYTES_CONFIG, 1048576 * 4);
 
-      consumer = new KafkaConsumer<>(props);
+      consumer = new KafkaConsumer<>(properties);
       Set<TopicPartition> topicPartitions = new HashSet<>();
       topicPartitions.add(topicPartition);
       consumer.assign(topicPartitions);
@@ -228,7 +244,7 @@ public class BrokerStatsMonitor extends KafkaMonitor {
         return;
       }
 
-      KafkaCluster cluster = clusters.computeIfAbsent(brokerZkUrl, url -> new KafkaCluster(url));
+      KafkaCluster cluster = clusters.computeIfAbsent(brokerZkUrl, url -> new KafkaCluster(url, slidingWindowSize));
       cluster.recordBrokerStats(brokerStats);
     }
   }
@@ -265,7 +281,9 @@ public class BrokerStatsMonitor extends KafkaMonitor {
             }
           }
 
-          BrokerStatsCollector collector = new BrokerStatsCollector(topic, zkUrl, backfillWindowSeconds, consumerConfigs);
+          int slidingWindowSize = config.getInt(CONFIG_SLIDING_WINDOW_SIZE_KEY, DEFAULT_SLIDING_WINDOW_SIZE);
+
+          BrokerStatsCollector collector = new BrokerStatsCollector(topic, zkUrl, backfillWindowSeconds, consumerConfigs, slidingWindowSize);
           Thread thread = new Thread(collector);
           thread.run();
         }

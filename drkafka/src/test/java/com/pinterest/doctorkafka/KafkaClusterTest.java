@@ -56,7 +56,7 @@ class KafkaClusterTest {
     DoctorKafkaConfig config = new DoctorKafkaConfig("./config/doctorkafka.config.yaml");
     doctorKafkaClusterConfig = config.getClusterConfigByName(CLUSTER_NAME);
     zookeeper_url = doctorKafkaClusterConfig.getZkUrl();
-    kafkaCluster = new KafkaCluster(zookeeper_url);
+    kafkaCluster = new KafkaCluster(zookeeper_url, 1440);
     kafkaCluster.setBytesInPerSecLimit(BYTES_IN_SEC_LIMIT);
     kafkaCluster.setBytesOutPerSecLimit(BYTES_OUT_SEC_LIMIT);
   }
