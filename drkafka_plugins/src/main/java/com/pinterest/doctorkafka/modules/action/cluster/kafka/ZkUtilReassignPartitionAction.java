@@ -1,7 +1,6 @@
 package com.pinterest.doctorkafka.modules.action.cluster.kafka;
 
 import com.pinterest.doctorkafka.modules.action.Action;
-import com.pinterest.doctorkafka.modules.errors.ModuleConfigurationException;
 import com.pinterest.doctorkafka.modules.context.event.Event;
 import com.pinterest.doctorkafka.modules.context.event.EventUtils;
 import com.pinterest.doctorkafka.modules.context.event.NotificationEvent;
@@ -9,7 +8,6 @@ import com.pinterest.doctorkafka.modules.context.event.ReportEvent;
 import com.pinterest.doctorkafka.util.KafkaUtils;
 
 import kafka.utils.ZkUtils;
-import org.apache.commons.configuration2.AbstractConfiguration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.zookeeper.data.ACL;
