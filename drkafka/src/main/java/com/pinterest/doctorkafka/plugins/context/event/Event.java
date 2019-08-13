@@ -1,0 +1,36 @@
+package com.pinterest.doctorkafka.plugins.context.event;
+
+import com.pinterest.doctorkafka.plugins.action.Action;
+import com.pinterest.doctorkafka.plugins.context.Context;
+
+/**
+ *
+ * Events are messages that are emitted by plugins to an {@link EventListener}
+ * which will trigger registered {@link com.pinterest.doctorkafka.plugins.action.Action Actions}.
+ *
+ * <pre>
+                                                                     +-------+
+                                                             +------+| Event |<----+
+                                                             |       +-------+     |
+                                                             |                     |
+                                                             |                     |
+                                                             v                     +
+ +--------------+                 +--------------+    +---------------+    +---------------+
+ |              |    +-------+    |              |    |               |    |               |
+ |   Operator   |--->| Event |--->| EventEmitter |--->| EventListener |--->|    Action     |
+ |              |    +-------+    |              |    |               |    |               |
+ +--------------+                 +--------------+    +---------------+    +---------------+
+                                                                     execute
+ * </pre>
+ */
+public abstract class Event extends Context {
+  private String name;
+
+  public final void setName(String name){
+    this.name = name;
+  }
+
+  public final String getName(){
+    return this.name;
+  }
+}
