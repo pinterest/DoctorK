@@ -13,9 +13,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
+# DoctorKafka 0.3 switches to use YAML format to specify configuration parameters. 
+# DoctorKafka 0.2.x and earlier versions used properties file format. 
+# Because of this, configuration update is needed during DoctorKafka 0.3 upgrade.
+
 ###################################################################################
 #                                                                                 #
-#  DoctorKafka global settings, including the zookeeper url for kafkastats topic  #
+#                           DoctorKafka global settings:                          #
+#    *  Zookeeper url for kafkastats topic                                        #                                                             
+#    *  Host name (localhost or 0.0.0.0) and port # for DoctorKafka UI            #                                                             
+#    *  Ostrich port number for Finagle-Ostrich service framework                 #                                                             
+#    *  TSD host name and port number that DoctorKafka process sends metrics to   #                                                             
+#    *  action_reporter configuration                                             #                                                             
+#    *  Auto-restart interval setting                                             #
 #                                                                                 #
 ###################################################################################
 doctorkafka:
@@ -24,8 +35,8 @@ doctorkafka:
   ui:
     host: localhost # Host for binding UI. Defaults to 0.0.0.0 for external host access, switch to localhost for access restriction
     port: 8080
-  ostrich:
-    port: 2052 # optional, ostrich port.
+  ostrich: # Optional, Finagle-Ostrich service framework 
+    port: 2052 # ostrich port number.
   tsd: # optional, tsd host and port.
     host: localhost
     port: 18621
@@ -73,7 +84,7 @@ doctorkafka:
 
 monitors:
   - name: brokerstats_monitor
-    class: com.pinterest.doctorkafka.modules.monitor.cluster.kafka.BrokerStatsMonitor
+    class: com.pinterest.doctorkafka.plugins.monitor.cluster.kafka.BrokerStatsMonitor
     config: # documentation of the plugins are in plugins' class
       zkurl: zookeeper001:2181,zookeeper002:2181,zookeeper003:2181/cluster1
       topic: brokerstats
@@ -91,15 +102,15 @@ monitors:
         ssl.truststore.password=truststore_password
         ssl.truststore.type=JKS
   - name: maintenance_monitor
-    class: com.pinterest.doctorkafka.modules.monitor.cluster.MaintenanceMonitor
+    class: com.pinterest.doctorkafka.plugins.monitor.cluster.MaintenanceMonitor
   - name: dead_broker_monitor
-    class: com.pinterest.doctorkafka.modules.monitor.cluster.kafka.DeadBrokerMonitor
+    class: com.pinterest.doctorkafka.plugins.monitor.cluster.kafka.DeadBrokerMonitor
     config:
       no_stats_seconds: 600
   - name: no_brokerstats_broker_monitor
-    class: com.pinterest.doctorkafka.modules.monitor.cluster.kafka.NoBrokerstatsBrokerMonitor
+    class: com.pinterest.doctorkafka.plugins.monitor.cluster.kafka.NoBrokerstatsBrokerMonitor
   - name: urp_monitor
-    class: com.pinterest.doctorkafka.modules.monitor.cluster.kafka.URPMonitor
+    class: com.pinterest.doctorkafka.plugins.monitor.cluster.kafka.URPMonitor
 
 ###################################################################################
 #                                                                                 #
@@ -123,13 +134,13 @@ monitors:
 
 operators:
   - name: broker_replacement_operator
-    class: com.pinterest.doctorkafka.modules.operator.cluster.kafka.BrokerReplacementOperator
+    class: com.pinterest.doctorkafka.plugins.operator.cluster.kafka.BrokerReplacementOperator
     config:
       replacement_cooldown_seconds: 43200
   - name: no_brokerstats_broker_operator
-    class: com.pinterest.doctorkafka.modules.operator.cluster.kafka.NoBrokerstatsBrokerOperator
+    class: com.pinterest.doctorkafka.plugins.operator.cluster.kafka.NoBrokerstatsBrokerOperator
   - name: urp_reassignment_operator
-    class: com.pinterest.doctorkafka.modules.operator.cluster.kafka.URPReassignmentOperator
+    class: com.pinterest.doctorkafka.plugins.operator.cluster.kafka.URPReassignmentOperator
     config:
       rack_awareness:
         enabled: true
@@ -162,11 +173,11 @@ operators:
 
 actions:
   - name: report_operation_action
-    class: com.pinterest.doctorkafka.modules.action.KafkaReportOperationAction
+    class: com.pinterest.doctorkafka.plugins.action.KafkaReportOperationAction
     config:
       subscribed_events: report_operation
       topic: operator_report
-      zkurl: zookeeper001:2181,zookeeper002:2181,zookeeper003:2181/cluster1
+      zkurl: <zookeeper connecting string for the cluster that hosts action_report topic>
       producer_config: |
         security.protocol=SSL
         ssl.client.auth=required
@@ -180,22 +191,22 @@ actions:
         ssl.truststore.password=truststore_password
         ssl.truststore.type=JKS
   - name: replace_instance_action
-    class: com.pinterest.doctorkafka.modules.action.cluster.ScriptReplaceInstanceAction
+    class: com.pinterest.doctorkafka.plugins.action.cluster.ScriptReplaceInstanceAction
     config:
       subscribed_events: replace_instance
       script: "replace-script.sh "
       prolong_replacement_alert_seconds: 1800
   - name: reassign_partitions_action
-    class: com.pinterest.doctorkafka.modules.action.cluster.kafka.ZkUtilReassignPartitionAction
+    class: com.pinterest.doctorkafka.plugins.action.cluster.kafka.ZkUtilReassignPartitionAction
     config:
       subscribed_events: reassign_partitions
   - name: send_email_action
-    class: com.pinterest.doctorkafka.modules.action.SendEmailAction
+    class: com.pinterest.doctorkafka.plugins.action.SendEmailAction
     config:
       subscribed_events: notify_replacement,notify_reassignment_notify_maintenance_mode,notify_decommision
       emails: foo@email.com,bar@email.com
   - name: snoozed_send_email_action
-    class: com.pinterest.doctorkafka.modules.action.SnoozedSendEmailAction
+    class: com.pinterest.doctorkafka.plugins.action.SnoozedSendEmailAction
     config:
       subscribed_events: notify_prolong_replacement,alert_no_brokerstats_brokers,alert_urp_handling_failure,alert_prolong_urp
       emails: foo@email.com,bar@email.com

@@ -2,8 +2,8 @@ package com.pinterest.doctorkafka;
 
 import com.pinterest.doctorkafka.config.DoctorKafkaClusterConfig;
 import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
-import com.pinterest.doctorkafka.modules.manager.DoctorKafkaModuleManager;
-import com.pinterest.doctorkafka.modules.manager.ModuleManager;
+import com.pinterest.doctorkafka.plugins.manager.DoctorKafkaPluginManager;
+import com.pinterest.doctorkafka.plugins.manager.PluginManager;
 import com.pinterest.doctorkafka.util.ZookeeperClient;
 
 import org.apache.logging.log4j.LogManager;
@@ -24,20 +24,20 @@ public class DoctorKafka {
   private Set<String> clusterZkUrls = null;
   private ZookeeperClient zookeeperClient = null;
   private DoctorKafkaHeartbeat heartbeat = null;
-  private ModuleManager moduleManager;
+  private PluginManager pluginManager;
 
   public DoctorKafka(DoctorKafkaConfig drkafkaConf) throws Exception{
     this.drkafkaConf = drkafkaConf;
     this.clusterZkUrls = drkafkaConf.getClusterZkUrls();
     this.zookeeperClient = new ZookeeperClient(drkafkaConf.getDoctorKafkaZkurl());
-    this.moduleManager = new DoctorKafkaModuleManager();
+    this.pluginManager = new DoctorKafkaPluginManager();
   }
 
   public void start() throws Exception {
     for (String clusterZkUrl : clusterZkUrls) {
       DoctorKafkaClusterConfig clusterConf = drkafkaConf.getClusterConfigByZkUrl(clusterZkUrl);
       KafkaClusterManager clusterManager = new KafkaClusterManager(
-          clusterZkUrl, clusterConf, drkafkaConf, zookeeperClient, moduleManager);
+          clusterZkUrl, clusterConf, drkafkaConf, zookeeperClient, pluginManager);
       clusterManagers.put(clusterConf.getClusterName(), clusterManager);
       clusterManager.start();
       LOG.info("Starting cluster manager for " + clusterZkUrl);

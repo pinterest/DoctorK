@@ -2,14 +2,14 @@ package com.pinterest.doctorkafka;
 
 import com.pinterest.doctorkafka.config.DoctorKafkaClusterConfig;
 import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
-import com.pinterest.doctorkafka.modules.action.Action;
-import com.pinterest.doctorkafka.modules.context.event.NotificationEvent;
-import com.pinterest.doctorkafka.modules.context.event.SingleThreadEventHandler;
-import com.pinterest.doctorkafka.modules.manager.ModuleManager;
-import com.pinterest.doctorkafka.modules.monitor.Monitor;
-import com.pinterest.doctorkafka.modules.operator.Operator;
-import com.pinterest.doctorkafka.modules.context.state.State;
-import com.pinterest.doctorkafka.modules.context.state.cluster.kafka.KafkaState;
+import com.pinterest.doctorkafka.plugins.action.Action;
+import com.pinterest.doctorkafka.plugins.context.event.NotificationEvent;
+import com.pinterest.doctorkafka.plugins.context.event.SingleThreadEventHandler;
+import com.pinterest.doctorkafka.plugins.manager.PluginManager;
+import com.pinterest.doctorkafka.plugins.monitor.Monitor;
+import com.pinterest.doctorkafka.plugins.operator.Operator;
+import com.pinterest.doctorkafka.plugins.context.state.State;
+import com.pinterest.doctorkafka.plugins.context.state.cluster.kafka.KafkaState;
 import com.pinterest.doctorkafka.util.KafkaUtils;
 import com.pinterest.doctorkafka.util.ZookeeperClient;
 
@@ -26,13 +26,18 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * KafkaClusterManager periodically loops through the {@link Monitor Monitors} and {@link Operator Operators}
+ * defined in the configuration file.
+ */
+
 public class KafkaClusterManager implements Runnable {
 
   private static final Logger LOG = LogManager.getLogger(KafkaClusterManager.class);
   private static final String EVENT_NOTIFY_MAINTENANCE_MODE_NAME = "notify_maintenance_mode";
   private static final String EVENT_NOTIFY_DECOMMISSION_NAME = "notify_decommission";
 
-  KafkaState baseState = new KafkaState();
+  private KafkaState baseState = new KafkaState();
   private volatile KafkaState currentState = new KafkaState();
   private Collection<Monitor> monitors = new ArrayList<>();
   private Collection<Operator> operators = new ArrayList<>();
@@ -47,8 +52,13 @@ public class KafkaClusterManager implements Runnable {
                              DoctorKafkaClusterConfig clusterConfig,
                              DoctorKafkaConfig drkafkaConfig,
                              ZookeeperClient zookeeperClient,
-                             ModuleManager moduleManager) throws Exception {
+                             PluginManager pluginManager) throws Exception {
     assert clusterConfig != null;
+
+    /* baseState is a State that keeps configurations and manual settings from the UI/API,
+       it is cloned by the manager each time the evaluation loop begins
+    */
+
     baseState.setZkUrl(zkUrl);
     baseState.setZkUtils(KafkaUtils.getZkUtils(zkUrl));
     baseState.setClusterName(clusterConfig.getClusterName());
@@ -56,15 +66,15 @@ public class KafkaClusterManager implements Runnable {
 
     evaluationFrequency = drkafkaConfig.getEvaluationFrequency();
 
-    // Load monitor plugins
+    // load monitor plugins
     Map<String, Configuration> baseMonitorsConfigs = drkafkaConfig.getMonitorsConfigs();
     for(Map.Entry<String, AbstractConfiguration> entry: clusterConfig.getEnabledMonitorsConfigs(baseMonitorsConfigs).entrySet() ){
       String monitorName = entry.getKey();
       AbstractConfiguration monitorConfig = entry.getValue();
       try {
-        this.monitors.add(moduleManager.getMonitor(monitorConfig));
+        this.monitors.add(pluginManager.getMonitor(monitorConfig));
       } catch (ClassCastException e){
-        LOG.error("Module {} is not a monitor module", monitorName, e);
+        LOG.error("Plugin {} is not a monitor plugin", monitorName, e);
         throw e;
       }
     }
@@ -72,26 +82,28 @@ public class KafkaClusterManager implements Runnable {
     // create event handler
     this.eventHandler = new SingleThreadEventHandler();
 
+    // load operator plugins
     Map<String, Configuration> baseOperatorsConfigs = drkafkaConfig.getOperatorsConfigs();
     for(Map.Entry<String, AbstractConfiguration> entry: clusterConfig.getEnabledOperatorsConfigs(baseOperatorsConfigs).entrySet() ){
       String operatorName = entry.getKey();
       AbstractConfiguration operatorConfig = entry.getValue();
       try {
-        Operator operator = moduleManager.getOperator(operatorConfig);
+        Operator operator = pluginManager.getOperator(operatorConfig);
         operator.setEventEmitter(eventHandler);
         this.operators.add(operator);
       } catch (ClassCastException e){
-        LOG.error("Module {} is not a operator module", operatorName, e);
+        LOG.error("Plugin {} is not a operator plugin", operatorName, e);
         throw e;
       }
     }
 
+    // load action plugins
     Map<String, Configuration> baseActionsConfigs = drkafkaConfig.getActionsConfigs();
     for(Map.Entry<String, AbstractConfiguration> entry: clusterConfig.getEnabledActionsConfigs(baseActionsConfigs).entrySet()){
       String actionName = entry.getKey();
       AbstractConfiguration actionConfig = entry.getValue();
       try {
-        Action action = moduleManager.getAction(actionConfig);
+        Action action = pluginManager.getAction(actionConfig);
         if (action.getSubscribedEvents().length == 0){
           LOG.warn("Action {} is not subscribing to any event.");
           continue;
@@ -100,7 +112,7 @@ public class KafkaClusterManager implements Runnable {
           eventHandler.subscribe(eventName, action);
         }
       } catch (ClassCastException e){
-        LOG.error("Module {} is not a action module", actionName, e);
+        LOG.error("Plugin {} is not a action plugin", actionName, e);
         throw e;
       }
     }
@@ -211,17 +223,12 @@ public class KafkaClusterManager implements Runnable {
     }
   }
 
-  /**
-   *  KafkaClusterManager periodically check the health of the cluster. If it finds
-   *  an under-replicated partitions, it will perform partition reassignment. It will also
-   *  do partition reassignment for workload balancing.
-   *
-   *  If partitions are under-replicated in the middle of work-load balancing due to
-   *  broker failure, it will send out an alert. Human intervention is needed in this case.
-   */
   @Override
   public void run() {
 
+    // This is the evaluation loop of the cluster. It first waits for a period of time,
+    // after the sleep, it goes through all the monitor plugins first and then the operators
+    // the plugins are evaluated based on the ordering in the configurations
     while(!stopped) {
       try {
         Thread.sleep(evaluationFrequency);

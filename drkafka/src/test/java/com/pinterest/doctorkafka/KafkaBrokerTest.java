@@ -9,13 +9,12 @@ import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
 import org.junit.jupiter.api.Test;
 
 public class KafkaBrokerTest {
+  private static String ZOOKEEPER_URL = "zookeeper01:2181";
 
   @Test
   public void kafkaBrokerComparatorTest() throws Exception {
 
-    DoctorKafkaConfig config = new DoctorKafkaConfig("./config/doctorkafka.config.yaml");
-    DoctorKafkaClusterConfig clusterConfig = config.getClusterConfigByName("cluster1");
-    KafkaCluster kafkaCluster = new KafkaCluster(clusterConfig.getZkUrl(), 1440);
+    KafkaCluster kafkaCluster = new KafkaCluster(ZOOKEEPER_URL, 1440);
 
     KafkaBroker a = new KafkaBroker("", kafkaCluster, 0, 0, 0);
     KafkaBroker b = new KafkaBroker("", kafkaCluster, 1, 0, 0);

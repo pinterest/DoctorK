@@ -1,14 +1,18 @@
-#  <img src="docs/doctorkafka_logo.svg" alt="DoctorKafka logo" width="48"> &nbsp;&nbsp; Pinterest DoctorKafka
+#  <img src="docs/doctorkafka_logo.svg" alt="DoctorKafka logo" width="48px"> &nbsp;&nbsp; Pinterest DoctorKafka
 
-[![Build Status](https://travis-ci.org/pinterest/doctorkafka.svg)](https://travis-ci.org/pinterest/doctorkafka)
+***ATTENTION: `master` branch now points to DoctorKafka v3 (0.3.x). The legacy version (0.2.x) can be found under the `0.2.x` branch. 0.3.x uses a YAML configuration that is INCOMPATIBLE with 0.2.x versions.***
 
-DoctorKafka is a service for [Kafka] cluster auto healing and workload balancing.  DoctorKafka can automatically detect broker failure and reassign the workload on the failed nodes to other nodes. DoctorKafka can also perform load balancing based on topic partitions's network usage, and makes sure that broker network usage does not exceed the defined settings. DoctorKafka sends out alerts when it is not confident on taking actions.
+DoctorKafka is a service for [Kafka] cluster auto-healing and workload balancing.  DoctorKafka can automatically detect broker failure and reassign the workload on the failed nodes to other nodes. DoctorKafka can also perform load balancing based on topic partitions's network usage, and makes sure that broker network usage does not exceed the defined settings. DoctorKafka sends out alerts when it is not confident on taking actions.
 
-#### Features   
+DoctorKafka 0.3 introduces a plugin framework to allow users to easily extend DoctorKafka's Kafka cluster status collection and implementing customized actions. DoctorKafka's existing functionality is preserved through default plugins.
 
- * Automated cluster healing by moving partitions on failed brokers to other brokers
+#### Features
+
+ * Automated cluster healing through auto broker replacement and partition reassignment
  * Workload balancing among brokers
  * Centralized management of multiple kafka clusters
+ * Extensible plugin framework to allow customized data collection and customized actions
+
 
 #### Detailed design
 
@@ -18,34 +22,33 @@ Design details are available in [docs/DESIGN.md](docs/DESIGN.md).
 
 ##### Get DoctorKafka code
 ```sh
-git clone [git-repo-url] doctorkafka
+git clone https://github.com/pinterest/doctorkafka doctorkafka
 cd doctorkafka
 ```
 
-##### Build kafka stats collector and deployment it to kafka brokers 
+##### Build KafkaStats metric agent and deploy it to kafka brokers 
 
 ```sh
 mvn package -pl kafkastats -am
 ```
 
-Kafkastats is a kafka broker stats collector that runs on kafka brokers and reports broker stats
-to some kafka topic based on configuration. The following is the kafkastats usage.
+KafkaStats is a Kafka broker stats collector that runs on Kafka brokers and reports broker stats
+to some Kafka topic based on the configuration. The following is the `kafkastats` usage.
 
 ```sh
-usage: KafkaMetricsCollector
- -broker <arg>                      kafka broker
- -disable_ec2metadata               Disable the collection of host information using ec2metadata
- -jmxport <kafka jmx port number>   kafka jmx port number
- -kafka_config <arg>                kafka server properties file path
- -ostrichport <arg>                 ostrich port
- -pollingintervalinseconds <arg>    polling interval in seconds
- -primary_network_ifacename <arg>   network interface used by kafka
- -producer_config <arg>             kafka_stats producer config
- -topic <arg>                       kafka topic for metric messages
- -tsdhostport <arg>                 tsd host and port, e.g.
-                                    localhost:18621
- -uptimeinseconds <arg>             uptime in seconds
- -zookeeper <arg>                   zk url for metrics topic
+KafkaMetricsCollector
+ -broker <arg>                      # kafka broker
+ -disable_ec2metadata               # Disable the collection of host information using ec2metadata
+ -jmxport <kafka jmx port number>   # kafka jmx port number
+ -kafka_config <arg>                # kafka server properties file path
+ -ostrichport <arg>                 # ostrich port
+ -pollingintervalinseconds <arg>    # polling interval in seconds
+ -primary_network_ifacename <arg>   # network interface used by kafka
+ -producer_config <arg>             # kafka_stats producer config
+ -topic <arg>                       # kafka topic for metric messages
+ -tsdhostport <arg>                 # tsd host and port, e.g. localhost:18621
+ -uptimeinseconds <arg>             # uptime in seconds
+ -zookeeper <arg>                   # zk url for metrics topic
 ```
 
 The following is a sample command line for running kafkastats collector:
@@ -53,7 +56,7 @@ The following is a sample command line for running kafkastats collector:
 ```
 java -server \
     -Dlog4j.configurationFile=file:./log4j2.xml \
-    -cp lib/*:kafkastats-0.2.4.8.jar \
+    -cp lib/*:kafkastats-0.3.0-rc.1.jar \
     com.pinterest.doctorkafka.stats.KafkaStatsMain \
         -broker 127.0.0.1 \
         -jmxport 9999 \
@@ -112,11 +115,29 @@ The following is a sample upstart scripts for automatically restarting kafkastat
 ```
 
 
-##### Customize doctorkafka configuration parameters
+##### Set up configurations
 
-Edit `drkafka/config/*.properties` files to specify parameters describing the environment. Those files contain
-comments describing the meaning of individual parameters.
+Edit `drkafka/config/doctorkafka.config.yaml` file to specify parameters describing your environment.
+Some configuration descriptions could be documented in the plugins under `drkafka/src/main/java/com/pinterest/doctorkafka/plugins`
 
+Default plugins provided:
+- Monitors: (under `drkafka/src/main/java/com/pinterest/doctorkafka/plugins/monitor/`)
+  1. MaintenanceMonitor
+  2. DeadBrokerMonitor
+  3. NoBrokerstatsBrokerMonitor
+  4. URPMonitor
+- Operators: (under `drkafka/src/main/java/com/pinterest/doctorkafka/plugins/operator/`)
+  1. BrokerReplacementOperator
+  2. NoBrokerstatsBrokerOperator
+  3. URPReassignmentOperator
+- Actions: (under `drkafka/src/main/java/com/pinterest/doctorkafka/action/`)
+  1. ZkUtilReassignPartitionAction
+  2. ScriptReplaceInstanceAction
+  3. KafkaReportOperationAction
+  4. SendEmailAction
+  5. SnoozedSendEmailAction
+
+Detailed configurations for DoctorKafka, clusters, plugins can be found in the `drkafka/config/doctorkafka.config.yaml`
 
 #### Create and install jars
 
@@ -127,7 +148,7 @@ mvn package -pl drkafka -am
 ```sh
 mvn package
 mkdir ${DOCTORKAFKA_INSTALL_DIR} # directory to place DoctorKafka binaries in.
-tar -zxvf target/doctorkafka-0.2.4.8-bin.tar.gz -C ${DOCTORKAFKA_INSTALL_DIR}
+tar -zxvf target/doctorkafka-0.3.0-rc.1-bin.tar.gz -C ${DOCTORKAFKA_INSTALL_DIR}
 ```
 
 ##### Run DoctorKafka
@@ -135,51 +156,24 @@ tar -zxvf target/doctorkafka-0.2.4.8-bin.tar.gz -C ${DOCTORKAFKA_INSTALL_DIR}
 cd ${DOCTORKAFKA_INSTALL_DIR}
 
 java -server \
-    -cp lib/*:doctorkafka-0.2.4.8.jar \
+    -cp lib/*:doctorkafka-0.3.0-rc.1.jar \
     com.pinterest.doctorkafka.DoctorKafkaMain \
-        server dropwizard_yaml_file
+        server PATH_TO_DROPWIZARD_YAML_FILE
 ```
 
-The above `dropwizard_yaml_file` is the path to a standard [DropWizard configuration file ](https://www.dropwizard.io/1.0.0/docs/manual/configuration.html)
-that only requires the following line pointing to your `doctorkafka.properties` path.
+The above `PATH_TO_DROPWIZARD_YAML_FILE` is the path to a standard [DropWizard configuration file ](https://www.dropwizard.io/1.0.0/docs/manual/configuration.html)
+that simply points to your doctorkafka configuration file. Generally, the file `drkafka/config/doctorkafka.app.yaml` can be used directly without modification.
 
+```yaml
+# in drkafka/config/doctorkafka.app.yaml
+config:  doctorkafka.config.yaml # Your doctorkafka config yaml file
 ```
-config:  $doctorkafka_config_properties_file_path
-```
-
-##### Customize configuration parameters
-
-Edit `src/main/config/*.properties` files to specify parameters describing the environment.
-Those files contain comments describing the meaning of individual parameters.
-
-
-## Tools
-DoctorKafka comes with a number of tools implementing interactions with the environment.
-
-##### Cluster Load Balancer
-
-```bash
-cd ${DOCTORKAFKA_INSTALL_DIR}
-java -server \
-    -Dlog4j.configurationFile=file:drkafka/config/log4j2.xml \
-    -cp drkafka/target/lib/*:drkafka/target/doctorkafka-0.2.4.8.jar \
-    com.pinterest.doctorkafka.tools.ClusterLoadBalancer \
-        -brokerstatstopic  brokerstats \
-        -brokerstatszk zookeeper001:2181/cluster1 \
-        -clusterzk zookeeper001:2181,zookeeper002:2181,zookeeper003:2181/cluster2 \
-        -config ./drkafka/config/doctorkafka.properties \
-        -seconds 3600
-```
-Cluster load balancer balances the workload among brokers to make sure the broker network
-usage does not exceed the threshold.
-
 
 ## DoctorKafka UI 
 
 DoctorKafka uses [dropwizard-core module](https://www.dropwizard.io/1.3.5/docs/manual/core.html) and [serving assets](https://www.dropwizard.io/1.3.5/docs/manual/core.html#serving-assets) to provide a web UI. The following is the screenshot from a demo:
 
-![doctorkafka UI](docs/doctorkafka_ui.png)
-<img src="docs/doctorkafka_ui.png" width="160">
+<img src="docs/doctorkafka_ui.png">
 
 ## DoctorKafka APIs
 
@@ -188,7 +182,7 @@ The following APIs are available for DoctorKafka:
     - List Cluster
     - Maintenance Mode
 
-Detailed description of APIs can be found [docs/APIs.md](docs/APIs.md)
+Detailed description of APIs can be found in [docs/API.md](docs/API.md)
 
 ## Maintainers
   * [Yu Yang](https://github.com/yuyang08)

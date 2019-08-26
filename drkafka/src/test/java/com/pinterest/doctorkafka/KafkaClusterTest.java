@@ -43,20 +43,15 @@ class KafkaClusterTest {
       new Node(5, "test05", 9092),
       new Node(6, "test06", 9092)
   };
-  private static final String CLUSTER_NAME = "cluster1";
-  private static DoctorKafkaClusterConfig doctorKafkaClusterConfig;
-  private static String zookeeper_url;
   private static KafkaCluster kafkaCluster;
 
+  private static String ZOOKEEPER_URL = "zookeeper01:2181";
   private static double BYTES_IN_SEC_LIMIT = 35.0 * 1024 * 1024;
-  private static double BYTES_OUT_SEC_LIMIT = 80.0* 1024 * 1024;
+  private static double BYTES_OUT_SEC_LIMIT = 80.0 * 1024 * 1024;
 
   @BeforeAll
   static void setup() throws Exception {
-    DoctorKafkaConfig config = new DoctorKafkaConfig("./config/doctorkafka.config.yaml");
-    doctorKafkaClusterConfig = config.getClusterConfigByName(CLUSTER_NAME);
-    zookeeper_url = doctorKafkaClusterConfig.getZkUrl();
-    kafkaCluster = new KafkaCluster(zookeeper_url, 1440);
+    kafkaCluster = new KafkaCluster(ZOOKEEPER_URL, 1440);
     kafkaCluster.setBytesInPerSecLimit(BYTES_IN_SEC_LIMIT);
     kafkaCluster.setBytesOutPerSecLimit(BYTES_OUT_SEC_LIMIT);
   }
@@ -91,11 +86,11 @@ class KafkaClusterTest {
 
 
     KafkaBroker[] brokers = new KafkaBroker[]{
-        new KafkaBroker(zookeeper_url, spyKafkaCluster, 0, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
-        new KafkaBroker(zookeeper_url, spyKafkaCluster, 1, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
-        new KafkaBroker(zookeeper_url, spyKafkaCluster, 2, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
-        new KafkaBroker(zookeeper_url, spyKafkaCluster, 3, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
-        new KafkaBroker(zookeeper_url, spyKafkaCluster, 4, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT)
+        new KafkaBroker(ZOOKEEPER_URL, spyKafkaCluster, 0, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
+        new KafkaBroker(ZOOKEEPER_URL, spyKafkaCluster, 1, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
+        new KafkaBroker(ZOOKEEPER_URL, spyKafkaCluster, 2, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
+        new KafkaBroker(ZOOKEEPER_URL, spyKafkaCluster, 3, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
+        new KafkaBroker(ZOOKEEPER_URL, spyKafkaCluster, 4, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT)
     };
 
     Set<TopicPartition> replicaSet = new HashSet<>();
@@ -169,13 +164,13 @@ class KafkaClusterTest {
 
 
     KafkaBroker[] brokers = new KafkaBroker[]{
-        new KafkaBroker(zookeeper_url, spyKafkaCluster, 0, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
-        new KafkaBroker(zookeeper_url, spyKafkaCluster, 1, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
-        new KafkaBroker(zookeeper_url, spyKafkaCluster, 2, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
-        new KafkaBroker(zookeeper_url, spyKafkaCluster, 3, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
-        new KafkaBroker(zookeeper_url, spyKafkaCluster, 4, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
-        new KafkaBroker(zookeeper_url, spyKafkaCluster, 5, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
-        new KafkaBroker(zookeeper_url, spyKafkaCluster, 6, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT)
+        new KafkaBroker(ZOOKEEPER_URL, spyKafkaCluster, 0, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
+        new KafkaBroker(ZOOKEEPER_URL, spyKafkaCluster, 1, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
+        new KafkaBroker(ZOOKEEPER_URL, spyKafkaCluster, 2, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
+        new KafkaBroker(ZOOKEEPER_URL, spyKafkaCluster, 3, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
+        new KafkaBroker(ZOOKEEPER_URL, spyKafkaCluster, 4, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
+        new KafkaBroker(ZOOKEEPER_URL, spyKafkaCluster, 5, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
+        new KafkaBroker(ZOOKEEPER_URL, spyKafkaCluster, 6, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT)
     };
 
     for ( KafkaBroker broker : brokers ){
@@ -291,13 +286,13 @@ class KafkaClusterTest {
 
 
     KafkaBroker[] brokers = new KafkaBroker[]{
-        new KafkaBroker(zookeeper_url, spyKafkaCluster, 0, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
-        new KafkaBroker(zookeeper_url, spyKafkaCluster, 1, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
-        new KafkaBroker(zookeeper_url, spyKafkaCluster, 2, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
-        new KafkaBroker(zookeeper_url, spyKafkaCluster, 3, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
-        new KafkaBroker(zookeeper_url, spyKafkaCluster, 4, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
-        new KafkaBroker(zookeeper_url, spyKafkaCluster, 5, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
-        new KafkaBroker(zookeeper_url, spyKafkaCluster, 6, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT)
+        new KafkaBroker(ZOOKEEPER_URL, spyKafkaCluster, 0, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
+        new KafkaBroker(ZOOKEEPER_URL, spyKafkaCluster, 1, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
+        new KafkaBroker(ZOOKEEPER_URL, spyKafkaCluster, 2, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
+        new KafkaBroker(ZOOKEEPER_URL, spyKafkaCluster, 3, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
+        new KafkaBroker(ZOOKEEPER_URL, spyKafkaCluster, 4, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
+        new KafkaBroker(ZOOKEEPER_URL, spyKafkaCluster, 5, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
+        new KafkaBroker(ZOOKEEPER_URL, spyKafkaCluster, 6, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT)
     };
 
     for ( KafkaBroker broker : brokers ){
@@ -376,11 +371,11 @@ class KafkaClusterTest {
 
 
     KafkaBroker[] brokers = new KafkaBroker[]{
-        new KafkaBroker(zookeeper_url, spyKafkaCluster, 0, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
-        new KafkaBroker(zookeeper_url, spyKafkaCluster, 1, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
-        new KafkaBroker(zookeeper_url, spyKafkaCluster, 2, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
-        new KafkaBroker(zookeeper_url, spyKafkaCluster, 3, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
-        new KafkaBroker(zookeeper_url, spyKafkaCluster, 4, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT)
+        new KafkaBroker(ZOOKEEPER_URL, spyKafkaCluster, 0, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
+        new KafkaBroker(ZOOKEEPER_URL, spyKafkaCluster, 1, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
+        new KafkaBroker(ZOOKEEPER_URL, spyKafkaCluster, 2, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
+        new KafkaBroker(ZOOKEEPER_URL, spyKafkaCluster, 3, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT),
+        new KafkaBroker(ZOOKEEPER_URL, spyKafkaCluster, 4, BYTES_IN_SEC_LIMIT, BYTES_OUT_SEC_LIMIT)
     };
 
     for ( KafkaBroker broker : brokers ){
