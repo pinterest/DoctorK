@@ -203,7 +203,7 @@ actions:
   - name: send_email_action
     class: com.pinterest.doctorkafka.plugins.action.SendEmailAction
     config:
-      subscribed_events: notify_replacement,notify_reassignment_notify_maintenance_mode,notify_decommision
+      subscribed_events: notify_replacement,notify_reassignment,notify_maintenance_mode,notify_decommission
       emails: foo@email.com,bar@email.com
   - name: snoozed_send_email_action
     class: com.pinterest.doctorkafka.plugins.action.SnoozedSendEmailAction
