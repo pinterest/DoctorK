@@ -84,7 +84,7 @@ public class URPReassignmentOperator extends KafkaOperator {
 
   private static final String CONFIG_RACK_AWARENESS_KEY = "rack_awareness.enabled";
   private static final String CONFIG_PROLONG_URP_ALERT_SECONDS_KEY = "prolong_urp_alert_seconds";
-  private static final String CONFIG_NETWORK_BANDWIDTH_MAX_KEY = "network_bandwidth_max_mb";
+  private static final String CONFIG_NETWORK_BANDWIDTH_MAX_MB_KEY = "network_bandwidth_max_mb";
 
   private boolean configRackAwarenessEnabled = false;
   private int configProlongURPAlertInSec = 7200;
@@ -111,10 +111,10 @@ public class URPReassignmentOperator extends KafkaOperator {
     );
 
     configRackAwarenessEnabled = config.getBoolean(CONFIG_RACK_AWARENESS_KEY, configRackAwarenessEnabled);
-    if (!config.containsKey(CONFIG_NETWORK_BANDWIDTH_MAX_KEY)){
-      throw new PluginConfigurationException("Missing config " + CONFIG_NETWORK_BANDWIDTH_MAX_KEY + " for plugin " + this.getClass());
+    if (!config.containsKey(CONFIG_NETWORK_BANDWIDTH_MAX_MB_KEY)){
+      throw new PluginConfigurationException("Missing config " + CONFIG_NETWORK_BANDWIDTH_MAX_MB_KEY + " for plugin " + this.getClass());
     }
-    configNetworkBandwidthMaxMb = config.getLong(CONFIG_NETWORK_BANDWIDTH_MAX_KEY);
+    configNetworkBandwidthMaxMb = config.getLong(CONFIG_NETWORK_BANDWIDTH_MAX_MB_KEY) * 1024 * 1024;
   }
 
   @Override
