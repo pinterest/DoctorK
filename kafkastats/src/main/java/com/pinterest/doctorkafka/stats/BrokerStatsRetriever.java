@@ -407,10 +407,10 @@ public class BrokerStatsRetriever {
    */
   private void setBrokerInstanceInfo() {
     BufferedReader input = null;
+    brokerStats.setName(OperatorUtil.getHostname());
 
     // out quick if we don't want to use ec2metadata command.
     if (disableEc2metadata) {
-      brokerStats.setName(OperatorUtil.getHostname());
       return;
     }
     
