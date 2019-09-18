@@ -105,7 +105,7 @@ public class KafkaClusterManager implements Runnable {
       try {
         Action action = pluginManager.getAction(actionConfig);
         if (action.getSubscribedEvents().length == 0){
-          LOG.warn("Action {} is not subscribing to any event.");
+          LOG.warn("Action {} is not subscribing to any event.", actionName);
           continue;
         }
         for (String eventName : action.getSubscribedEvents()){
