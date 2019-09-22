@@ -1,8 +1,10 @@
 package com.pinterest.doctorkafka.plugins.monitor;
 
-import com.pinterest.doctorkafka.plugins.Configurable;
-import com.pinterest.doctorkafka.plugins.context.Context;
+import com.pinterest.doctorkafka.plugins.Plugin;
 import com.pinterest.doctorkafka.plugins.context.state.State;
+import com.pinterest.doctorkafka.plugins.errors.PluginConfigurationException;
+
+import org.apache.commons.configuration2.ImmutableConfiguration;
 
 /**
  * A monitor plugin observes the external system, populates the {@link State} with derived attributes based on the observations it made.
@@ -25,12 +27,17 @@ import com.pinterest.doctorkafka.plugins.context.state.State;
        observe            observe
  * </pre>
  */
-public interface Monitor extends Configurable {
+public abstract class Monitor implements Plugin {
 
   /**
    * @param state State containing attributes of previous Monitors
    * @return New state that has the attributes added by this Monitor
    * @throws Exception
    */
-  State observe(State state) throws Exception;
+  public abstract State observe(State state) throws Exception;
+
+  @Override
+  public final void initialize(ImmutableConfiguration config) throws PluginConfigurationException {
+    configure(config);
+  }
 }

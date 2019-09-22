@@ -1,10 +1,10 @@
 package com.pinterest.doctorkafka.plugins.action;
 
-import com.pinterest.doctorkafka.plugins.errors.PluginConfigurationException;
 import com.pinterest.doctorkafka.plugins.context.event.Event;
 import com.pinterest.doctorkafka.plugins.context.event.EventUtils;
+import com.pinterest.doctorkafka.plugins.errors.PluginConfigurationException;
 
-import org.apache.commons.configuration2.AbstractConfiguration;
+import org.apache.commons.configuration2.ImmutableConfiguration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -39,8 +39,7 @@ public class SendEmailAction extends Action {
   private String[] configEmails;
 
   @Override
-  public void configure(AbstractConfiguration config) throws PluginConfigurationException {
-    super.configure(config);
+  public void configure(ImmutableConfiguration config) throws PluginConfigurationException {
     if(!config.containsKey(CONFIG_EMAILS_KEY)){
       throw new PluginConfigurationException("Missing config " + CONFIG_EMAILS_KEY + " in action " + SendEmailAction.class);
     }

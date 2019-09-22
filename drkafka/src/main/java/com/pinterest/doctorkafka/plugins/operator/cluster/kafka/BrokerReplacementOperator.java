@@ -1,14 +1,14 @@
 package com.pinterest.doctorkafka.plugins.operator.cluster.kafka;
 
 import com.pinterest.doctorkafka.KafkaBroker;
-import com.pinterest.doctorkafka.plugins.errors.PluginConfigurationException;
 import com.pinterest.doctorkafka.plugins.context.event.Event;
 import com.pinterest.doctorkafka.plugins.context.event.EventUtils;
 import com.pinterest.doctorkafka.plugins.context.event.GenericEvent;
 import com.pinterest.doctorkafka.plugins.context.state.cluster.kafka.KafkaState;
+import com.pinterest.doctorkafka.plugins.errors.PluginConfigurationException;
 import com.pinterest.doctorkafka.util.ZookeeperClient;
 
-import org.apache.commons.configuration2.AbstractConfiguration;
+import org.apache.commons.configuration2.ImmutableConfiguration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -47,8 +47,7 @@ public class BrokerReplacementOperator extends KafkaOperator {
   private static final String EVENT_ZOOKEEPER_CLIENT_KEY = "zookeeper_client";
 
   @Override
-  public void configure(AbstractConfiguration config) throws PluginConfigurationException {
-    super.configure(config);
+  public void configure(ImmutableConfiguration config) throws PluginConfigurationException {
     configReplacementCooldownSeconds = config.getLong(
         CONFIG_REPLACEMENT_COOLDOWN_SECONDS_KEY,
         configReplacementCooldownSeconds

@@ -6,11 +6,13 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import com.pinterest.doctorkafka.plugins.Configurable;
+import com.pinterest.doctorkafka.plugins.Plugin;
+import com.pinterest.doctorkafka.plugins.errors.PluginConfigurationException;
 import com.pinterest.doctorkafka.plugins.errors.PluginException;
 import com.pinterest.doctorkafka.plugins.utils.DummyStub;
 
 import org.apache.commons.configuration2.AbstractConfiguration;
+import org.apache.commons.configuration2.ImmutableConfiguration;
 import org.apache.commons.configuration2.MapConfiguration;
 import org.junit.jupiter.api.Test;
 
@@ -55,28 +57,38 @@ class TestDoctorKafkaPluginManager {
     }
 
     try {
-      config.setProperty("class", BadConfigurableStub.class.getName());
+      config.setProperty("class", BadPluginStub.class.getName());
       pluginManager.getPlugin(config);
       fail("Should fail since class has no nullary constructor");
     } catch (Exception e){
       assertTrue(e instanceof InstantiationException);
     }
 
-    config.setProperty("class", ConfigurableStub.class.getName());
+    config.setProperty("class", PluginStub.class.getName());
     config.setProperty("config.test", spyDummyStub);
     pluginManager.getPlugin(config);
     verify(spyDummyStub,times(1)).dummy();
   }
 
-  public static class ConfigurableStub implements Configurable {
+  public static class PluginStub implements Plugin {
     @Override
-    public void configure(AbstractConfiguration config){
+    public void configure(ImmutableConfiguration config){
       config.get(DummyStub.class, "test").dummy();
+    }
+
+    @Override
+    public void initialize(ImmutableConfiguration config){
+      configure(config);
     }
   }
 
-  public static class BadConfigurableStub implements Configurable {
-    BadConfigurableStub(Object someArg){}
+  public static class BadPluginStub implements Plugin {
+    BadPluginStub(Object someArg){};
+
+    @Override
+    public void initialize(ImmutableConfiguration config) throws PluginConfigurationException {
+      configure(config);
+    }
   }
 
 }

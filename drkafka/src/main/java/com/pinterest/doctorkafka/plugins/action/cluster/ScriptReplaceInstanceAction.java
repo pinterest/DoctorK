@@ -1,14 +1,14 @@
 package com.pinterest.doctorkafka.plugins.action.cluster;
 
 import com.pinterest.doctorkafka.plugins.action.Action;
-import com.pinterest.doctorkafka.plugins.errors.PluginConfigurationException;
 import com.pinterest.doctorkafka.plugins.context.event.Event;
 import com.pinterest.doctorkafka.plugins.context.event.EventUtils;
 import com.pinterest.doctorkafka.plugins.context.event.NotificationEvent;
 import com.pinterest.doctorkafka.plugins.context.event.ReportEvent;
+import com.pinterest.doctorkafka.plugins.errors.PluginConfigurationException;
 import com.pinterest.doctorkafka.util.ZookeeperClient;
 
-import org.apache.commons.configuration2.AbstractConfiguration;
+import org.apache.commons.configuration2.ImmutableConfiguration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -84,8 +84,7 @@ public class ScriptReplaceInstanceAction extends Action implements Runnable {
   private Thread thread;
 
   @Override
-  public void configure(AbstractConfiguration config) throws PluginConfigurationException {
-    super.configure(config);
+  public void configure(ImmutableConfiguration config) throws PluginConfigurationException {
     if (!config.containsKey(CONFIG_SCRIPT_KEY)){
       throw new PluginConfigurationException("Missing config " + CONFIG_SCRIPT_KEY + " for plugin " + this.getClass());
     }

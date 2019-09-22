@@ -1,10 +1,10 @@
 package com.pinterest.doctorkafka.plugins.monitor.cluster;
 
-import com.pinterest.doctorkafka.plugins.monitor.Monitor;
 import com.pinterest.doctorkafka.plugins.context.state.State;
 import com.pinterest.doctorkafka.plugins.context.state.cluster.ClusterState;
+import com.pinterest.doctorkafka.plugins.monitor.Monitor;
 
-public abstract class ClusterMonitor implements Monitor {
+public abstract class ClusterMonitor extends Monitor {
   @Override
   public final State observe(State state) throws Exception {
     if (state instanceof ClusterState){

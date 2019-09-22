@@ -4,12 +4,12 @@ import com.pinterest.doctorkafka.BrokerStats;
 import com.pinterest.doctorkafka.DoctorKafkaMetrics;
 import com.pinterest.doctorkafka.KafkaBroker;
 import com.pinterest.doctorkafka.KafkaCluster;
-import com.pinterest.doctorkafka.plugins.errors.PluginConfigurationException;
 import com.pinterest.doctorkafka.plugins.context.event.Event;
 import com.pinterest.doctorkafka.plugins.context.event.EventUtils;
 import com.pinterest.doctorkafka.plugins.context.event.GenericEvent;
 import com.pinterest.doctorkafka.plugins.context.event.NotificationEvent;
 import com.pinterest.doctorkafka.plugins.context.state.cluster.kafka.KafkaState;
+import com.pinterest.doctorkafka.plugins.errors.PluginConfigurationException;
 import com.pinterest.doctorkafka.util.OpenTsdbMetricConverter;
 import com.pinterest.doctorkafka.util.OperatorUtil;
 import com.pinterest.doctorkafka.util.OutOfSyncReplica;
@@ -17,7 +17,7 @@ import com.pinterest.doctorkafka.util.UnderReplicatedReason;
 
 import kafka.common.TopicAndPartition;
 import kafka.utils.ZkUtils;
-import org.apache.commons.configuration2.AbstractConfiguration;
+import org.apache.commons.configuration2.ImmutableConfiguration;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
@@ -103,8 +103,7 @@ public class URPReassignmentOperator extends KafkaOperator {
   private List<MutablePair<KafkaBroker, TopicPartition>> reassignmentFailures = new ArrayList<>();
 
   @Override
-  public void configure(AbstractConfiguration config) throws PluginConfigurationException {
-    super.configure(config);
+  public void configure(ImmutableConfiguration config) throws PluginConfigurationException {
     configProlongURPAlertInSec = config.getInteger(
         CONFIG_PROLONG_URP_ALERT_SECONDS_KEY,
         configProlongURPAlertInSec

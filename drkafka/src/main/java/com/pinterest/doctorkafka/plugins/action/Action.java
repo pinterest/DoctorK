@@ -1,13 +1,13 @@
 package com.pinterest.doctorkafka.plugins.action;
 
 import com.pinterest.doctorkafka.KafkaClusterManager;
-import com.pinterest.doctorkafka.plugins.Configurable;
+import com.pinterest.doctorkafka.plugins.Plugin;
+import com.pinterest.doctorkafka.plugins.context.event.Event;
 import com.pinterest.doctorkafka.plugins.context.event.EventListener;
 import com.pinterest.doctorkafka.plugins.errors.PluginConfigurationException;
-import com.pinterest.doctorkafka.plugins.context.event.Event;
 import com.pinterest.doctorkafka.plugins.operator.Operator;
 
-import org.apache.commons.configuration2.AbstractConfiguration;
+import org.apache.commons.configuration2.ImmutableConfiguration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -53,7 +53,7 @@ import java.util.Collection;
  *
  * </pre>
  */
-public abstract class Action implements Configurable {
+public abstract class Action implements Plugin {
   private static final Logger LOG = LogManager.getLogger(Action.class);
   private static final String CONFIG_SUBSCRIBED_EVENTS_KEY = "subscribed_events";
   private static final String CONFIG_DRY_RUN_KEY = "dryrun";
@@ -86,12 +86,13 @@ public abstract class Action implements Configurable {
   public abstract Collection<Event> execute(Event event) throws Exception;
 
   @Override
-  public void configure(AbstractConfiguration config) throws PluginConfigurationException {
+  public final void initialize(ImmutableConfiguration config) throws PluginConfigurationException {
     if (!config.containsKey(CONFIG_SUBSCRIBED_EVENTS_KEY)){
       throw new PluginConfigurationException("Missing event subscriptions for action " + this.getClass());
     }
     subscribedEvents = config.getString(CONFIG_SUBSCRIBED_EVENTS_KEY).split(",");
     dryrun = config.getBoolean(CONFIG_DRY_RUN_KEY, dryrun);
+    configure(config);
   }
 
   public final String[] getSubscribedEvents(){

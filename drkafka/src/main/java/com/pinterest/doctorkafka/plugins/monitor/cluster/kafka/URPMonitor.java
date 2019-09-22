@@ -1,12 +1,12 @@
 package com.pinterest.doctorkafka.plugins.monitor.cluster.kafka;
 
-import com.pinterest.doctorkafka.plugins.errors.PluginConfigurationException;
 import com.pinterest.doctorkafka.plugins.context.state.cluster.kafka.KafkaState;
+import com.pinterest.doctorkafka.plugins.errors.PluginConfigurationException;
 import com.pinterest.doctorkafka.util.KafkaUtils;
 import com.pinterest.doctorkafka.util.OperatorUtil;
 
 import kafka.utils.ZkUtils;
-import org.apache.commons.configuration2.AbstractConfiguration;
+import org.apache.commons.configuration2.ImmutableConfiguration;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.PartitionInfo;
@@ -45,9 +45,7 @@ public class URPMonitor extends KafkaMonitor {
   private Properties configConsumerConfigs = new Properties();
 
   @Override
-  public void configure(AbstractConfiguration config) throws PluginConfigurationException {
-    super.configure(config);
-
+  public void configure(ImmutableConfiguration config) throws PluginConfigurationException {
     if(config.containsKey(CONFIG_CONSUMER_CONFIG_KEY)){
       String consumerConfigStr = config.getString(CONFIG_CONSUMER_CONFIG_KEY);
       try{
