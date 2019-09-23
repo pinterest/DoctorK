@@ -53,9 +53,13 @@ public class ReplicaStatsTask implements Callable<ReplicaStat> {
 
     LOG.info("logSizeMetric = {}", logSizeMetric);
 
-    ObjectName objectName = new ObjectName(logSizeMetric);
-    Long longValue = (Long) mbs.getAttribute(objectName, "Value");
-    replicaStat.setLogSizeInBytes(longValue);
+    Long longValue = 0L;
+    try {
+      longValue = (Long) mbs.getAttribute(new ObjectName(logSizeMetric), "Value");
+      replicaStat.setLogSizeInBytes(longValue);
+    } catch (InstanceNotFoundException e) {
+      LOG.info("Could not find metric {}", logSizeMetric, e);
+    }
 
     String numSegmentsMetric = String.format(
         "kafka.log:type=Log,name=NumLogSegments,topic=%s,partition=%d",
@@ -65,7 +69,7 @@ public class ReplicaStatsTask implements Callable<ReplicaStat> {
       intValue = (Integer) mbs.getAttribute(new ObjectName(numSegmentsMetric), "Value");
       replicaStat.setNumLogSegments(intValue);
     } catch (InstanceNotFoundException e) {
-      LOG.info("Did to find metric {}", numSegmentsMetric, e);
+      LOG.info("Could not find metric {}", numSegmentsMetric, e);
     }
 
     String startOffsetMetric = String.format(
@@ -75,7 +79,7 @@ public class ReplicaStatsTask implements Callable<ReplicaStat> {
       longValue = (Long) mbs.getAttribute(new ObjectName(startOffsetMetric), "Value");
       replicaStat.setStartOffset(longValue);
     } catch (InstanceNotFoundException e) {
-      LOG.info("Did to find metric {}", startOffsetMetric, e);
+      LOG.info("Could not find metric {}", startOffsetMetric, e);
     }
 
     String endOffsetMetric = String.format(
@@ -85,7 +89,7 @@ public class ReplicaStatsTask implements Callable<ReplicaStat> {
       longValue = (Long) mbs.getAttribute(new ObjectName(endOffsetMetric), "Value");
       replicaStat.setEndOffset(longValue);
     } catch (InstanceNotFoundException e) {
-      LOG.info("Did to find metric {}", endOffsetMetric, e);
+      LOG.info("Could not find metric {}", endOffsetMetric, e);
     }
 
     String underReplicatedMetric = String.format(
@@ -95,7 +99,7 @@ public class ReplicaStatsTask implements Callable<ReplicaStat> {
       intValue = (Integer) mbs.getAttribute(new ObjectName(underReplicatedMetric), "Value");
       replicaStat.setUnderReplicated(intValue != 0);
     } catch (InstanceNotFoundException e) {
-      LOG.info("Did to find metric {}", underReplicatedMetric, e);
+      LOG.info("Could not find metric {}", underReplicatedMetric, e);
     }
     replicaStat.setIsLeader(isLeader);
     replicaStat.setInReassignment(inReassignment);
