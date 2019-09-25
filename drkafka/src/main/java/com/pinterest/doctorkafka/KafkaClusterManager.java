@@ -160,7 +160,11 @@ public class KafkaClusterManager implements Runnable {
   public List<KafkaBroker> getAllBrokers() {
     return new ArrayList<>(currentState.getKafkaCluster().brokers.values());
   }
-
+  
+  public KafkaState getCurrentState() {
+    return currentState;
+  }
+  
   public void enableMaintenanceMode() {
     baseState.setUnderMaintenance(true);
     LOG.info("Enabled maintenace mode for:" + baseState.getClusterName());

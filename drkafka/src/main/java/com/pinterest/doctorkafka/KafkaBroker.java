@@ -3,6 +3,7 @@ package com.pinterest.doctorkafka;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -26,7 +27,7 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
   private String brokerName;
   private int brokerPort = 9092;
   private String rackId = null;
-  private BrokerStats latestStats = null;
+  private transient BrokerStats latestStats = null;
 
   private Set<TopicPartition> leaderReplicas = new HashSet<>();
   private Set<TopicPartition> followerReplicas = new HashSet<>();
@@ -39,7 +40,7 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
   private long reservedBytesOut = 0L;
   private Set<TopicPartition>  toBeAddedReplicas = new HashSet<>();
 
-  private KafkaCluster kafkaCluster;
+  private transient KafkaCluster kafkaCluster;
   private AtomicBoolean isDecommissioned = new AtomicBoolean(false);
 
   public KafkaBroker(
@@ -74,6 +75,27 @@ public class KafkaBroker implements Comparable<KafkaBroker> {
       result += kafkaCluster.getMaxBytesOut(topicPartition);
     }
     return result;
+  }
+  
+  public long getNumTopics() {
+    return Sets.union(leaderReplicas, followerReplicas)
+              .stream().map(v->v.topic()).distinct().count();
+  }
+  
+  public int getNumLeaders() {
+    return leaderReplicas.size();
+  }
+  
+  public int getNumPartitions() {
+    return leaderReplicas.size() + followerReplicas.size();
+  }
+  
+  public double getMbOut() {
+    return ((double)getMaxBytesOut())/1024/1024;
+  }
+  
+  public double getMbIn() {
+    return ((double)getMaxBytesIn())/1024/1024;
   }
 
   public long getReservedBytesIn() {

@@ -25,17 +25,15 @@ import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-
 /**
- * KafkaCluster captures the status of one kafka cluster. It has the following information:
- *    1. topic list
- *    2. the replica resource requirement stats of each replica
- *    3. partition assignment status. the current partition assignment
+ * KafkaCluster captures the status of one kafka cluster. It has the following
+ * information: 1. topic list 2. the replica resource requirement stats of each
+ * replica 3. partition assignment status. the current partition assignment
  *
- *  We track the topic partition resource utilization at the cluster level, as the replica
- *  stats at the host level can be affected by various factors, e.g. partition re-assignment,
- *  moving partition to a new broker, changed data retention time, network saturation of other
- *  brokers, etc.
+ * We track the topic partition resource utilization at the cluster level, as
+ * the replica stats at the host level can be affected by various factors, e.g.
+ * partition re-assignment, moving partition to a new broker, changed data
+ * retention time, network saturation of other brokers, etc.
  */
 public class KafkaCluster {
 
@@ -43,8 +41,8 @@ public class KafkaCluster {
   private static final int MAX_NUM_STATS = 5;
   private static final int INVALID_BROKERSTATS_TIME = 240000;
   /**
-   * The kafka network traffic stats takes ~15 minutes to cool down. We give a 20 minutes
-   * cool down period to avoid inaccurate stats collection.
+   * The kafka network traffic stats takes ~15 minutes to cool down. We give a 20
+   * minutes cool down period to avoid inaccurate stats collection.
    */
   private static final long REASSIGNMENT_COOLDOWN_WINDOW_IN_MS = 1800 * 1000L;
 
@@ -77,20 +75,34 @@ public class KafkaCluster {
     return brokers.size();
   }
 
+  public String getZkUrl() {
+    return zkUrl;
+  }
+
+  public ConcurrentMap<Integer, KafkaBroker> getBrokers() {
+    return brokers;
+  }
+
+  public ConcurrentMap<String, Set<TopicPartition>> getTopicPartitions() {
+    return topicPartitions;
+  }
+
   /**
-   * Update the broker stats. Note that a broker may continue to send brokerStats that contains
-   * failure info after the kafka process fails.
+   * Update the broker stats. Note that a broker may continue to send brokerStats
+   * that contains failure info after the kafka process fails.
    *
-   * @param brokerStats  the broker stats
+   * @param brokerStats the broker stats
    */
   public void recordBrokerStats(BrokerStats brokerStats) {
     try {
       int brokerId = brokerStats.getId();
-      LinkedList<BrokerStats> brokerStatsList = brokerStatsMap.computeIfAbsent(brokerId, i -> new LinkedList<>());
+      LinkedList<BrokerStats> brokerStatsList = brokerStatsMap.computeIfAbsent(brokerId,
+          i -> new LinkedList<>());
 
-      // multiple PastReplicaStatsProcessor/BrokerStatsProcessor may be processing BrokerStats
+      // multiple PastReplicaStatsProcessor/BrokerStatsProcessor may be processing
+      // BrokerStats
       // for the same broker simultaneously, thus enforcing single writes here
-      synchronized (brokerStatsList){
+      synchronized (brokerStatsList) {
         if (brokerStatsList.size() == MAX_NUM_STATS) {
           brokerStatsList.removeFirst();
         }
@@ -99,9 +111,8 @@ public class KafkaCluster {
 
       if (!brokerStats.getHasFailure()) {
         // only record brokerstat when there is no failure on that broker.
-        KafkaBroker broker = brokers.computeIfAbsent(brokerId, i -> new KafkaBroker(
-            zkUrl, this, i, bytesInPerSecLimit, bytesOutPerSecLimit
-        ));
+        KafkaBroker broker = brokers.computeIfAbsent(brokerId,
+            i -> new KafkaBroker(zkUrl, this, i, bytesInPerSecLimit, bytesOutPerSecLimit));
         broker.update(brokerStats);
       }
 
@@ -111,17 +122,20 @@ public class KafkaCluster {
           TopicPartition topicPartition = new TopicPartition(topic, replicaStat.getPartition());
           topicPartitions.computeIfAbsent(topic, t -> new HashSet<>()).add(topicPartition);
           // if the replica is involved in reassignment, ignore the stats
-          if (replicaStat.getInReassignment()){
+          if (replicaStat.getInReassignment()) {
             reassignmentTimestamps.compute(topicPartition,
-                  (t, v) -> v == null || v < replicaStat.getTimestamp() ? replicaStat.getTimestamp() : v);
+                (t, v) -> v == null || v < replicaStat.getTimestamp() ? replicaStat.getTimestamp()
+                    : v);
             continue;
           }
           long lastReassignment = reassignmentTimestamps.getOrDefault(topicPartition, 0L);
           if (brokerStats.getTimestamp() - lastReassignment < REASSIGNMENT_COOLDOWN_WINDOW_IN_MS) {
             continue;
           }
-          bytesInHistograms.computeIfAbsent(topicPartition, k -> new Histogram(new SlidingWindowReservoir(slidingWindowSize)));
-          bytesOutHistograms.computeIfAbsent(topicPartition, k -> new Histogram(new SlidingWindowReservoir(slidingWindowSize)));
+          bytesInHistograms.computeIfAbsent(topicPartition,
+              k -> new Histogram(new SlidingWindowReservoir(slidingWindowSize)));
+          bytesOutHistograms.computeIfAbsent(topicPartition,
+              k -> new Histogram(new SlidingWindowReservoir(slidingWindowSize)));
 
           bytesInHistograms.get(topicPartition).update(replicaStat.getBytesIn15MinMeanRate());
           bytesOutHistograms.get(topicPartition).update(replicaStat.getBytesOut15MinMeanRate());
@@ -141,7 +155,7 @@ public class KafkaCluster {
 
     synchronized (brokers) {
       for (KafkaBroker broker : brokers.values()) {
-	  jsonBrokers.add(broker.toJson());
+        jsonBrokers.add(broker.toJson());
       }
     }
     return json;
@@ -162,7 +176,7 @@ public class KafkaCluster {
   /**
    * Get broker by broker id.
    *
-   * @param id  the broker id
+   * @param id the broker id
    * @return KafkaBroker object for the broker with id @id
    */
   public KafkaBroker getBroker(int id) {
@@ -197,10 +211,10 @@ public class KafkaCluster {
   }
 
   /**
-   *  We consider a broker is of high traffic if either in-bound traffic or
-   *  out-bound traffic exceeds the expected mean traffic.
+   * We consider a broker is of high traffic if either in-bound traffic or
+   * out-bound traffic exceeds the expected mean traffic.
    *
-   *  @return the list of kafka brokers that exceeds the network traffic limit.
+   * @return the list of kafka brokers that exceeds the network traffic limit.
    */
   public List<KafkaBroker> getHighTrafficBrokers() {
     double averageBytesIn = getMaxBytesIn() / (double) brokers.size();
@@ -217,14 +231,13 @@ public class KafkaCluster {
         if (brokerBytesIn < bytesInPerSecLimit && brokerBytesOut < bytesOutPerSecLimit) {
           continue;
         }
-        LOG.debug("High traffic broker: {} : [{}, {}]",
-            broker.getName(), broker.getMaxBytesIn(), broker.getMaxBytesOut());
+        LOG.debug("High traffic broker: {} : [{}, {}]", broker.getName(), broker.getMaxBytesIn(),
+            broker.getMaxBytesOut());
         result.add(broker);
       }
     }
     return result;
   }
-
 
   public List<KafkaBroker> getLowTrafficBrokers() {
     double averageBytesIn = getMaxBytesIn() / (double) brokers.size();
@@ -237,8 +250,8 @@ public class KafkaCluster {
           double brokerBytesIn = broker.getMaxBytesIn();
           double brokerBytesOut = broker.getMaxBytesOut();
           if (brokerBytesIn < averageBytesIn && brokerBytesOut < averageBytesOut) {
-            LOG.info("Low traffic broker {} : [{}, {}]",
-                broker.getName(), broker.getMaxBytesIn(), broker.getMaxBytesOut());
+            LOG.info("Low traffic broker {} : [{}, {}]", broker.getName(), broker.getMaxBytesIn(),
+                broker.getMaxBytesOut());
             result.add(broker);
           }
         } catch (Exception e) {
@@ -250,8 +263,8 @@ public class KafkaCluster {
   }
 
   public PriorityQueue<KafkaBroker> getBrokerQueue() {
-    PriorityQueue<KafkaBroker> brokerQueue =
-        new PriorityQueue<>(new KafkaBroker.KafkaBrokerComparator());
+    PriorityQueue<KafkaBroker> brokerQueue = new PriorityQueue<>(
+        new KafkaBroker.KafkaBrokerComparator());
     for (Map.Entry<Integer, KafkaBroker> entry : brokers.entrySet()) {
       KafkaBroker broker = entry.getValue();
       if (isInvalidBroker(broker)) {
@@ -264,20 +277,20 @@ public class KafkaCluster {
 
   /**
    *
-   * @return a priority queue of brokers for each locality in the cluster ordered by network stats
+   * @return a priority queue of brokers for each locality in the cluster ordered
+   *         by network stats
    */
-  public Map<String, PriorityQueue<KafkaBroker>> getBrokerQueueByLocality(){
+  public Map<String, PriorityQueue<KafkaBroker>> getBrokerQueueByLocality() {
     Map<String, PriorityQueue<KafkaBroker>> brokerLocalityMap = new HashMap<>();
     Comparator<KafkaBroker> comparator = new KafkaBroker.KafkaBrokerComparator();
-    for ( Map.Entry<Integer, KafkaBroker> entry : brokers.entrySet() ){
+    for (Map.Entry<Integer, KafkaBroker> entry : brokers.entrySet()) {
       KafkaBroker broker = entry.getValue();
-      if (isInvalidBroker(broker)){
+      if (isInvalidBroker(broker)) {
         continue;
       }
       // add broker to locality queue
       // init queue if queue not present in brokerMap for a locality
-      brokerLocalityMap
-          .computeIfAbsent(broker.getRackId(), i -> new PriorityQueue<>(comparator))
+      brokerLocalityMap.computeIfAbsent(broker.getRackId(), i -> new PriorityQueue<>(comparator))
           .add(broker);
     }
     return brokerLocalityMap;
@@ -285,35 +298,34 @@ public class KafkaCluster {
 
   /**
    * checks if the broker is invalid for assigning replicas
+   * 
    * @param broker the broker that we want to check
-   * @return true if the broker is invalid for assigning replicas, false if it is valid
+   * @return true if the broker is invalid for assigning replicas, false if it is
+   *         valid
    */
   protected boolean isInvalidBroker(KafkaBroker broker) {
     BrokerStats latestStats = broker.getLatestStats();
-    return latestStats== null ||
-        latestStats.getHasFailure() ||
-        System.currentTimeMillis() - latestStats.getTimestamp() > INVALID_BROKERSTATS_TIME ||
-        broker.isDecommissioned();
+    return latestStats == null || latestStats.getHasFailure()
+        || System.currentTimeMillis() - latestStats.getTimestamp() > INVALID_BROKERSTATS_TIME
+        || broker.isDecommissioned();
   }
 
-
   /**
-   * Get the broker Id that has the resource. Here we need to apply the proper placement policy.
+   * Get the broker Id that has the resource. Here we need to apply the proper
+   * placement policy.
    *
-   * @param brokerQueue  the list of brokers that are sorted in resource usage
-   * @param oosReplica  out of sync replicas
-   * @param inBoundReq  inbound traffic
-   * @param outBoundReq outbound traffc
+   * @param brokerQueue     the list of brokers that are sorted in resource usage
+   * @param oosReplica      out of sync replicas
+   * @param inBoundReq      inbound traffic
+   * @param outBoundReq     outbound traffc
    * @param preferredBroker preferred broker id
    * @return a BrokerId to KafkaBroker mapping
    */
-  public Map<Integer, KafkaBroker> getAlternativeBrokers(
-      PriorityQueue<KafkaBroker> brokerQueue,
-      OutOfSyncReplica oosReplica,
-      double inBoundReq,
-      double outBoundReq,
-      int preferredBroker
-  ) {
+  public Map<Integer, KafkaBroker> getAlternativeBrokers(PriorityQueue<KafkaBroker> brokerQueue,
+                                                         OutOfSyncReplica oosReplica,
+                                                         double inBoundReq,
+                                                         double outBoundReq,
+                                                         int preferredBroker) {
 
     boolean success = true;
     Map<Integer, KafkaBroker> result = new HashMap<>();
@@ -321,17 +333,8 @@ public class KafkaCluster {
 
     for (int oosBrokerId : oosReplica.outOfSyncBrokers) {
       // we will get the broker with the least network usage
-      success = findNextBrokerForOosReplica(
-          brokerQueue,
-          unusableBrokers,
-          oosReplica.replicaBrokers,
-          result,
-          oosBrokerId,
-          oosReplica.topicPartition,
-          inBoundReq,
-          outBoundReq,
-          preferredBroker
-      );
+      success = findNextBrokerForOosReplica(brokerQueue, unusableBrokers, oosReplica.replicaBrokers,
+          result, oosBrokerId, oosReplica.topicPartition, inBoundReq, outBoundReq, preferredBroker);
 
       // short circuit if failed to find available broker
       if (!success) {
@@ -345,26 +348,25 @@ public class KafkaCluster {
 
   /**
    * Similar to getAlternativeBrokers, but locality aware
-   * @param brokerQueueByLocality a map keeping a priority queue of brokers for each locality
-   * @param oosReplica out of sync replicas
-   * @param inBoundReq  inbound traffic
-   * @param outBoundReq outbound traffc
-   * @param preferredBroker preferred broker id
+   * 
+   * @param brokerQueueByLocality a map keeping a priority queue of brokers for
+   *                              each locality
+   * @param oosReplica            out of sync replicas
+   * @param inBoundReq            inbound traffic
+   * @param outBoundReq           outbound traffc
+   * @param preferredBroker       preferred broker id
    * @return a BrokerId to KafkaBroker mapping
    */
-  public Map<Integer, KafkaBroker> getAlternativeBrokersByLocality(
-      Map<String, PriorityQueue<KafkaBroker>> brokerQueueByLocality,
-      OutOfSyncReplica oosReplica,
-      double inBoundReq,
-      double outBoundReq,
-      int preferredBroker
-      ) {
+  public Map<Integer, KafkaBroker> getAlternativeBrokersByLocality(Map<String, PriorityQueue<KafkaBroker>> brokerQueueByLocality,
+                                                                   OutOfSyncReplica oosReplica,
+                                                                   double inBoundReq,
+                                                                   double outBoundReq,
+                                                                   int preferredBroker) {
 
     Map<String, List<Integer>> oosBrokerIdsByLocality = new HashMap<>();
-    for ( int oosBrokerId : oosReplica.outOfSyncBrokers) {
+    for (int oosBrokerId : oosReplica.outOfSyncBrokers) {
       String brokerLocality = brokers.get(oosBrokerId).getRackId();
-      oosBrokerIdsByLocality
-          .computeIfAbsent(brokerLocality, l -> new ArrayList<>())
+      oosBrokerIdsByLocality.computeIfAbsent(brokerLocality, l -> new ArrayList<>())
           .add(oosBrokerId);
     }
 
@@ -373,24 +375,17 @@ public class KafkaCluster {
 
     boolean success = true;
     // Affinity
-    for ( Map.Entry<String, List<Integer>> oosBrokerIdsOfLocality : oosBrokerIdsByLocality.entrySet()) {
+    for (Map.Entry<String, List<Integer>> oosBrokerIdsOfLocality : oosBrokerIdsByLocality
+        .entrySet()) {
       String oosLocality = oosBrokerIdsOfLocality.getKey();
       List<Integer> oosBrokerIds = oosBrokerIdsOfLocality.getValue();
       PriorityQueue<KafkaBroker> localityBrokerQueue = brokerQueueByLocality.get(oosLocality);
-      Set<KafkaBroker> unusableBrokers =
-          unusableBrokersByLocality.computeIfAbsent(oosLocality, l -> new HashSet<>());
-      for( Integer oosBrokerId : oosBrokerIds){
-        success = findNextBrokerForOosReplica(
-            localityBrokerQueue,
-            unusableBrokers,
-            oosReplica.replicaBrokers,
-            result,
-            oosBrokerId,
-            oosReplica.topicPartition,
-            inBoundReq,
-            outBoundReq,
-            preferredBroker
-        );
+      Set<KafkaBroker> unusableBrokers = unusableBrokersByLocality.computeIfAbsent(oosLocality,
+          l -> new HashSet<>());
+      for (Integer oosBrokerId : oosBrokerIds) {
+        success = findNextBrokerForOosReplica(localityBrokerQueue, unusableBrokers,
+            oosReplica.replicaBrokers, result, oosBrokerId, oosReplica.topicPartition, inBoundReq,
+            outBoundReq, preferredBroker);
 
         // short circuit if failed to find available broker
         if (!success) {
@@ -403,7 +398,7 @@ public class KafkaCluster {
     }
 
     // maintain invariant
-    for(Map.Entry<String, Set<KafkaBroker>> entry : unusableBrokersByLocality.entrySet()){
+    for (Map.Entry<String, Set<KafkaBroker>> entry : unusableBrokersByLocality.entrySet()) {
       brokerQueueByLocality.get(entry.getKey()).addAll(entry.getValue());
     }
 
@@ -412,28 +407,30 @@ public class KafkaCluster {
 
   /**
    * Finds the next broker in the broker queue for migrating a replica
-   * @param brokerQueue a queue of brokers ordered by utilization
+   * 
+   * @param brokerQueue     a queue of brokers ordered by utilization
    * @param unusableBrokers the brokers that should not be used for reassignment
-   * @param replicaBrokers the ids of the brokers that are already used for this replica
-   * @param reassignmentMap the replica -> target broker mapping for the next reassignment
-   * @param oosBrokerId the broker id of the current OutOfSync replica
-   * @param tp the TopicPartition of the current replica
-   * @param inBoundReq inbound traffic that needs to be reserved
-   * @param outBoundReq outbound traffic that needs to be reserved
+   * @param replicaBrokers  the ids of the brokers that are already used for this
+   *                        replica
+   * @param reassignmentMap the replica -> target broker mapping for the next
+   *                        reassignment
+   * @param oosBrokerId     the broker id of the current OutOfSync replica
+   * @param tp              the TopicPartition of the current replica
+   * @param inBoundReq      inbound traffic that needs to be reserved
+   * @param outBoundReq     outbound traffic that needs to be reserved
    * @param preferredBroker the preferred leader of the current TopicPartition
-   * @return true if we successfully assigned a target broker for migration of this replica false otherwise
+   * @return true if we successfully assigned a target broker for migration of
+   *         this replica false otherwise
    */
-  protected boolean findNextBrokerForOosReplica(
-      PriorityQueue<KafkaBroker> brokerQueue,
-      Collection<KafkaBroker> unusableBrokers,
-      Collection<Integer> replicaBrokers,
-      Map<Integer, KafkaBroker> reassignmentMap,
-      Integer oosBrokerId,
-      TopicPartition tp,
-      Double inBoundReq,
-      Double outBoundReq,
-      Integer preferredBroker
-  ){
+  protected boolean findNextBrokerForOosReplica(PriorityQueue<KafkaBroker> brokerQueue,
+                                                Collection<KafkaBroker> unusableBrokers,
+                                                Collection<Integer> replicaBrokers,
+                                                Map<Integer, KafkaBroker> reassignmentMap,
+                                                Integer oosBrokerId,
+                                                TopicPartition tp,
+                                                Double inBoundReq,
+                                                Double outBoundReq,
+                                                Integer preferredBroker) {
     boolean success;
     KafkaBroker leastUsedBroker = brokerQueue.poll();
     while (leastUsedBroker != null && replicaBrokers.contains(leastUsedBroker.getId())) {
@@ -445,9 +442,9 @@ public class KafkaCluster {
       success = false;
     } else {
       LOG.info("LeastUsedBroker for replacing {} : {}", oosBrokerId, leastUsedBroker.getId());
-      success = preferredBroker == oosBrokerId ?
-                leastUsedBroker.reserveBandwidth(tp, inBoundReq, outBoundReq) :
-                leastUsedBroker.reserveBandwidth(tp, inBoundReq, 0);
+      success = preferredBroker == oosBrokerId
+          ? leastUsedBroker.reserveBandwidth(tp, inBoundReq, outBoundReq)
+          : leastUsedBroker.reserveBandwidth(tp, inBoundReq, 0);
       if (success) {
         reassignmentMap.put(oosBrokerId, leastUsedBroker);
         // the broker should not be used again for this topic partition.
@@ -460,9 +457,10 @@ public class KafkaCluster {
   }
 
   public KafkaBroker getAlternativeBroker(TopicPartition topicPartition,
-                                          double tpBytesIn, double tpBytesOut) {
-    PriorityQueue<KafkaBroker> brokerQueue =
-        new PriorityQueue<>(new KafkaBroker.KafkaBrokerComparator());
+                                          double tpBytesIn,
+                                          double tpBytesOut) {
+    PriorityQueue<KafkaBroker> brokerQueue = new PriorityQueue<>(
+        new KafkaBroker.KafkaBrokerComparator());
 
     for (Map.Entry<Integer, KafkaBroker> entry : brokers.entrySet()) {
       KafkaBroker broker = entry.getValue();
@@ -481,6 +479,24 @@ public class KafkaCluster {
     } else {
       return leastUsedBroker;
     }
+  }
+
+  public double getMaxMBInFor(String topic) {
+    return computeTopicMBsInBytes(getTopicPartitions().get(topic));
+  }
+
+  public double getMaxMBOutFor(String topic) {
+    return computeTopicMBsOutBytes(getTopicPartitions().get(topic));
+  }
+
+  protected double computeTopicMBsInBytes(Set<TopicPartition> tpSet) {
+    return tpSet.stream().mapToDouble(tp -> bytesInHistograms.get(tp).getSnapshot().getMax()).sum()
+        / 1024 / 1024;
+  }
+
+  protected double computeTopicMBsOutBytes(Set<TopicPartition> tpSet) {
+    return tpSet.stream().mapToDouble(tp -> bytesOutHistograms.get(tp).getSnapshot().getMax()).sum()
+        / 1024 / 1024;
   }
 
   public long getMaxBytesIn(TopicPartition tp) {
@@ -513,9 +529,8 @@ public class KafkaCluster {
     return result;
   }
 
-
   /**
-   *  Clear the network allocation related data once parttion reassignment is done
+   * Clear the network allocation related data once parttion reassignment is done
    */
   public void clearResourceAllocationCounters() {
     for (KafkaBroker broker : brokers.values()) {

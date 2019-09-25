@@ -4,6 +4,7 @@ import com.pinterest.doctorkafka.api.BrokersApi;
 import com.pinterest.doctorkafka.api.BrokersDecommissionApi;
 import com.pinterest.doctorkafka.api.ClustersApi;
 import com.pinterest.doctorkafka.api.ClustersMaintenanceApi;
+import com.pinterest.doctorkafka.api.TopicsApi;
 import com.pinterest.doctorkafka.config.DoctorKafkaAppConfig;
 import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
 import com.pinterest.doctorkafka.security.DrKafkaAuthorizationFilter;
@@ -47,6 +48,7 @@ public class DoctorKafkaMain extends Application<DoctorKafkaAppConfig> {
   @Override
   public void initialize(Bootstrap<DoctorKafkaAppConfig> bootstrap) {
     bootstrap.addBundle(new AssetsBundle("/webapp/pages/", "/", "index.html"));
+    bootstrap.addBundle(new AssetsBundle("/webapp2/build/", "/", "index.html"));
   }
 
   @Override
@@ -118,6 +120,7 @@ public class DoctorKafkaMain extends Application<DoctorKafkaAppConfig> {
     checkAndInitializeAuthorizationFilter(environment, doctorKafkaConfig);
     environment.jersey().register(new BrokersApi(doctorKafka));
     environment.jersey().register(new ClustersApi(doctorKafka));
+    environment.jersey().register(new TopicsApi(doctorKafka));
     environment.jersey().register(new ClustersMaintenanceApi(doctorKafka));
     environment.jersey().register(new BrokersDecommissionApi(doctorKafka));
   }
