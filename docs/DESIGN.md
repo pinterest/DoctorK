@@ -57,7 +57,7 @@ Invocation of **Actions** are different from the **Monitor** and **Operator** pl
 
 <img src="images/events_actions.png" width="800px"/>
 
-As shown as the figure above, once the **Actions** are provisioned by the **PluginManager** and handed to a **ClusterManager**, the **Action** instance will subscribe itself to the **EventListner** with a list of **Events** that are explicitly listed in the configuration file. Once a **ClusterManager** starts the evaluation loop of **Monitors** and **Operators**, the **EventListener** will accept **Events** from **Operators** and execute the **Actions** that have subscribed to the corresponding **Events**. **Actions** themselves can also emit **Events**, thus allowing chained **Actions** and conditional callbacks.
+As shown as the figure above, once the **Actions** are provisioned by the **PluginManager** and handed to a **ClusterManager**, the **Action** instance will subscribe itself to the **EventListner** with a list of **Events** that are explicitly listed in the configuration file. Once a **ClusterManager** starts the evaluation loop of **Monitors** and **Operators**, the **EventDispatcher** will accept **Events** from **Operators** and execute the **Actions** that have subscribed to the corresponding **Events**. **Actions** themselves can also emit **Events**, thus allowing chained **Actions** and conditional callbacks.
 
 ### Example
 Now that we have a high-level picture of the components and how they are stiched together, we can take a look at an example flow of the operations. This is what a flow of automated broker replacement for a cluster would look like in the DoctorKafka plugin framework.

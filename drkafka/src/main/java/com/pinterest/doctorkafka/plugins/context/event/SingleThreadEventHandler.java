@@ -21,7 +21,7 @@ import java.util.concurrent.LinkedBlockingQueue;
  * a pub-sub instance which delivers actions FIFO using a queue within a single thread. It also implements
  * the {@link EventEmitter} interface such that {@link Operator Operators} can emit Events by calling the emit function.
  */
-public class SingleThreadEventHandler implements EventEmitter, EventListener, Runnable {
+public class SingleThreadEventHandler implements EventEmitter, EventDispatcher, Runnable {
   private static final Logger LOG = LogManager.getLogger(SingleThreadEventHandler.class);
   private ExecutorService executorService = Executors.newSingleThreadExecutor();
   private volatile boolean stopped = false;
@@ -35,13 +35,13 @@ public class SingleThreadEventHandler implements EventEmitter, EventListener, Ru
   }
 
   @Override
-  public void receive(Event event) {
+  public void dispatch(Event event) {
     if(event != null){
       queue.add(event);
     }
   }
 
-  protected void receiveAll(Collection<Event> events) {
+  protected void dispatchAll(Collection<Event> events) {
     if (events != null) {
       queue.addAll(events);
     }
@@ -49,7 +49,7 @@ public class SingleThreadEventHandler implements EventEmitter, EventListener, Ru
 
   @Override
   public void emit(Event event) {
-    receive(event);
+    dispatch(event);
   }
 
   /**
@@ -73,7 +73,7 @@ public class SingleThreadEventHandler implements EventEmitter, EventListener, Ru
         for (Action action : subscriptionMap.get(eventName)){
           try {
             Collection<Event> newEvents = action.on(event);
-            receiveAll(newEvents);
+            dispatchAll(newEvents);
           } catch (Exception e){
             LOG.error("Failed to execute action {}", action.getClass() , e);
           }

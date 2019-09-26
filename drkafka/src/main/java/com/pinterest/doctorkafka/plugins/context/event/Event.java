@@ -1,11 +1,10 @@
 package com.pinterest.doctorkafka.plugins.context.event;
 
-import com.pinterest.doctorkafka.plugins.action.Action;
 import com.pinterest.doctorkafka.plugins.context.Context;
 
 /**
  *
- * Events are messages that are emitted by plugins to an {@link EventListener}
+ * Events are messages that are emitted by plugins to an {@link EventDispatcher}
  * which will trigger registered {@link com.pinterest.doctorkafka.plugins.action.Action Actions}.
  *
  * <pre>
@@ -17,7 +16,7 @@ import com.pinterest.doctorkafka.plugins.context.Context;
                                                              v                     +
  +--------------+                 +--------------+    +---------------+    +---------------+
  |              |    +-------+    |              |    |               |    |               |
- |   Operator   |--->| Event |--->| EventEmitter |--->| EventListener |--->|    Action     |
+ |   Operator   |--->| Event |--->| EventEmitter |--->|EventDispatcher|--->|    Action     |
  |              |    +-------+    |              |    |               |    |               |
  +--------------+                 +--------------+    +---------------+    +---------------+
                                                                      execute

@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 
-public class TestEvent {
+public class TestSingleThreadEventHandler {
 
   @Test
   void testSingleSubscriptionEvent() throws Exception {
