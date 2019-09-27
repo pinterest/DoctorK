@@ -5,7 +5,7 @@
 	<parent>
 		<artifactId>doctorkafka-parent</artifactId>
 		<groupId>com.github.pinterest</groupId>
-		<version>0.2.4.8</version>
+		<version>0.2.4.9</version>
 		<relativePath>../pom.xml</relativePath>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
