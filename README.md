@@ -53,7 +53,7 @@ The following is a sample command line for running kafkastats collector:
 ```
 java -server \
     -Dlog4j.configurationFile=file:./log4j2.xml \
-    -cp lib/*:kafkastats-0.2.4.8.jar \
+    -cp lib/*:kafkastats-0.2.4.9.jar \
     com.pinterest.doctorkafka.stats.KafkaStatsMain \
         -broker 127.0.0.1 \
         -jmxport 9999 \
@@ -127,7 +127,7 @@ mvn package -pl drkafka -am
 ```sh
 mvn package
 mkdir ${DOCTORKAFKA_INSTALL_DIR} # directory to place DoctorKafka binaries in.
-tar -zxvf target/doctorkafka-0.2.4.8-bin.tar.gz -C ${DOCTORKAFKA_INSTALL_DIR}
+tar -zxvf target/doctorkafka-0.2.4.9-bin.tar.gz -C ${DOCTORKAFKA_INSTALL_DIR}
 ```
 
 ##### Run DoctorKafka
@@ -135,7 +135,7 @@ tar -zxvf target/doctorkafka-0.2.4.8-bin.tar.gz -C ${DOCTORKAFKA_INSTALL_DIR}
 cd ${DOCTORKAFKA_INSTALL_DIR}
 
 java -server \
-    -cp lib/*:doctorkafka-0.2.4.8.jar \
+    -cp lib/*:doctorkafka-0.2.4.9.jar \
     com.pinterest.doctorkafka.DoctorKafkaMain \
         server dropwizard_yaml_file
 ```
@@ -162,7 +162,7 @@ DoctorKafka comes with a number of tools implementing interactions with the envi
 cd ${DOCTORKAFKA_INSTALL_DIR}
 java -server \
     -Dlog4j.configurationFile=file:drkafka/config/log4j2.xml \
-    -cp drkafka/target/lib/*:drkafka/target/doctorkafka-0.2.4.8.jar \
+    -cp drkafka/target/lib/*:drkafka/target/doctorkafka-0.2.4.9.jar \
     com.pinterest.doctorkafka.tools.ClusterLoadBalancer \
         -brokerstatstopic  brokerstats \
         -brokerstatszk zookeeper001:2181/cluster1 \
