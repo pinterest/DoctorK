@@ -1,0 +1,1 @@
+java -Dlog4j.configurationFile=file:drkafka/config/log4j2.xml -cp drkafka/target/*:drkafka/target/lib/* com.pinterest.doctorkafka.tools.ConfigurationValidator "$@"
