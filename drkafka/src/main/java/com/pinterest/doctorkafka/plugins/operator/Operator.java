@@ -1,9 +1,12 @@
 package com.pinterest.doctorkafka.plugins.operator;
 
-import com.pinterest.doctorkafka.plugins.Configurable;
+import com.pinterest.doctorkafka.plugins.Plugin;
 import com.pinterest.doctorkafka.plugins.context.event.Event;
 import com.pinterest.doctorkafka.plugins.context.event.EventEmitter;
 import com.pinterest.doctorkafka.plugins.context.state.State;
+import com.pinterest.doctorkafka.plugins.errors.PluginConfigurationException;
+
+import org.apache.commons.configuration2.ImmutableConfiguration;
 
 
 /**
@@ -29,7 +32,7 @@ import com.pinterest.doctorkafka.plugins.context.state.State;
                                     Actions/Event Handling
  </pre>
  */
-public abstract class Operator implements Configurable {
+public abstract class Operator implements Plugin {
   private EventEmitter eventEmitter;
 
   public void setEventEmitter(EventEmitter eventEmitter){
@@ -51,4 +54,9 @@ public abstract class Operator implements Configurable {
    * @throws Exception
    */
   public abstract boolean operate(State state) throws Exception;
+
+  @Override
+  public final void initialize(ImmutableConfiguration config) throws PluginConfigurationException {
+    configure(config);
+  }
 }

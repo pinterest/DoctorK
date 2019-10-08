@@ -1,9 +1,9 @@
 package com.pinterest.doctorkafka.plugins.action;
 
-import com.pinterest.doctorkafka.plugins.errors.PluginConfigurationException;
 import com.pinterest.doctorkafka.plugins.context.event.Event;
+import com.pinterest.doctorkafka.plugins.errors.PluginConfigurationException;
 
-import org.apache.commons.configuration2.AbstractConfiguration;
+import org.apache.commons.configuration2.ImmutableConfiguration;
 
 import java.util.Collection;
 import java.util.Map;
@@ -34,8 +34,7 @@ public class SnoozedSendEmailAction extends SendEmailAction {
   private Map<String, Long> prevSentTimePerEvent = new ConcurrentHashMap<>();
 
   @Override
-  public void configure(AbstractConfiguration config) throws PluginConfigurationException {
-    super.configure(config);
+  public void configure(ImmutableConfiguration config) throws PluginConfigurationException {
     configSnoozeSeconds = config.getLong(CONFIG_SNOOZE_SECONDS_KEY, configSnoozeSeconds);
   }
 

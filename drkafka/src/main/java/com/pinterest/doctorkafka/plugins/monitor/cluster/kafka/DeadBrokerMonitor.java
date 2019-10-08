@@ -1,10 +1,10 @@
 package com.pinterest.doctorkafka.plugins.monitor.cluster.kafka;
 
 import com.pinterest.doctorkafka.KafkaBroker;
-import com.pinterest.doctorkafka.plugins.errors.PluginConfigurationException;
 import com.pinterest.doctorkafka.plugins.context.state.cluster.kafka.KafkaState;
+import com.pinterest.doctorkafka.plugins.errors.PluginConfigurationException;
 
-import org.apache.commons.configuration2.AbstractConfiguration;
+import org.apache.commons.configuration2.ImmutableConfiguration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -29,8 +29,7 @@ public class DeadBrokerMonitor extends KafkaMonitor {
   private long configNoStatsSeconds = 1200L;
 
   @Override
-  public void configure(AbstractConfiguration config) throws PluginConfigurationException {
-    super.configure(config);
+  public void configure(ImmutableConfiguration config) throws PluginConfigurationException {
     configNoStatsSeconds = config.getLong(CONFIG_NO_STATS_SECONDS_KEY, configNoStatsSeconds);
   }
 

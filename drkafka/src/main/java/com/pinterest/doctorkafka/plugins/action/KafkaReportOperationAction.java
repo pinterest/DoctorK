@@ -1,16 +1,16 @@
 package com.pinterest.doctorkafka.plugins.action;
 
 import com.pinterest.doctorkafka.OperatorAction;
-import com.pinterest.doctorkafka.plugins.errors.PluginConfigurationException;
 import com.pinterest.doctorkafka.plugins.context.event.Event;
 import com.pinterest.doctorkafka.plugins.context.event.EventUtils;
+import com.pinterest.doctorkafka.plugins.errors.PluginConfigurationException;
 import com.pinterest.doctorkafka.util.OperatorUtil;
 
 import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.commons.compress.utils.IOUtils;
-import org.apache.commons.configuration2.AbstractConfiguration;
+import org.apache.commons.configuration2.ImmutableConfiguration;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -67,9 +67,8 @@ public class KafkaReportOperationAction extends Action {
   private static Producer<byte[], byte[]> kafkaProducer;
 
   @Override
-  public synchronized void configure(AbstractConfiguration config) throws
+  public synchronized void configure(ImmutableConfiguration config) throws
                                                                    PluginConfigurationException {
-    super.configure(config);
     if (!configured) {
       if(!config.containsKey(CONFIG_TOPIC_KEY)){
         throw new PluginConfigurationException("Missing config " + CONFIG_TOPIC_KEY + " in plugin " + KafkaReportOperationAction.class);
@@ -118,7 +117,7 @@ public class KafkaReportOperationAction extends Action {
     LOG.error("Failed to report " + subject + " action: " + message);
   }
 
-  protected KafkaProducer<byte[], byte[]> createReportKafkaProducerFromConfig(AbstractConfiguration config)
+  protected KafkaProducer<byte[], byte[]> createReportKafkaProducerFromConfig(ImmutableConfiguration config)
       throws PluginConfigurationException {
 
     if(!config.containsKey(CONFIG_ZKURL_KEY)){

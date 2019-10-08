@@ -1,7 +1,7 @@
 package com.pinterest.doctorkafka.plugins.manager;
 
 import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
-import com.pinterest.doctorkafka.plugins.Configurable;
+import com.pinterest.doctorkafka.plugins.Plugin;
 import com.pinterest.doctorkafka.plugins.action.Action;
 import com.pinterest.doctorkafka.plugins.errors.PluginException;
 import com.pinterest.doctorkafka.plugins.monitor.Monitor;
@@ -37,7 +37,7 @@ public class DoctorKafkaPluginManager implements PluginManager {
     return (Action) getPlugin(actionConfig);
   }
 
-  protected Configurable getPlugin(AbstractConfiguration pluginConfig) throws Exception {
+  protected Plugin getPlugin(AbstractConfiguration pluginConfig) throws Exception {
     String pluginName = pluginConfig.getString(DoctorKafkaConfig.NAME_KEY);
     if(pluginName == null) {
       throw new PluginException("Could not find name in plugin config");
@@ -57,8 +57,9 @@ public class DoctorKafkaPluginManager implements PluginManager {
       throw new ClassNotFoundException("Could not find class in classpath for plugin " + pluginName + " (" + pluginClass + ")");
     }
 
-    Configurable configurable = clazz.asSubclass(Configurable.class).newInstance();
-    configurable.configure(pluginConfig.subset(MODULE_CONFIG_KEY));
-    return configurable;
+    Plugin plugin = clazz.asSubclass(Plugin.class).newInstance();
+
+    plugin.initialize(pluginConfig.immutableSubset(MODULE_CONFIG_KEY));
+    return plugin;
   }
 }
