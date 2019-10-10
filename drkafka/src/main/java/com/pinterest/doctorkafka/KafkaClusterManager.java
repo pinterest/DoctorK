@@ -73,55 +73,8 @@ public class KafkaClusterManager implements Runnable {
     this.eventEmitter = eventEmitter;
     this.eventDispatcher = eventDispatcher;
 
+    loadPlugins(drkafkaConfig, clusterConfig, pluginManager);
 
-    // load monitor plugins
-    Map<String, Configuration> baseMonitorsConfigs = drkafkaConfig.getMonitorsConfigs();
-    for(Map.Entry<String, AbstractConfiguration> entry: clusterConfig.getEnabledMonitorsConfigs(baseMonitorsConfigs).entrySet() ){
-      String monitorName = entry.getKey();
-      AbstractConfiguration monitorConfig = entry.getValue();
-      try {
-        this.monitors.add(pluginManager.getMonitor(monitorConfig));
-      } catch (ClassCastException e){
-        LOG.error("Plugin {} is not a monitor plugin", monitorName, e);
-        throw e;
-      }
-    }
-
-
-    // load operator plugins
-    Map<String, Configuration> baseOperatorsConfigs = drkafkaConfig.getOperatorsConfigs();
-    for(Map.Entry<String, AbstractConfiguration> entry: clusterConfig.getEnabledOperatorsConfigs(baseOperatorsConfigs).entrySet() ){
-      String operatorName = entry.getKey();
-      AbstractConfiguration operatorConfig = entry.getValue();
-      try {
-        Operator operator = pluginManager.getOperator(operatorConfig);
-        operator.setEventEmitter(eventEmitter);
-        this.operators.add(operator);
-      } catch (ClassCastException e){
-        LOG.error("Plugin {} is not a operator plugin", operatorName, e);
-        throw e;
-      }
-    }
-
-    // load action plugins
-    Map<String, Configuration> baseActionsConfigs = drkafkaConfig.getActionsConfigs();
-    for(Map.Entry<String, AbstractConfiguration> entry: clusterConfig.getEnabledActionsConfigs(baseActionsConfigs).entrySet()){
-      String actionName = entry.getKey();
-      AbstractConfiguration actionConfig = entry.getValue();
-      try {
-        Action action = pluginManager.getAction(actionConfig);
-        if (action.getSubscribedEvents().length == 0){
-          LOG.warn("Action {} is not subscribing to any event.", actionName);
-          continue;
-        }
-        for (String eventName : action.getSubscribedEvents()){
-          eventDispatcher.subscribe(eventName, action);
-        }
-      } catch (ClassCastException e){
-        LOG.error("Plugin {} is not a action plugin", actionName, e);
-        throw e;
-      }
-    }
   }
 
   public KafkaCluster getCluster() {
@@ -288,5 +241,63 @@ public class KafkaClusterManager implements Runnable {
     newState.setKafkaClusterZookeeperClient(baseState.getKafkaClusterZookeeperClient());
 
     return newState;
+  }
+
+  protected void loadPlugins(DoctorKafkaConfig drkafkaConfig, DoctorKafkaClusterConfig clusterConfig, PluginManager pluginManager) throws Exception {
+    // load plugins
+    loadMonitorPlugins(drkafkaConfig, clusterConfig, pluginManager);
+    loadOperatorPlugins(drkafkaConfig, clusterConfig, pluginManager);
+    loadActionPlugins(drkafkaConfig, clusterConfig, pluginManager);
+  }
+
+  protected void loadMonitorPlugins(DoctorKafkaConfig drkafkaConfig, DoctorKafkaClusterConfig clusterConfig, PluginManager pluginManager) throws Exception{
+    Map<String, Configuration> baseMonitorsConfigs = drkafkaConfig.getMonitorsConfigs();
+    for(Map.Entry<String, AbstractConfiguration> entry: clusterConfig.getEnabledMonitorsConfigs(baseMonitorsConfigs).entrySet() ){
+      String monitorName = entry.getKey();
+      AbstractConfiguration monitorConfig = entry.getValue();
+      try {
+        this.monitors.add(pluginManager.getMonitor(monitorConfig));
+      } catch (ClassCastException e){
+        LOG.error("Plugin {} is not a monitor plugin", monitorName, e);
+        throw e;
+      }
+    }
+  };
+
+  protected void loadOperatorPlugins(DoctorKafkaConfig drkafkaConfig, DoctorKafkaClusterConfig clusterConfig, PluginManager pluginManager) throws Exception{
+    Map<String, Configuration> baseOperatorsConfigs = drkafkaConfig.getOperatorsConfigs();
+    for(Map.Entry<String, AbstractConfiguration> entry: clusterConfig.getEnabledOperatorsConfigs(baseOperatorsConfigs).entrySet() ){
+      String operatorName = entry.getKey();
+      AbstractConfiguration operatorConfig = entry.getValue();
+      try {
+        Operator operator = pluginManager.getOperator(operatorConfig);
+        operator.setEventEmitter(eventEmitter);
+        this.operators.add(operator);
+      } catch (ClassCastException e){
+        LOG.error("Plugin {} is not a operator plugin", operatorName, e);
+        throw e;
+      }
+    }
+  };
+
+  protected void loadActionPlugins(DoctorKafkaConfig drkafkaConfig, DoctorKafkaClusterConfig clusterConfig, PluginManager pluginManager) throws Exception{
+    Map<String, Configuration> baseActionsConfigs = drkafkaConfig.getActionsConfigs();
+    for(Map.Entry<String, AbstractConfiguration> entry: clusterConfig.getEnabledActionsConfigs(baseActionsConfigs).entrySet()){
+      String actionName = entry.getKey();
+      AbstractConfiguration actionConfig = entry.getValue();
+      try {
+        Action action = pluginManager.getAction(actionConfig);
+        if (action.getSubscribedEvents().length == 0){
+          LOG.warn("Action {} is not subscribing to any event.", actionName);
+          continue;
+        }
+        for (String eventName : action.getSubscribedEvents()){
+          eventDispatcher.subscribe(eventName, action);
+        }
+      } catch (ClassCastException e){
+        LOG.error("Plugin {} is not a action plugin", actionName, e);
+        throw e;
+      }
+    }
   }
 }
