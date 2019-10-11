@@ -17,6 +17,7 @@ import scala.collection.JavaConverters;
 import scala.collection.Seq;
 
 import java.io.StringReader;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -24,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * This monitor detects URPs in a Kafka cluster by metadata fetched from Kafka and looking into KafkaCluster provided by BrokerStatsMonitor.
@@ -64,17 +66,26 @@ public class URPMonitor extends KafkaMonitor {
     ZkUtils zkUtils = state.getZkUtils();
     Seq<String> topicsSeq = zkUtils.getAllTopics();
     List<String> topics = scala.collection.JavaConverters.seqAsJavaList(topicsSeq);
-    scala.collection.mutable.Map<String, scala.collection.Map<Object, Seq<Object>>>
-        partitionAssignments = zkUtils.getPartitionAssignmentForTopics(topicsSeq);
-
+    scala.collection.mutable.Map<String, scala.collection.Map<Object, Seq<Object>>> 
+        originalAssignmentObject = zkUtils.getPartitionAssignmentForTopics(topicsSeq);
+    Map<String, scala.collection.Map<Object, Seq<Object>>> 
+        tempPartitionAssignments = JavaConverters.mapAsJavaMap(originalAssignmentObject);
+    Map<String, Map<Object, Seq<Object>>> 
+        partitionAssignments = tempPartitionAssignments.entrySet().stream().map(e->new AbstractMap.SimpleEntry<>(e.getKey(), JavaConverters.mapAsJavaMap(e.getValue())))
+                                  .collect(Collectors.toMap(AbstractMap.SimpleEntry::getKey, AbstractMap.SimpleEntry::getValue));
+    
     Map<String, Integer> replicationFactors = new HashMap<>();
     Map<String, Integer> partitionCounts = new HashMap<>();
-    topics.stream().forEach(topic -> {
-      int partitionCount = partitionAssignments.get(topic).get().size();
-      int factor = partitionAssignments.get(topic).get().head()._2().size();
-      partitionCounts.put(topic, partitionCount);
-      replicationFactors.put(topic, factor);
-    });
+    for (String topic : topics) {
+      try {
+        int partitionCount = partitionAssignments.get(topic).values().size();
+        int factor = partitionAssignments.get(topic).values().iterator().next().size();
+        partitionCounts.put(topic, partitionCount);
+        replicationFactors.put(topic, factor);
+      } catch(Exception e) {
+        e.printStackTrace();
+      }
+    }
 
     List<PartitionInfo> underReplicatedPartitions = getUnderReplicatedPartitions(
         state.getZkUrl(), configSecurityProtocol, configConsumerConfigs,
@@ -98,7 +109,7 @@ public class URPMonitor extends KafkaMonitor {
   public static List<PartitionInfo> getUnderReplicatedPartitions(
       String zkUrl, SecurityProtocol securityProtocol, Properties consumerConfigs,
       List<String> topics,
-      scala.collection.mutable.Map<String, scala.collection.Map<Object, Seq<Object>>> partitionAssignments,
+      Map<String, Map<Object, Seq<Object>>> partitionAssignments,
       Map<String, Integer> replicationFactors,
       Map<String, Integer> partitionCounts) {
     List<PartitionInfo> underReplicated = new ArrayList<>();
@@ -130,7 +141,7 @@ public class URPMonitor extends KafkaMonitor {
       // deal with the partitions that do not have leaders
       for (int partitionId = 0; partitionId < numPartitions; partitionId++) {
         if (noLeaderFlags[partitionId]) {
-          Seq<Object> seq = partitionAssignments.get(topic).get().get(partitionId).get();
+          Seq<Object> seq = partitionAssignments.get(topic).get(partitionId);
           Node[] nodes = JavaConverters.seqAsJavaList(seq).stream()
               .map(val -> new Node((Integer) val, "", -1)).toArray(Node[]::new);
           PartitionInfo partitionInfo =
