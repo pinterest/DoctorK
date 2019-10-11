@@ -3,7 +3,7 @@ package com.pinterest.doctorkafka.plugins.action;
 import com.pinterest.doctorkafka.KafkaClusterManager;
 import com.pinterest.doctorkafka.plugins.Plugin;
 import com.pinterest.doctorkafka.plugins.context.event.Event;
-import com.pinterest.doctorkafka.plugins.context.event.EventListener;
+import com.pinterest.doctorkafka.plugins.context.event.EventDispatcher;
 import com.pinterest.doctorkafka.plugins.errors.PluginConfigurationException;
 import com.pinterest.doctorkafka.plugins.operator.Operator;
 
@@ -16,18 +16,18 @@ import java.util.Collection;
 /**
  *
  * Actions are plugins that perform single operations based on certain {@link Event}s. On initialization,
- * each action will subscribe to the cluster's {@link EventListener} to the events listed in the configuration.
+ * each action will subscribe to the cluster's {@link EventDispatcher} to the events listed in the configuration.
  *
  * <pre>
  *                                +------------------+
  *                     Subscribe  |                  |
- *            Action +----------->|   EventListener  |
+ *            Action +----------->|  EventDispatcher |
  *                                |                  |
  *                                +------------------+
  * </pre>
  *
  * Once the evaluation loops in {@link KafkaClusterManager} starts and {@link Operator}s emit events,
- * the EventListener will collect the events and dispatch events to Actions that have
+ * the EventDispatcher will collect the events and dispatch events to Actions that have
  * subscribed to the corresponding event.
  *
  * <pre>
@@ -43,7 +43,7 @@ import java.util.Collection;
  *                        v             |
  *               +-----------------+    |
  *               |                 |    |execute +---------+
- *               |  EventListener  |+-->+------->| Action  |
+ *               | EventDispatcher |+-->+------->| Action  |
  *               |                 |    |        +---------+
  *               +-----------------+    |
  *                                      |

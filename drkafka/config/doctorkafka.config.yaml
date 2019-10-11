@@ -32,6 +32,8 @@
 doctorkafka:
   # zookeeper quorum for storing doctorkafka metadata
   zkurl: zookeeper001:2181,zookeeper002:2181,zookeeper003:2181/doctorkafka
+  event:
+    handler: com.pinterest.doctorkafka.plugins.context.event.SingleThreadEventHandler
   ui:
     host: localhost # Host for binding UI. Defaults to 0.0.0.0 for external host access, switch to localhost for access restriction
     port: 8080

@@ -1,7 +1,7 @@
 package com.pinterest.doctorkafka.plugins.context.event;
 
 /**
- * Since operators are not registered in the {@link EventListener}, {@link EventEmitter}
+ * Since operators are not registered in the {@link EventDispatcher}, {@link EventEmitter}
  * provides an interface for {@link com.pinterest.doctorkafka.plugins.operator.Operator Operators} to emit events
  */
 

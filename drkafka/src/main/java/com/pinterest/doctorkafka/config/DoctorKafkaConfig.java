@@ -49,8 +49,12 @@ public class DoctorKafkaConfig {
   private static final String DRKAFKA_ADMIN_GROUPS = "admin.groups";
   private static final String AUTHORIZATION_FILTER_CLASS = "authorization.filter.class";
   private static final String EVALUATION_FREQUENCY_SECONDS = "evaluation_interval_seconds";
+  private static final String EVENT_HANDLER_CLASS = "event.handler";
+  private static final String EVENT_EMITTER_CLASS = "event.emitter";
+  private static final String EVENT_DISPATCHER_CLASS = "event.dispatcher";
 
   private static final int DEFAULT_EVALUATION_FREQUENCY_SECONDS = 5;
+  private static final String DEFAULT_EVENT_HANDLER_CLASS = "com.pinterest.doctorkafka.plugins.context.event.SingleThreadEventHandler";
 
   private AbstractConfiguration drkafkaConfiguration;
   private Map<String, Configuration> monitorConfigs = new LinkedHashMap<>();
@@ -212,4 +216,18 @@ public class DoctorKafkaConfig {
   public Long getEvaluationFrequency(){
     return drkafkaConfiguration.getInt(EVALUATION_FREQUENCY_SECONDS, DEFAULT_EVALUATION_FREQUENCY_SECONDS) * 1000L;
   }
+
+  public String getEventEmitterClassName(){
+    if (drkafkaConfiguration.containsKey(EVENT_HANDLER_CLASS)) {
+      return drkafkaConfiguration.getString(EVENT_HANDLER_CLASS);
+    }
+    return drkafkaConfiguration.getString(EVENT_EMITTER_CLASS, DEFAULT_EVENT_HANDLER_CLASS);
+  }
+  public String getEventDispatcherClassName(){
+    if (drkafkaConfiguration.containsKey(EVENT_HANDLER_CLASS)) {
+      return drkafkaConfiguration.getString(EVENT_HANDLER_CLASS);
+    }
+    return drkafkaConfiguration.getString(EVENT_DISPATCHER_CLASS, DEFAULT_EVENT_HANDLER_CLASS);
+  }
+
 }

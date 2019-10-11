@@ -3,8 +3,9 @@ package com.pinterest.doctorkafka;
 import com.pinterest.doctorkafka.config.DoctorKafkaClusterConfig;
 import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
 import com.pinterest.doctorkafka.plugins.action.Action;
+import com.pinterest.doctorkafka.plugins.context.event.EventEmitter;
+import com.pinterest.doctorkafka.plugins.context.event.EventDispatcher;
 import com.pinterest.doctorkafka.plugins.context.event.NotificationEvent;
-import com.pinterest.doctorkafka.plugins.context.event.SingleThreadEventHandler;
 import com.pinterest.doctorkafka.plugins.manager.PluginManager;
 import com.pinterest.doctorkafka.plugins.monitor.Monitor;
 import com.pinterest.doctorkafka.plugins.operator.Operator;
@@ -41,7 +42,8 @@ public class KafkaClusterManager implements Runnable {
   private volatile KafkaState currentState = new KafkaState();
   private Collection<Monitor> monitors = new ArrayList<>();
   private Collection<Operator> operators = new ArrayList<>();
-  private SingleThreadEventHandler eventHandler;
+  private EventEmitter eventEmitter;
+  private EventDispatcher eventDispatcher;
 
   private boolean stopped = false;
   private Thread thread = null;
@@ -52,7 +54,9 @@ public class KafkaClusterManager implements Runnable {
                              DoctorKafkaClusterConfig clusterConfig,
                              DoctorKafkaConfig drkafkaConfig,
                              ZookeeperClient zookeeperClient,
-                             PluginManager pluginManager) throws Exception {
+                             PluginManager pluginManager,
+                             EventEmitter eventEmitter,
+                             EventDispatcher eventDispatcher) throws Exception {
     assert clusterConfig != null;
 
     /* baseState is a State that keeps configurations and manual settings from the UI/API,
@@ -66,56 +70,11 @@ public class KafkaClusterManager implements Runnable {
 
     evaluationFrequency = drkafkaConfig.getEvaluationFrequency();
 
-    // load monitor plugins
-    Map<String, Configuration> baseMonitorsConfigs = drkafkaConfig.getMonitorsConfigs();
-    for(Map.Entry<String, AbstractConfiguration> entry: clusterConfig.getEnabledMonitorsConfigs(baseMonitorsConfigs).entrySet() ){
-      String monitorName = entry.getKey();
-      AbstractConfiguration monitorConfig = entry.getValue();
-      try {
-        this.monitors.add(pluginManager.getMonitor(monitorConfig));
-      } catch (ClassCastException e){
-        LOG.error("Plugin {} is not a monitor plugin", monitorName, e);
-        throw e;
-      }
-    }
+    this.eventEmitter = eventEmitter;
+    this.eventDispatcher = eventDispatcher;
 
-    // create event handler
-    this.eventHandler = new SingleThreadEventHandler();
+    loadPlugins(drkafkaConfig, clusterConfig, pluginManager);
 
-    // load operator plugins
-    Map<String, Configuration> baseOperatorsConfigs = drkafkaConfig.getOperatorsConfigs();
-    for(Map.Entry<String, AbstractConfiguration> entry: clusterConfig.getEnabledOperatorsConfigs(baseOperatorsConfigs).entrySet() ){
-      String operatorName = entry.getKey();
-      AbstractConfiguration operatorConfig = entry.getValue();
-      try {
-        Operator operator = pluginManager.getOperator(operatorConfig);
-        operator.setEventEmitter(eventHandler);
-        this.operators.add(operator);
-      } catch (ClassCastException e){
-        LOG.error("Plugin {} is not a operator plugin", operatorName, e);
-        throw e;
-      }
-    }
-
-    // load action plugins
-    Map<String, Configuration> baseActionsConfigs = drkafkaConfig.getActionsConfigs();
-    for(Map.Entry<String, AbstractConfiguration> entry: clusterConfig.getEnabledActionsConfigs(baseActionsConfigs).entrySet()){
-      String actionName = entry.getKey();
-      AbstractConfiguration actionConfig = entry.getValue();
-      try {
-        Action action = pluginManager.getAction(actionConfig);
-        if (action.getSubscribedEvents().length == 0){
-          LOG.warn("Action {} is not subscribing to any event.", actionName);
-          continue;
-        }
-        for (String eventName : action.getSubscribedEvents()){
-          eventHandler.subscribe(eventName, action);
-        }
-      } catch (ClassCastException e){
-        LOG.error("Plugin {} is not a action plugin", actionName, e);
-        throw e;
-      }
-    }
   }
 
   public KafkaCluster getCluster() {
@@ -123,14 +82,14 @@ public class KafkaClusterManager implements Runnable {
   }
 
   public void start() {
-    eventHandler.start();
+    eventDispatcher.start();
     thread = new Thread(this);
     thread.setName("ClusterManager:" + getClusterName());
     thread.start();
   }
 
   public void stop() {
-    eventHandler.stop();
+    eventDispatcher.stop();
     stopped = true;
   }
 
@@ -165,7 +124,7 @@ public class KafkaClusterManager implements Runnable {
     baseState.setUnderMaintenance(true);
     LOG.info("Enabled maintenace mode for:" + baseState.getClusterName());
     try {
-      eventHandler.emit(new NotificationEvent(
+      eventEmitter.emit(new NotificationEvent(
           EVENT_NOTIFY_MAINTENANCE_MODE_NAME,
           getClusterName() + " is in maintenance mode",
           getClusterName() + " is placed in maintenance mode on " + new Date()
@@ -179,7 +138,7 @@ public class KafkaClusterManager implements Runnable {
     baseState.setUnderMaintenance(false);
     LOG.info("Disabled maintenace mode for:" + getClusterName());
     try {
-      eventHandler.emit(new NotificationEvent(
+      eventEmitter.emit(new NotificationEvent(
           EVENT_NOTIFY_MAINTENANCE_MODE_NAME,
           getClusterName() + " is out of maintenance mode",
           getClusterName() + " is removed from maintenance mode on " + new Date()
@@ -195,7 +154,7 @@ public class KafkaClusterManager implements Runnable {
     // only notify if state changed
     if (prevState == false) {
       try {
-        eventHandler.emit(new NotificationEvent(
+        eventEmitter.emit(new NotificationEvent(
             EVENT_NOTIFY_DECOMMISSION_NAME,
             "Decommissioning broker " + brokerId + " on " + getClusterName(),
             "Broker:" + brokerId + " Cluster:" + getClusterName()+ " is getting decommissioned"
@@ -212,7 +171,7 @@ public class KafkaClusterManager implements Runnable {
     // only notify if state changed
     if (prevState == true) {
       try {
-        eventHandler.emit(new NotificationEvent(
+        eventEmitter.emit(new NotificationEvent(
             EVENT_NOTIFY_DECOMMISSION_NAME,
             "Cancelled decommissioning broker " + brokerId + " on " + currentState.getClusterName(),
             "Broker:" + brokerId + " Cluster:" + currentState.getClusterName() + " decommission cancelled"
@@ -282,5 +241,63 @@ public class KafkaClusterManager implements Runnable {
     newState.setKafkaClusterZookeeperClient(baseState.getKafkaClusterZookeeperClient());
 
     return newState;
+  }
+
+  protected void loadPlugins(DoctorKafkaConfig drkafkaConfig, DoctorKafkaClusterConfig clusterConfig, PluginManager pluginManager) throws Exception {
+    // load plugins
+    loadMonitorPlugins(drkafkaConfig, clusterConfig, pluginManager);
+    loadOperatorPlugins(drkafkaConfig, clusterConfig, pluginManager);
+    loadActionPlugins(drkafkaConfig, clusterConfig, pluginManager);
+  }
+
+  protected void loadMonitorPlugins(DoctorKafkaConfig drkafkaConfig, DoctorKafkaClusterConfig clusterConfig, PluginManager pluginManager) throws Exception{
+    Map<String, Configuration> baseMonitorsConfigs = drkafkaConfig.getMonitorsConfigs();
+    for(Map.Entry<String, AbstractConfiguration> entry: clusterConfig.getEnabledMonitorsConfigs(baseMonitorsConfigs).entrySet() ){
+      String monitorName = entry.getKey();
+      AbstractConfiguration monitorConfig = entry.getValue();
+      try {
+        this.monitors.add(pluginManager.getMonitor(monitorConfig));
+      } catch (ClassCastException e){
+        LOG.error("Plugin {} is not a monitor plugin", monitorName, e);
+        throw e;
+      }
+    }
+  };
+
+  protected void loadOperatorPlugins(DoctorKafkaConfig drkafkaConfig, DoctorKafkaClusterConfig clusterConfig, PluginManager pluginManager) throws Exception{
+    Map<String, Configuration> baseOperatorsConfigs = drkafkaConfig.getOperatorsConfigs();
+    for(Map.Entry<String, AbstractConfiguration> entry: clusterConfig.getEnabledOperatorsConfigs(baseOperatorsConfigs).entrySet() ){
+      String operatorName = entry.getKey();
+      AbstractConfiguration operatorConfig = entry.getValue();
+      try {
+        Operator operator = pluginManager.getOperator(operatorConfig);
+        operator.setEventEmitter(eventEmitter);
+        this.operators.add(operator);
+      } catch (ClassCastException e){
+        LOG.error("Plugin {} is not a operator plugin", operatorName, e);
+        throw e;
+      }
+    }
+  };
+
+  protected void loadActionPlugins(DoctorKafkaConfig drkafkaConfig, DoctorKafkaClusterConfig clusterConfig, PluginManager pluginManager) throws Exception{
+    Map<String, Configuration> baseActionsConfigs = drkafkaConfig.getActionsConfigs();
+    for(Map.Entry<String, AbstractConfiguration> entry: clusterConfig.getEnabledActionsConfigs(baseActionsConfigs).entrySet()){
+      String actionName = entry.getKey();
+      AbstractConfiguration actionConfig = entry.getValue();
+      try {
+        Action action = pluginManager.getAction(actionConfig);
+        if (action.getSubscribedEvents().length == 0){
+          LOG.warn("Action {} is not subscribing to any event.", actionName);
+          continue;
+        }
+        for (String eventName : action.getSubscribedEvents()){
+          eventDispatcher.subscribe(eventName, action);
+        }
+      } catch (ClassCastException e){
+        LOG.error("Plugin {} is not a action plugin", actionName, e);
+        throw e;
+      }
+    }
   }
 }
