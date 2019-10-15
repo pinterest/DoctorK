@@ -63,7 +63,7 @@ public class URPMonitor extends KafkaMonitor {
   }
 
   public KafkaState observe(KafkaState state){
-    ZkUtils zkUtils = state.getZkUtils();
+    ZkUtils zkUtils = KafkaUtils.getZkUtils(state.getZkUrl());
     Seq<String> topicsSeq = zkUtils.getAllTopics();
     List<String> topics = scala.collection.JavaConverters.seqAsJavaList(topicsSeq);
     scala.collection.mutable.Map<String, scala.collection.Map<Object, Seq<Object>>> 

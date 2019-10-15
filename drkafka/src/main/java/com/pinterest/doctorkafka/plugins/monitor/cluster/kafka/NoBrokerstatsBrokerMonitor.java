@@ -1,9 +1,11 @@
 package com.pinterest.doctorkafka.plugins.monitor.cluster.kafka;
 
 import com.pinterest.doctorkafka.plugins.context.state.cluster.kafka.KafkaState;
+import com.pinterest.doctorkafka.util.KafkaUtils;
 
 import com.google.common.annotations.VisibleForTesting;
 import kafka.cluster.Broker;
+import kafka.utils.ZkUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import scala.collection.Seq;
@@ -34,7 +36,8 @@ public class NoBrokerstatsBrokerMonitor extends KafkaMonitor {
     if(state.getKafkaCluster() == null) {
       return null;
     }
-    Seq<Broker> brokerSeq = state.getZkUtils().getAllBrokersInCluster();
+    ZkUtils zkUtils = KafkaUtils.getZkUtils(state.getZkUrl());
+    Seq<Broker> brokerSeq = zkUtils.getAllBrokersInCluster();
     List<Broker> brokers = scala.collection.JavaConverters.seqAsJavaList(brokerSeq);
     List<Broker> noStatsBrokers = new ArrayList<>();
 

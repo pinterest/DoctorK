@@ -1,8 +1,8 @@
 package com.pinterest.doctorkafka.plugins.context.state.cluster.kafka;
 
 import com.pinterest.doctorkafka.KafkaBroker;
-import com.pinterest.doctorkafka.plugins.context.state.cluster.ClusterState;
 import com.pinterest.doctorkafka.KafkaCluster;
+import com.pinterest.doctorkafka.plugins.context.state.cluster.ClusterState;
 import com.pinterest.doctorkafka.util.ZookeeperClient;
 
 import kafka.cluster.Broker;
@@ -31,14 +31,6 @@ public class KafkaState extends ClusterState {
 
   public void setKafkaCluster(KafkaCluster kafkaCluster) {
     this.kafkaCluster = kafkaCluster;
-  }
-
-  public ZkUtils getZkUtils() {
-    return zkUtils;
-  }
-
-  public void setZkUtils(ZkUtils zkUtils) {
-    this.zkUtils = zkUtils;
   }
 
   public ZookeeperClient getKafkaClusterZookeeperClient() {

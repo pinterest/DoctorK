@@ -10,6 +10,7 @@ import com.pinterest.doctorkafka.plugins.context.event.GenericEvent;
 import com.pinterest.doctorkafka.plugins.context.event.NotificationEvent;
 import com.pinterest.doctorkafka.plugins.context.state.cluster.kafka.KafkaState;
 import com.pinterest.doctorkafka.plugins.errors.PluginConfigurationException;
+import com.pinterest.doctorkafka.util.KafkaUtils;
 import com.pinterest.doctorkafka.util.OpenTsdbMetricConverter;
 import com.pinterest.doctorkafka.util.OperatorUtil;
 import com.pinterest.doctorkafka.util.OutOfSyncReplica;
@@ -177,12 +178,13 @@ public class URPReassignmentOperator extends KafkaOperator {
   protected void handleUnderReplicatedPartitions(KafkaState state, List<PartitionInfo> urps) {
     LOG.info("Start handling under-replicated partitions for {}", state.getClusterName());
     this.topicPartitionAssignments.clear();
+    ZkUtils zkUtils = KafkaUtils.getZkUtils(state.getZkUrl());
 
     // filter out topic partitions that have more replicas than what is required
     List<OutOfSyncReplica> oosReplicas = urps.stream().map(urp -> {
       TopicPartition tp = new TopicPartition(urp.topic(), urp.partition());
       OutOfSyncReplica oosReplica = new OutOfSyncReplica(urp);
-      oosReplica.replicaBrokers = getReplicaAssignment(state.getZkUtils(), tp);
+      oosReplica.replicaBrokers = getReplicaAssignment(zkUtils, tp);
       return oosReplica;
     }).collect(Collectors.toList());
 
