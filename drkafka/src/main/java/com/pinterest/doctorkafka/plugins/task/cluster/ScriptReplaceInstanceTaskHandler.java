@@ -1,11 +1,9 @@
-package com.pinterest.doctorkafka.plugins.action.cluster;
+package com.pinterest.doctorkafka.plugins.task.cluster;
 
-import com.pinterest.doctorkafka.plugins.action.Action;
-import com.pinterest.doctorkafka.plugins.context.event.Event;
-import com.pinterest.doctorkafka.plugins.context.event.EventUtils;
-import com.pinterest.doctorkafka.plugins.context.event.NotificationEvent;
-import com.pinterest.doctorkafka.plugins.context.event.ReportEvent;
 import com.pinterest.doctorkafka.plugins.errors.PluginConfigurationException;
+import com.pinterest.doctorkafka.plugins.task.Task;
+import com.pinterest.doctorkafka.plugins.task.TaskHandler;
+import com.pinterest.doctorkafka.plugins.task.TaskUtils;
 import com.pinterest.doctorkafka.util.ZookeeperClient;
 
 import org.apache.commons.configuration2.ImmutableConfiguration;
@@ -29,30 +27,30 @@ import java.util.Collection;
  * [optional]
  *    prolong_replacement_alert_seconds: <time in seconds before alerting on prolong previous replacement>
  *
- * Input Event Format:
+ * Input Task Format:
  * {
  *   cluster_name: str (Default: "n/a"),
  *   hostname: str,
  *   zookeeper_client: com.pinterest.doctorkafka.util.ZookeeperClient
  * }
  *
- * Output Events Format:
+ * Output Tasks Format:
  *
- * Event: notify_prolong_replacement
+ * Task: notify_prolong_replacement
  * triggered when replacement has taken more than configured time
  * {
  *   title: str,
  *   message: str
  * }
  *
- * Event: notify_replacement:
+ * Task: notify_replacement:
  * triggered when replacement is kicked off
  * {
  *   title: str,
  *   message: str
  * }
  *
- * Event: report_operation:
+ * Task: report_operation:
  * triggered when replacement is kicked off
  * {
  *   subject: str,
@@ -60,8 +58,9 @@ import java.util.Collection;
  * }
  * </pre>
  */
-public class ScriptReplaceInstanceAction extends Action implements Runnable {
-  private static final Logger LOG = LogManager.getLogger(ScriptReplaceInstanceAction.class);
+public class ScriptReplaceInstanceTaskHandler extends TaskHandler implements Runnable {
+  
+  private static final Logger LOG = LogManager.getLogger(ScriptReplaceInstanceTaskHandler.class);
 
   private static final String CONFIG_SCRIPT_KEY = "script";
   private static final String CONFIG_PROLONG_REPLACEMENT_ALERT_SECONDS_KEY = "prolong_replacement_alert_seconds";
@@ -69,14 +68,14 @@ public class ScriptReplaceInstanceAction extends Action implements Runnable {
   private String configScript;
   private long configProlongReplacementAlertSeconds = 1800L;
 
-  private static final String EVENT_NOTIFY_PROLONG_REPLACEMENT_NAME = "notify_prolong_replacement";
-  private static final String EVENT_NOTIFY_REPLACEMENT_NAME = "notify_replacement";
-  private static final String EVENT_REPORT_OPERATION_NAME = "report_operation";
+  private static final String TASK_NOTIFY_PROLONG_REPLACEMENT_NAME = "notify_prolong_replacement";
+  private static final String TASK_NOTIFY_REPLACEMENT_NAME = "notify_replacement";
+  private static final String TASK_REPORT_OPERATION_NAME = "report_operation";
 
-  private static final String EVENT_HOSTNAME_KEY = "hostname";
-  private static final String EVENT_ZOOKEEPER_CLIENT_KEY = "zookeeper_client";
+  private static final String TASK_HOSTNAME_KEY = "hostname";
+  private static final String TASK_ZOOKEEPER_CLIENT_KEY = "zookeeper_client";
 
-  private static final String DEFAULT_EVENT_CLUSTER_NAME = "n/a";
+  private static final String DEFAULT_TASK_CLUSTER_NAME = "n/a";
 
   private volatile boolean isBusy = false;
   private String currentHostname;
@@ -96,19 +95,19 @@ public class ScriptReplaceInstanceAction extends Action implements Runnable {
   }
 
   @Override
-  public Collection<Event> execute(Event event) throws Exception {
-    if(event.containsAttribute(EVENT_HOSTNAME_KEY) && event.containsAttribute(EVENT_ZOOKEEPER_CLIENT_KEY)){
-      String clusterName = event.containsAttribute(EventUtils.EVENT_CLUSTER_NAME_KEY) ?
-                       (String) event.getAttribute(EventUtils.EVENT_CLUSTER_NAME_KEY) :
-                           DEFAULT_EVENT_CLUSTER_NAME;
-      String hostname = (String) event.getAttribute(EVENT_HOSTNAME_KEY);
-      ZookeeperClient zookeeperClient = (ZookeeperClient) event.getAttribute(EVENT_ZOOKEEPER_CLIENT_KEY);
+  public Collection<Task> execute(Task task) throws Exception {
+    if(task.containsAttribute(TASK_HOSTNAME_KEY) && task.containsAttribute(TASK_ZOOKEEPER_CLIENT_KEY)){
+      String clusterName = task.containsAttribute(TaskUtils.TASK_CLUSTER_NAME_KEY) ?
+                       (String) task.getAttribute(TaskUtils.TASK_CLUSTER_NAME_KEY) :
+                           DEFAULT_TASK_CLUSTER_NAME;
+      String hostname = (String) task.getAttribute(TASK_HOSTNAME_KEY);
+      ZookeeperClient zookeeperClient = (ZookeeperClient) task.getAttribute(TASK_ZOOKEEPER_CLIENT_KEY);
       return replace(clusterName, hostname, zookeeperClient);
     }
     return null;
   }
 
-  protected Collection<Event> replace(String clusterName, String hostname, ZookeeperClient zookeeperClient) throws Exception {
+  protected Collection<Task> replace(String clusterName, String hostname, ZookeeperClient zookeeperClient) throws Exception {
     long now = System.currentTimeMillis();
     if (!isBusy) {
       zookeeperClient.recordBrokerTermination(clusterName, hostname);
@@ -117,7 +116,7 @@ public class ScriptReplaceInstanceAction extends Action implements Runnable {
       replacementStartTime = now;
       thread = new Thread(this);
       thread.start();
-      return createReplacementEvents(clusterName, hostname);
+      return createReplacementTasks(clusterName, hostname);
     } else {
       long replacementTime = (System.currentTimeMillis() - replacementStartTime)/1000L;
       LOG.info("Cannot replace broker {}: Busy replacing {}", hostname, currentHostname);
@@ -161,25 +160,25 @@ public class ScriptReplaceInstanceAction extends Action implements Runnable {
     }
   }
 
-  protected Collection<Event> createReplacementEvents(String clusterName, String hostname){
+  protected Collection<Task> createReplacementTasks(String clusterName, String hostname){
 
-    Collection<Event> events = new ArrayList<>();
-    events.add(new ReportEvent(EVENT_REPORT_OPERATION_NAME, clusterName, "Replacing instance: " + hostname));
+    Collection<Task> tasks = new ArrayList<>();
+    tasks.add(new ReportTask(TASK_REPORT_OPERATION_NAME, clusterName, "Replacing instance: " + hostname));
 
     String title = clusterName + " replacing instance " + hostname;
     String message = "Replacing instance " + hostname + " on cluster " + clusterName;
-    events.add(new NotificationEvent(EVENT_NOTIFY_REPLACEMENT_NAME, title, message));
+    tasks.add(new NotificationTask(TASK_NOTIFY_REPLACEMENT_NAME, title, message));
 
-    return events;
+    return tasks;
   }
 
-  protected Collection<Event> checkAndCreateNotificationForProlongedReplacement(String clusterName, long replacementTime){
-    Collection<Event> events = new ArrayList<>();
+  protected Collection<Task> checkAndCreateNotificationForProlongedReplacement(String clusterName, long replacementTime){
+    Collection<Task> tasks = new ArrayList<>();
     if (replacementTime > configProlongReplacementAlertSeconds) {
       String title = "Slow replacement of broker " + currentHostname + " in cluster " + clusterName;
       String message = "Replacement of instance " + currentHostname + " has not finished after " + replacementTime + " seconds";
-      events.add(new NotificationEvent(EVENT_NOTIFY_PROLONG_REPLACEMENT_NAME, title, message));
+      tasks.add(new NotificationTask(TASK_NOTIFY_PROLONG_REPLACEMENT_NAME, title, message));
     }
-    return events;
+    return tasks;
   }
 }

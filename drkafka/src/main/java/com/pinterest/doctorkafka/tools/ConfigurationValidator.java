@@ -2,9 +2,9 @@ package com.pinterest.doctorkafka.tools;
 
 import com.pinterest.doctorkafka.config.DoctorKafkaClusterConfig;
 import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
-import com.pinterest.doctorkafka.plugins.action.Action;
 import com.pinterest.doctorkafka.plugins.manager.DoctorKafkaPluginManager;
 import com.pinterest.doctorkafka.plugins.manager.PluginManager;
+import com.pinterest.doctorkafka.plugins.task.TaskHandler;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -155,8 +155,8 @@ public class ConfigurationValidator {
           pluginName = entry.getKey();
           AbstractConfiguration config = entry.getValue();
           try {
-            Action action = manager.getAction(config);
-            LOG.info("Action {} on cluster {} subscribes to these events: {}", pluginName, clusterName, action.getSubscribedEvents());
+            TaskHandler handler = manager.getAction(config);
+            LOG.info("TaskHandler {} on cluster {} subscribes to these tasks: {}", pluginName, clusterName, handler.getSubscribedTasks());
           } catch (Exception e) {
             LOG.error("Error when configuring action {} on cluster {}", pluginName, clusterName, e);
           }

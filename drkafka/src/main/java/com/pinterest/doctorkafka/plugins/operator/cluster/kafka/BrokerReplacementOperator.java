@@ -1,11 +1,11 @@
 package com.pinterest.doctorkafka.plugins.operator.cluster.kafka;
 
 import com.pinterest.doctorkafka.KafkaBroker;
-import com.pinterest.doctorkafka.plugins.context.event.Event;
-import com.pinterest.doctorkafka.plugins.context.event.EventUtils;
-import com.pinterest.doctorkafka.plugins.context.event.GenericEvent;
 import com.pinterest.doctorkafka.plugins.context.state.cluster.kafka.KafkaState;
 import com.pinterest.doctorkafka.plugins.errors.PluginConfigurationException;
+import com.pinterest.doctorkafka.plugins.task.Task;
+import com.pinterest.doctorkafka.plugins.task.TaskUtils;
+import com.pinterest.doctorkafka.plugins.task.cluster.GenericTask;
 import com.pinterest.doctorkafka.util.ZookeeperClient;
 
 import org.apache.commons.configuration2.ImmutableConfiguration;
@@ -18,14 +18,14 @@ import java.util.Map;
 
 /**
  * This operator selects a offline broker, checks the record on zookeeper to see if the cooldown period has passed,
- * and emits an event to replace the broker if appropriate.
+ * and emits an task to replace the broker if appropriate.
  *
  * <pre>
  * config:
  *   replacement_cooldown_seconds: <number of seconds before next replacement is allowed (Default: 43200)>
  *
- * Output Events Format:
- * Event: replace_instance:
+ * Output tasks Format:
+ * task: replace_instance:
  * triggered to replace an instance
  * {
  *   cluster_name: str,
@@ -41,10 +41,10 @@ public class BrokerReplacementOperator extends KafkaOperator {
 
   private long configReplacementCooldownSeconds = 43200L;
 
-  private static final String EVENT_REPLACE_INSTANCE_NAME = "replace_instance";
+  private static final String TASK_REPLACE_INSTANCE_NAME = "replace_instance";
 
-  private static final String EVENT_HOSTNAME_KEY = "hostname";
-  private static final String EVENT_ZOOKEEPER_CLIENT_KEY = "zookeeper_client";
+  private static final String TASK_HOSTNAME_KEY = "hostname";
+  private static final String TASK_ZOOKEEPER_CLIENT_KEY = "zookeeper_client";
 
   @Override
   public void configure(ImmutableConfiguration config) throws PluginConfigurationException {
@@ -70,21 +70,21 @@ public class BrokerReplacementOperator extends KafkaOperator {
       String brokerName = victim.getName();
       String clusterName = state.getClusterName();
       try {
-        emit(createReplaceInstanceEvent(clusterName, brokerName, state.getKafkaClusterZookeeperClient()));
+        emit(createReplaceInstanceTask(clusterName, brokerName, state.getKafkaClusterZookeeperClient()));
       } catch (Exception e){
-        LOG.error("Failed to emit replacement event", e);
+        LOG.error("Failed to emit replacement task", e);
       }
     }
 
     return true;
   }
 
-  protected Event createReplaceInstanceEvent(String clusterName, String hostname, ZookeeperClient zookeeperClient){
+  protected Task createReplaceInstanceTask(String clusterName, String hostname, ZookeeperClient zookeeperClient){
     Map<String, Object> replaceInstanceAttributes = new HashMap<>();
-    replaceInstanceAttributes.put(EventUtils.EVENT_CLUSTER_NAME_KEY, clusterName);
-    replaceInstanceAttributes.put(EVENT_HOSTNAME_KEY, hostname);
-    replaceInstanceAttributes.put(EVENT_ZOOKEEPER_CLIENT_KEY, zookeeperClient);
-    return new GenericEvent(EVENT_REPLACE_INSTANCE_NAME, replaceInstanceAttributes);
+    replaceInstanceAttributes.put(TaskUtils.TASK_CLUSTER_NAME_KEY, clusterName);
+    replaceInstanceAttributes.put(TASK_HOSTNAME_KEY, hostname);
+    replaceInstanceAttributes.put(TASK_ZOOKEEPER_CLIENT_KEY, zookeeperClient);
+    return new GenericTask(TASK_REPLACE_INSTANCE_NAME, replaceInstanceAttributes);
   }
 
   protected boolean isClusterReplacementCooldownExpired(KafkaState state){

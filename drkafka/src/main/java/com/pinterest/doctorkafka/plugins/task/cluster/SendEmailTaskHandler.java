@@ -1,8 +1,9 @@
-package com.pinterest.doctorkafka.plugins.action;
+package com.pinterest.doctorkafka.plugins.task.cluster;
 
-import com.pinterest.doctorkafka.plugins.context.event.Event;
-import com.pinterest.doctorkafka.plugins.context.event.EventUtils;
 import com.pinterest.doctorkafka.plugins.errors.PluginConfigurationException;
+import com.pinterest.doctorkafka.plugins.task.Task;
+import com.pinterest.doctorkafka.plugins.task.TaskHandler;
+import com.pinterest.doctorkafka.plugins.task.TaskUtils;
 
 import org.apache.commons.configuration2.ImmutableConfiguration;
 import org.apache.logging.log4j.LogManager;
@@ -21,16 +22,16 @@ import java.util.Collection;
  * [required]
  *   emails: < comma separated list of email addresses to send >
  *
- * Input Event Format:
+ * Input Task Format:
  * {
  *   title: str,
  *   message: str
  * }
  * </pre>
  */
-public class SendEmailAction extends Action {
+public class SendEmailTaskHandler extends TaskHandler {
 
-  private static final Logger LOG = LogManager.getLogger(SendEmailAction.class);
+  private static final Logger LOG = LogManager.getLogger(SendEmailTaskHandler.class);
   private static final String TITLE_PREFIX = "doctorkafka : ";
   private static final String TMP_FILE_PREFIX = "/tmp/doctorkafka_";
 
@@ -41,16 +42,16 @@ public class SendEmailAction extends Action {
   @Override
   public void configure(ImmutableConfiguration config) throws PluginConfigurationException {
     if(!config.containsKey(CONFIG_EMAILS_KEY)){
-      throw new PluginConfigurationException("Missing config " + CONFIG_EMAILS_KEY + " in action " + SendEmailAction.class);
+      throw new PluginConfigurationException("Missing config " + CONFIG_EMAILS_KEY + " in action " + SendEmailTaskHandler.class);
     }
     configEmails = config.getString(CONFIG_EMAILS_KEY).split(",");
   }
 
   @Override
-  public Collection<Event> execute(Event event) throws Exception {
-    if(event.containsAttribute(EventUtils.EVENT_TITLE_KEY) && event.containsAttribute(EventUtils.EVENT_MESSAGE_KEY)) {
-      String title = (String) event.getAttribute(EventUtils.EVENT_TITLE_KEY);
-      String message = (String) event.getAttribute(EventUtils.EVENT_MESSAGE_KEY);
+  public Collection<Task> execute(Task task) throws Exception {
+    if(task.containsAttribute(TaskUtils.TASK_TITLE_KEY) && task.containsAttribute(TaskUtils.TASK_MESSAGE_KEY)) {
+      String title = (String) task.getAttribute(TaskUtils.TASK_TITLE_KEY);
+      String message = (String) task.getAttribute(TaskUtils.TASK_MESSAGE_KEY);
       sendTo(configEmails,title, message);
     }
     return null;

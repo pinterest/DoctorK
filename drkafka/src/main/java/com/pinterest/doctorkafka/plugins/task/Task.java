@@ -1,28 +1,28 @@
-package com.pinterest.doctorkafka.plugins.context.event;
+package com.pinterest.doctorkafka.plugins.task;
 
 import com.pinterest.doctorkafka.plugins.context.Context;
 
 /**
  *
- * Events are messages that are emitted by plugins to an {@link EventDispatcher}
- * which will trigger registered {@link com.pinterest.doctorkafka.plugins.action.Action Actions}.
+ * Tasks are messages that are emitted by plugins to an {@link TaskDispatcher}
+ * which will trigger registered {@link com.pinterest.doctorkafka.plugins.task.TaskHandler Actions}.
  *
  * <pre>
                                                                      +-------+
-                                                             +------+| Event |<----+
+                                                             +------+| Task  |<----+
                                                              |       +-------+     |
                                                              |                     |
                                                              |                     |
                                                              v                     +
  +--------------+                 +--------------+    +---------------+    +---------------+
  |              |    +-------+    |              |    |               |    |               |
- |   Operator   |--->| Event |--->| EventEmitter |--->|EventDispatcher|--->|    Action     |
+ |   Operator   |--->| Task  |--->| TaskEmitter  |--->|TaskDispatcher |--->|    Action     |
  |              |    +-------+    |              |    |               |    |               |
  +--------------+                 +--------------+    +---------------+    +---------------+
                                                                      execute
  * </pre>
  */
-public abstract class Event extends Context {
+public abstract class Task extends Context {
   private String name;
 
   public final void setName(String name){
