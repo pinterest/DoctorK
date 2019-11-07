@@ -1,13 +1,13 @@
 package com.pinterest.doctorkafka.plugins.manager;
 
-import com.pinterest.doctorkafka.plugins.action.Action;
 import com.pinterest.doctorkafka.plugins.monitor.Monitor;
 import com.pinterest.doctorkafka.plugins.operator.Operator;
+import com.pinterest.doctorkafka.plugins.task.TaskHandler;
 
 import org.apache.commons.configuration2.AbstractConfiguration;
 
 /**
- * PluginManager is a interface to retrieve plugin ({@link Monitor}, {@link Operator}, {@link Action})
+ * PluginManager is a interface to retrieve plugin ({@link Monitor}, {@link Operator}, {@link TaskHandler})
  * classes based on configurations
  *
  * See {@link DoctorKafkaPluginManager} for the default implementation
@@ -28,8 +28,8 @@ public interface PluginManager {
   Operator getOperator(AbstractConfiguration operatorConfig) throws Exception;
   /**
    * @param actionConfig The configuration including plugin name, plugin class and plugin-specific settings
-   * @return {@link Action} instance described in actionConfig
+   * @return {@link TaskHandler} instance described in actionConfig
    * @throws Exception Fails to get the action instance
    */
-  Action getAction(AbstractConfiguration actionConfig) throws Exception;
+  TaskHandler getAction(AbstractConfiguration actionConfig) throws Exception;
 }

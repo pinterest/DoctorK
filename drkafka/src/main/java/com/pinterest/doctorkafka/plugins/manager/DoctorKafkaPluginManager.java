@@ -2,10 +2,10 @@ package com.pinterest.doctorkafka.plugins.manager;
 
 import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
 import com.pinterest.doctorkafka.plugins.Plugin;
-import com.pinterest.doctorkafka.plugins.action.Action;
 import com.pinterest.doctorkafka.plugins.errors.PluginException;
 import com.pinterest.doctorkafka.plugins.monitor.Monitor;
 import com.pinterest.doctorkafka.plugins.operator.Operator;
+import com.pinterest.doctorkafka.plugins.task.TaskHandler;
 
 import org.apache.commons.configuration2.AbstractConfiguration;
 
@@ -33,8 +33,8 @@ public class DoctorKafkaPluginManager implements PluginManager {
   }
 
   @Override
-  public Action getAction(AbstractConfiguration actionConfig) throws Exception {
-    return (Action) getPlugin(actionConfig);
+  public TaskHandler getAction(AbstractConfiguration actionConfig) throws Exception {
+    return (TaskHandler) getPlugin(actionConfig);
   }
 
   protected Plugin getPlugin(AbstractConfiguration pluginConfig) throws Exception {

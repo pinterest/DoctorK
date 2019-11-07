@@ -1,9 +1,10 @@
-package com.pinterest.doctorkafka.plugins.action;
+package com.pinterest.doctorkafka.plugins.task.cluster.kafka;
 
 import com.pinterest.doctorkafka.OperatorAction;
-import com.pinterest.doctorkafka.plugins.context.event.Event;
-import com.pinterest.doctorkafka.plugins.context.event.EventUtils;
 import com.pinterest.doctorkafka.plugins.errors.PluginConfigurationException;
+import com.pinterest.doctorkafka.plugins.task.Task;
+import com.pinterest.doctorkafka.plugins.task.TaskHandler;
+import com.pinterest.doctorkafka.plugins.task.TaskUtils;
 import com.pinterest.doctorkafka.util.OperatorUtil;
 
 import org.apache.avro.io.BinaryEncoder;
@@ -28,18 +29,18 @@ import java.util.Properties;
 import java.util.concurrent.Future;
 
 /**
- * This action logs operational events to a Kafka topic
+ * This action logs operational tasks to a Kafka topic
  *
  * <pre>
  * Configuration:
  * [required]
- * config.topic=< topic to log events to>
+ * config.topic=< topic to log tasks to>
  * config.zkurl=< zkurl of the kafka cluster>
  * [optional]
  * config.producer.< any kafka-specific configs needed >=< value >
  * config.producer.security.protocol=< security protocol for the kafka consumer>
  *
- * Input Event Format:
+ * Input task Format:
  * {
  *   subject: str,
  *   message: str
@@ -47,8 +48,9 @@ import java.util.concurrent.Future;
  * </pre>
  */
 
-public class KafkaReportOperationAction extends Action {
-  private static final Logger LOG = LogManager.getLogger(KafkaReportOperationAction.class);
+public class KafkaReportOperationTaskHandler extends TaskHandler {
+  
+  private static final Logger LOG = LogManager.getLogger(KafkaReportOperationTaskHandler.class);
   private static final int MAX_RETRIES = 5;
   private static final EncoderFactory avroEncoderFactory = EncoderFactory.get();
   private static final SpecificDatumWriter<OperatorAction> avroWriter
@@ -71,7 +73,7 @@ public class KafkaReportOperationAction extends Action {
                                                                    PluginConfigurationException {
     if (!configured) {
       if(!config.containsKey(CONFIG_TOPIC_KEY)){
-        throw new PluginConfigurationException("Missing config " + CONFIG_TOPIC_KEY + " in plugin " + KafkaReportOperationAction.class);
+        throw new PluginConfigurationException("Missing config " + CONFIG_TOPIC_KEY + " in plugin " + KafkaReportOperationTaskHandler.class);
       }
       configTopic = config.getString(CONFIG_TOPIC_KEY);
       kafkaProducer = createReportKafkaProducerFromConfig(config);
@@ -80,10 +82,10 @@ public class KafkaReportOperationAction extends Action {
   }
 
   @Override
-  public Collection<Event> execute(Event event) throws Exception {
-    if(event.containsAttribute(EventUtils.EVENT_SUBJECT_KEY) && event.containsAttribute(EventUtils.EVENT_MESSAGE_KEY)){
-      String subject = (String) event.getAttribute(EventUtils.EVENT_SUBJECT_KEY);
-      String message = (String) event.getAttribute(EventUtils.EVENT_MESSAGE_KEY);
+  public Collection<Task> execute(Task task) throws Exception {
+    if(task.containsAttribute(TaskUtils.TASK_SUBJECT_KEY) && task.containsAttribute(TaskUtils.TASK_MESSAGE_KEY)){
+      String subject = (String) task.getAttribute(TaskUtils.TASK_SUBJECT_KEY);
+      String message = (String) task.getAttribute(TaskUtils.TASK_MESSAGE_KEY);
       report(subject, message);
     }
     return null;
@@ -121,7 +123,7 @@ public class KafkaReportOperationAction extends Action {
       throws PluginConfigurationException {
 
     if(!config.containsKey(CONFIG_ZKURL_KEY)){
-      throw new PluginConfigurationException("Missing config " + CONFIG_ZKURL_KEY + " in plugin " + KafkaReportOperationAction.class);
+      throw new PluginConfigurationException("Missing config " + CONFIG_ZKURL_KEY + " in plugin " + KafkaReportOperationTaskHandler.class);
     }
     String zkUrl = config.getString(CONFIG_ZKURL_KEY);
 
@@ -130,7 +132,7 @@ public class KafkaReportOperationAction extends Action {
       try {
         producerConfig.load(new StringReader(config.getString(CONFIG_PRODUCER_CONFIG_KEY)));
       } catch (IOException e){
-        throw new PluginConfigurationException("Failed to parse properties from key: " + CONFIG_PRODUCER_CONFIG_KEY + " in plugin " + KafkaReportOperationAction.class);
+        throw new PluginConfigurationException("Failed to parse properties from key: " + CONFIG_PRODUCER_CONFIG_KEY + " in plugin " + KafkaReportOperationTaskHandler.class);
       }
     }
 

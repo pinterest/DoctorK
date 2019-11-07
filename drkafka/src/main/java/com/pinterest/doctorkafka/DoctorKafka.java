@@ -2,10 +2,10 @@ package com.pinterest.doctorkafka;
 
 import com.pinterest.doctorkafka.config.DoctorKafkaClusterConfig;
 import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
-import com.pinterest.doctorkafka.plugins.context.event.EventEmitter;
-import com.pinterest.doctorkafka.plugins.context.event.EventDispatcher;
 import com.pinterest.doctorkafka.plugins.manager.DoctorKafkaPluginManager;
 import com.pinterest.doctorkafka.plugins.manager.PluginManager;
+import com.pinterest.doctorkafka.plugins.task.TaskDispatcher;
+import com.pinterest.doctorkafka.plugins.task.TaskEmitter;
 import com.pinterest.doctorkafka.util.ZookeeperClient;
 
 import org.apache.logging.log4j.LogManager;
@@ -27,8 +27,8 @@ public class DoctorKafka {
   private ZookeeperClient zookeeperClient = null;
   private DoctorKafkaHeartbeat heartbeat = null;
   private PluginManager pluginManager;
-  private Class<? extends EventEmitter> eventEmitterClass;
-  private Class<? extends EventDispatcher> eventDispatcherClass;
+  private Class<? extends TaskEmitter> taskEmitterClass;
+  private Class<? extends TaskDispatcher> taskDispatcherClass;
 
   public DoctorKafka(DoctorKafkaConfig drkafkaConf) throws Exception{
     this.drkafkaConf = drkafkaConf;
@@ -36,23 +36,23 @@ public class DoctorKafka {
     this.zookeeperClient = new ZookeeperClient(drkafkaConf.getDoctorKafkaZkurl());
     this.pluginManager = new DoctorKafkaPluginManager();
 
-    this.eventEmitterClass = Class.forName(drkafkaConf.getEventEmitterClassName()).asSubclass(EventEmitter.class);
-    this.eventDispatcherClass = Class.forName(drkafkaConf.getEventDispatcherClassName()).asSubclass(
-        EventDispatcher.class);
+    this.taskEmitterClass = Class.forName(drkafkaConf.getTaskEmitterClassName()).asSubclass(TaskEmitter.class);
+    this.taskDispatcherClass = Class.forName(drkafkaConf.getTaskDispatcherClassName()).asSubclass(
+        TaskDispatcher.class);
   }
 
   public void start() throws Exception {
 
-    boolean isEmitterEqualToDispatcher = eventEmitterClass.equals(eventDispatcherClass);
+    boolean isEmitterEqualToDispatcher = taskEmitterClass.equals(taskDispatcherClass);
     for (String clusterZkUrl : clusterZkUrls) {
-      EventEmitter emitter;
-      EventDispatcher dispatcher;
-      emitter = eventEmitterClass.newInstance();
+      TaskEmitter emitter;
+      TaskDispatcher dispatcher;
+      emitter = taskEmitterClass.newInstance();
 
       if(isEmitterEqualToDispatcher){
-        dispatcher = (EventDispatcher) emitter;
+        dispatcher = (TaskDispatcher) emitter;
       } else {
-        dispatcher = eventDispatcherClass.newInstance();
+        dispatcher = taskDispatcherClass.newInstance();
       }
 
       DoctorKafkaClusterConfig clusterConf = drkafkaConf.getClusterConfigByZkUrl(clusterZkUrl);

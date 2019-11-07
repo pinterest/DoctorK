@@ -4,12 +4,12 @@ import com.pinterest.doctorkafka.BrokerStats;
 import com.pinterest.doctorkafka.DoctorKafkaMetrics;
 import com.pinterest.doctorkafka.KafkaBroker;
 import com.pinterest.doctorkafka.KafkaCluster;
-import com.pinterest.doctorkafka.plugins.context.event.Event;
-import com.pinterest.doctorkafka.plugins.context.event.EventUtils;
-import com.pinterest.doctorkafka.plugins.context.event.GenericEvent;
-import com.pinterest.doctorkafka.plugins.context.event.NotificationEvent;
 import com.pinterest.doctorkafka.plugins.context.state.cluster.kafka.KafkaState;
 import com.pinterest.doctorkafka.plugins.errors.PluginConfigurationException;
+import com.pinterest.doctorkafka.plugins.task.Task;
+import com.pinterest.doctorkafka.plugins.task.TaskUtils;
+import com.pinterest.doctorkafka.plugins.task.cluster.GenericTask;
+import com.pinterest.doctorkafka.plugins.task.cluster.NotificationTask;
 import com.pinterest.doctorkafka.util.OpenTsdbMetricConverter;
 import com.pinterest.doctorkafka.util.OperatorUtil;
 import com.pinterest.doctorkafka.util.OutOfSyncReplica;
@@ -49,8 +49,8 @@ import java.util.stream.Collectors;
  *     enabled: <true if rack awareness reassignments are enabled (Default: false)>
  *   prolong_urp_alert_seconds: <number of seconds before sending alert on prolong URPs>
  *
- * Output Events Format:
- * Event: reassign_partitions:
+ * Output Tasks Format:
+ * Task: reassign_partitions:
  * triggered when a reassignment is initiated
  * {
  *   zkurl: str,
@@ -58,14 +58,14 @@ import java.util.stream.Collectors;
  *   cluster_name: str (Default: "n/a")
  * }
  *
- * Event: alert_urp_handling_failure:
+ * Task: alert_urp_handling_failure:
  * triggered when URP cannot be handled
  * {
  *   title: str,
  *   message: str
  * }
  *
- * Event: alert_prolong_urp:
+ * Task: alert_prolong_urp:
  * triggered when URP reassignment took too long
  * {
  *   title: str,
@@ -90,11 +90,11 @@ public class URPReassignmentOperator extends KafkaOperator {
   private int configProlongURPAlertInSec = 7200;
   private long configNetworkBandwidthMaxMb;
 
-  private static final String EVENT_KAFKA_PARTITION_REASSIGNMENT_NAME = "reassign_partitions";
-  private static final String EVENT_URP_HANDLING_FAILURE_ALERT_NAME = "alert_urp_handling_failure";
-  private static final String EVENT_ALERT_PROLONG_URP_NAME = "alert_prolong_urp";
+  private static final String TASK_KAFKA_PARTITION_REASSIGNMENT_NAME = "reassign_partitions";
+  private static final String TASK_URP_HANDLING_FAILURE_ALERT_NAME = "alert_urp_handling_failure";
+  private static final String TASK_ALERT_PROLONG_URP_NAME = "alert_prolong_urp";
 
-  private static final String EVENT_REASSIGNMENT_JSON_KEY = "reassignment_json";
+  private static final String TASK_REASSIGNMENT_JSON_KEY = "reassignment_json";
 
   private boolean foundUrps = false;
   private long firstSeenUrpsTimestamp = Long.MAX_VALUE;
@@ -129,11 +129,11 @@ public class URPReassignmentOperator extends KafkaOperator {
         // send out an alert if the cluster has been under-replicated for a while
         long now = System.currentTimeMillis();
         long underReplicatedTimeMillis = now - firstSeenUrpsTimestamp;
-        Event event = maybeCreateProlongURPAlertEvent(state.getClusterName(), underReplicatedPartitions, underReplicatedTimeMillis);
+        Task task = maybeCreateProlongURPAlertTask(state.getClusterName(), underReplicatedPartitions, underReplicatedTimeMillis);
         try {
-          emit(event);
+          emit(task);
         } catch (Exception e){
-          LOG.error("Failed to emit prolong URP alert event", e);
+          LOG.error("Failed to emit prolong URP alert task", e);
         }
 
       }
@@ -148,8 +148,8 @@ public class URPReassignmentOperator extends KafkaOperator {
     return false;
   }
 
-  protected Event maybeCreateProlongURPAlertEvent(String clusterName, List<PartitionInfo> underReplicatedPartitions, long underReplicatedTimeMillis){
-    Event event = null;
+  protected Task maybeCreateProlongURPAlertTask(String clusterName, List<PartitionInfo> underReplicatedPartitions, long underReplicatedTimeMillis){
+    Task task = null;
     if (underReplicatedTimeMillis > configProlongURPAlertInSec * 1000) {
       String title = clusterName + " has been under-replicated for > "
           + underReplicatedTimeMillis + " seconds (" + underReplicatedPartitions.size() + ") under-replicated partitions";
@@ -158,9 +158,9 @@ public class URPReassignmentOperator extends KafkaOperator {
         msg.append(partitionInfo + "\n");
       }
       LOG.warn(title, msg.toString());
-      event = new NotificationEvent(EVENT_ALERT_PROLONG_URP_NAME, title, msg.toString());
+      task = new NotificationTask(TASK_ALERT_PROLONG_URP_NAME, title, msg.toString());
     }
-    return event;
+    return task;
   }
 
   /**
@@ -264,7 +264,7 @@ public class URPReassignmentOperator extends KafkaOperator {
       try {
         alertOnFailedToHandleURP(state.getClusterName(), urps, downBrokers);
       } catch (Exception e){
-        LOG.error("Failed to alert FailedToHandleURP event", e);
+        LOG.error("Failed to alert FailedToHandleURP task", e);
       }
     }
   }
@@ -274,19 +274,19 @@ public class URPReassignmentOperator extends KafkaOperator {
       KafkaState state,
       String jsonReassignmentData) {
     try{
-      emit(createReassignmentEvent(state.getZkUrl(), state.getClusterName(), jsonReassignmentData));
+      emit(createReassignmentTask(state.getZkUrl(), state.getClusterName(), jsonReassignmentData));
       LOG.info("cluster {} reassignment {}", state.getClusterName(), jsonReassignmentData);
     } catch (Exception e){
-      LOG.error("Failed to emit reassignment event", e);
+      LOG.error("Failed to emit reassignment task", e);
     }
   }
 
-  protected Event createReassignmentEvent(String zkUrl, String clusterName, String jsonReassignmentData){
-    Map<String, Object> reassignmentEventAttributes = new HashMap<>();
-    reassignmentEventAttributes.put(EventUtils.EVENT_ZKURL_KEY, zkUrl);
-    reassignmentEventAttributes.put(EventUtils.EVENT_CLUSTER_NAME_KEY, clusterName);
-    reassignmentEventAttributes.put(EVENT_REASSIGNMENT_JSON_KEY, jsonReassignmentData);
-    return new GenericEvent(EVENT_KAFKA_PARTITION_REASSIGNMENT_NAME,reassignmentEventAttributes);
+  protected Task createReassignmentTask(String zkUrl, String clusterName, String jsonReassignmentData){
+    Map<String, Object> reassignmentTaskAttributes = new HashMap<>();
+    reassignmentTaskAttributes.put(TaskUtils.TASK_ZKURL_KEY, zkUrl);
+    reassignmentTaskAttributes.put(TaskUtils.TASK_CLUSTER_NAME_KEY, clusterName);
+    reassignmentTaskAttributes.put(TASK_REASSIGNMENT_JSON_KEY, jsonReassignmentData);
+    return new GenericTask(TASK_KAFKA_PARTITION_REASSIGNMENT_NAME,reassignmentTaskAttributes);
   }
 
 
@@ -533,9 +533,9 @@ public class URPReassignmentOperator extends KafkaOperator {
     String content = sb.toString();
     LOG.warn(title, content);
     try {
-      emit(new NotificationEvent(EVENT_URP_HANDLING_FAILURE_ALERT_NAME, title, content));
+      emit(new NotificationTask(TASK_URP_HANDLING_FAILURE_ALERT_NAME, title, content));
     } catch (Exception e){
-      LOG.error("Failed to emit URP handling failure event", e);
+      LOG.error("Failed to emit URP handling failure task", e);
     }
   }
 }

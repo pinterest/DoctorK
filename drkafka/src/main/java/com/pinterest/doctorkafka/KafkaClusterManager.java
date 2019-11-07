@@ -2,13 +2,13 @@ package com.pinterest.doctorkafka;
 
 import com.pinterest.doctorkafka.config.DoctorKafkaClusterConfig;
 import com.pinterest.doctorkafka.config.DoctorKafkaConfig;
-import com.pinterest.doctorkafka.plugins.action.Action;
-import com.pinterest.doctorkafka.plugins.context.event.EventEmitter;
-import com.pinterest.doctorkafka.plugins.context.event.EventDispatcher;
-import com.pinterest.doctorkafka.plugins.context.event.NotificationEvent;
 import com.pinterest.doctorkafka.plugins.manager.PluginManager;
 import com.pinterest.doctorkafka.plugins.monitor.Monitor;
 import com.pinterest.doctorkafka.plugins.operator.Operator;
+import com.pinterest.doctorkafka.plugins.task.TaskDispatcher;
+import com.pinterest.doctorkafka.plugins.task.TaskEmitter;
+import com.pinterest.doctorkafka.plugins.task.TaskHandler;
+import com.pinterest.doctorkafka.plugins.task.cluster.NotificationTask;
 import com.pinterest.doctorkafka.plugins.context.state.State;
 import com.pinterest.doctorkafka.plugins.context.state.cluster.kafka.KafkaState;
 import com.pinterest.doctorkafka.util.KafkaUtils;
@@ -35,15 +35,15 @@ import java.util.Map;
 public class KafkaClusterManager implements Runnable {
 
   private static final Logger LOG = LogManager.getLogger(KafkaClusterManager.class);
-  private static final String EVENT_NOTIFY_MAINTENANCE_MODE_NAME = "notify_maintenance_mode";
-  private static final String EVENT_NOTIFY_DECOMMISSION_NAME = "notify_decommission";
+  private static final String TASK_NOTIFY_MAINTENANCE_MODE_NAME = "notify_maintenance_mode";
+  private static final String TASK_NOTIFY_DECOMMISSION_NAME = "notify_decommission";
 
   private KafkaState baseState = new KafkaState();
   private volatile KafkaState currentState = new KafkaState();
   private Collection<Monitor> monitors = new ArrayList<>();
   private Collection<Operator> operators = new ArrayList<>();
-  private EventEmitter eventEmitter;
-  private EventDispatcher eventDispatcher;
+  private TaskEmitter taskEmitter;
+  private TaskDispatcher taskDispatcher;
 
   private boolean stopped = false;
   private Thread thread = null;
@@ -55,8 +55,8 @@ public class KafkaClusterManager implements Runnable {
                              DoctorKafkaConfig drkafkaConfig,
                              ZookeeperClient zookeeperClient,
                              PluginManager pluginManager,
-                             EventEmitter eventEmitter,
-                             EventDispatcher eventDispatcher) throws Exception {
+                             TaskEmitter taskEmitter,
+                             TaskDispatcher taskDispatcher) throws Exception {
     assert clusterConfig != null;
 
     /* baseState is a State that keeps configurations and manual settings from the UI/API,
@@ -70,8 +70,8 @@ public class KafkaClusterManager implements Runnable {
 
     evaluationFrequency = drkafkaConfig.getEvaluationFrequency();
 
-    this.eventEmitter = eventEmitter;
-    this.eventDispatcher = eventDispatcher;
+    this.taskEmitter = taskEmitter;
+    this.taskDispatcher = taskDispatcher;
 
     loadPlugins(drkafkaConfig, clusterConfig, pluginManager);
 
@@ -82,14 +82,14 @@ public class KafkaClusterManager implements Runnable {
   }
 
   public void start() {
-    eventDispatcher.start();
+    taskDispatcher.start();
     thread = new Thread(this);
     thread.setName("ClusterManager:" + getClusterName());
     thread.start();
   }
 
   public void stop() {
-    eventDispatcher.stop();
+    taskDispatcher.stop();
     stopped = true;
   }
 
@@ -128,13 +128,13 @@ public class KafkaClusterManager implements Runnable {
     baseState.setUnderMaintenance(true);
     LOG.info("Enabled maintenace mode for:" + baseState.getClusterName());
     try {
-      eventEmitter.emit(new NotificationEvent(
-          EVENT_NOTIFY_MAINTENANCE_MODE_NAME,
+      taskEmitter.emit(new NotificationTask(
+          TASK_NOTIFY_MAINTENANCE_MODE_NAME,
           getClusterName() + " is in maintenance mode",
           getClusterName() + " is placed in maintenance mode on " + new Date()
       ));
     } catch (Exception e){
-      LOG.error("Failed to emit enable maintenance mode notification event.");
+      LOG.error("Failed to emit enable maintenance mode notification task.");
     }
   }
 
@@ -142,13 +142,13 @@ public class KafkaClusterManager implements Runnable {
     baseState.setUnderMaintenance(false);
     LOG.info("Disabled maintenace mode for:" + getClusterName());
     try {
-      eventEmitter.emit(new NotificationEvent(
-          EVENT_NOTIFY_MAINTENANCE_MODE_NAME,
+      taskEmitter.emit(new NotificationTask(
+          TASK_NOTIFY_MAINTENANCE_MODE_NAME,
           getClusterName() + " is out of maintenance mode",
           getClusterName() + " is removed from maintenance mode on " + new Date()
       ));
     } catch (Exception e) {
-      LOG.error("Failed to emit disable maintenance mode notification event.");
+      LOG.error("Failed to emit disable maintenance mode notification task.");
     }
   }
 
@@ -158,13 +158,13 @@ public class KafkaClusterManager implements Runnable {
     // only notify if state changed
     if (prevState == false) {
       try {
-        eventEmitter.emit(new NotificationEvent(
-            EVENT_NOTIFY_DECOMMISSION_NAME,
+        taskEmitter.emit(new NotificationTask(
+            TASK_NOTIFY_DECOMMISSION_NAME,
             "Decommissioning broker " + brokerId + " on " + getClusterName(),
             "Broker:" + brokerId + " Cluster:" + getClusterName()+ " is getting decommissioned"
         ));
       } catch (Exception e) {
-        LOG.error("Failed to emit broker decommission notification event.");
+        LOG.error("Failed to emit broker decommission notification task.");
       }
     }
   }
@@ -175,13 +175,13 @@ public class KafkaClusterManager implements Runnable {
     // only notify if state changed
     if (prevState == true) {
       try {
-        eventEmitter.emit(new NotificationEvent(
-            EVENT_NOTIFY_DECOMMISSION_NAME,
+        taskEmitter.emit(new NotificationTask(
+            TASK_NOTIFY_DECOMMISSION_NAME,
             "Cancelled decommissioning broker " + brokerId + " on " + currentState.getClusterName(),
             "Broker:" + brokerId + " Cluster:" + currentState.getClusterName() + " decommission cancelled"
         ));
       } catch (Exception e) {
-        LOG.error("Failed to emit cancelled broker decommissioning notification event.");
+        LOG.error("Failed to emit cancelled broker decommissioning notification task.");
       }
     }
   }
@@ -275,7 +275,7 @@ public class KafkaClusterManager implements Runnable {
       AbstractConfiguration operatorConfig = entry.getValue();
       try {
         Operator operator = pluginManager.getOperator(operatorConfig);
-        operator.setEventEmitter(eventEmitter);
+        operator.setTaskEmitter(taskEmitter);
         this.operators.add(operator);
       } catch (ClassCastException e){
         LOG.error("Plugin {} is not a operator plugin", operatorName, e);
@@ -290,13 +290,13 @@ public class KafkaClusterManager implements Runnable {
       String actionName = entry.getKey();
       AbstractConfiguration actionConfig = entry.getValue();
       try {
-        Action action = pluginManager.getAction(actionConfig);
-        if (action.getSubscribedEvents().length == 0){
-          LOG.warn("Action {} is not subscribing to any event.", actionName);
+        TaskHandler action = pluginManager.getAction(actionConfig);
+        if (action.getSubscribedTasks().length == 0){
+          LOG.warn("Action {} is not subscribing to any task.", actionName);
           continue;
         }
-        for (String eventName : action.getSubscribedEvents()){
-          eventDispatcher.subscribe(eventName, action);
+        for (String taskName : action.getSubscribedTasks()){
+          taskDispatcher.subscribe(taskName, action);
         }
       } catch (ClassCastException e){
         LOG.error("Plugin {} is not a action plugin", actionName, e);

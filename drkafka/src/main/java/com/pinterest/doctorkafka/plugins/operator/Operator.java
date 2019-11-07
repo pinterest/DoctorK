@@ -1,17 +1,17 @@
 package com.pinterest.doctorkafka.plugins.operator;
 
 import com.pinterest.doctorkafka.plugins.Plugin;
-import com.pinterest.doctorkafka.plugins.context.event.Event;
-import com.pinterest.doctorkafka.plugins.context.event.EventEmitter;
 import com.pinterest.doctorkafka.plugins.context.state.State;
 import com.pinterest.doctorkafka.plugins.errors.PluginConfigurationException;
+import com.pinterest.doctorkafka.plugins.task.Task;
+import com.pinterest.doctorkafka.plugins.task.TaskEmitter;
 
 import org.apache.commons.configuration2.ImmutableConfiguration;
 
 
 /**
  * An operator takes the {@link State} of a service and builds a plan of operations to remediate/alert on the service.
- * Operators emit {@link Event Events} to trigger these actions.
+ * Operators emit {@link Task} to trigger these actions.
  * <pre>
  +------------+               +-----------+    +-----------+
  |            |    +-----+    |           |    |           |
@@ -22,30 +22,30 @@ import org.apache.commons.configuration2.ImmutableConfiguration;
                                     | emit           | emit
                                     v                v
                                  +-----+          +-----+
-                                 |Event|          |Event|
+                                 |task |          |task |
                                  +-----+          +-----+
                                     +                +
                                     |                |
                                     +----------------+
                                             |
                                             v
-                                    Actions/Event Handling
+                                    Actions/task Handling
  </pre>
  */
 public abstract class Operator implements Plugin {
-  private EventEmitter eventEmitter;
+  private TaskEmitter taskEmitter;
 
-  public void setEventEmitter(EventEmitter eventEmitter){
-    this.eventEmitter = eventEmitter;
+  public void setTaskEmitter(TaskEmitter taskEmitter){
+    this.taskEmitter = taskEmitter;
   }
 
   /**
-   * Sends an event to trigger actions
-   * @param event Event that provides context to the subscribed action(s)
+   * Sends an task to trigger actions
+   * @param task task that provides context to the subscribed action(s)
    * @throws Exception
    */
-  public void emit(Event event) throws Exception {
-    eventEmitter.emit(event);
+  public void emit(Task task) throws Exception {
+    taskEmitter.emit(task);
   }
 
   /**
