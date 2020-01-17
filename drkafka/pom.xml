@@ -263,7 +263,7 @@
 				<artifactId>maven-javadoc-plugin</artifactId>
 				<version>2.9.1</version>
 				<configuration>
-					<additionalparam>-Xdoclint:none</additionalparam>
+					<additionalparam>-Xdoclint:none --allow-script-in-comments</additionalparam>
 				</configuration>
 				<executions>
 					<execution>

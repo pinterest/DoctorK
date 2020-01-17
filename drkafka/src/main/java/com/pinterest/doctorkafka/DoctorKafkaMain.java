@@ -151,7 +151,7 @@ public class DoctorKafkaMain extends Application<DoctorKafkaAppConfig> {
       throw new NoSuchElementException(
           String.format("Key '%s' does not map to an existing object!", OSTRICH_PORT));
     } else {
-      OperatorUtil.startOstrichService("doctorkafka", tsdHost + ":" + tsdPort, ostrichPort);
+      OperatorUtil.startOstrichService("doctorkafka", tsdHost, tsdPort, ostrichPort);
     }
   }
 

@@ -37,7 +37,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -160,15 +159,12 @@ public class OperatorUtil {
     Properties props = new Properties();
     props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapBrokers);
     props.put(ConsumerConfig.GROUP_ID_CONFIG, consumerGroupName);
-    props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "true");
-    props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, "1000");
+    props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
     props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, KafkaUtils.BYTE_ARRAY_DESERIALIZER);
     props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, KafkaUtils.BYTE_ARRAY_DESERIALIZER);
 
     if (consumerConfigs != null) {
-      for (Entry<Object, Object> entry : consumerConfigs.entrySet()) {
-        props.put(entry.getKey(), entry.getValue());
-      }
+      props.putAll(consumerConfigs);
     }
     return props;
   }
@@ -186,16 +182,26 @@ public class OperatorUtil {
   }
 
   public static void startOstrichService(String serviceName, String tsdbHostPort, int ostrichPort) {
+    String tsdbHost = null;
+    int tsdbPort = 0;
+    if (tsdbHostPort != null){
+      HostAndPort pushHostPort = HostAndPort.fromString(tsdbHostPort);
+      tsdbHost = pushHostPort.getHost();
+      tsdbPort = pushHostPort.getPort();
+    }
+    startOstrichService(serviceName, tsdbHost, tsdbPort, ostrichPort);
+  }
+
+  public static void startOstrichService(String serviceName, String tsdbHost, int tsdbPort, int ostrichPort) {
     final int TSDB_METRICS_PUSH_INTERVAL_IN_MILLISECONDS = 10 * 1000;
     OstrichAdminService ostrichService = new OstrichAdminService(ostrichPort);
     ostrichService.startAdminHttpService();
-    if (tsdbHostPort != null) {
+    if (tsdbHost != null && tsdbPort != 0) {
       LOG.info("Starting the OpenTsdb metrics pusher");
       try {
-        HostAndPort pushHostPort = HostAndPort.fromString(tsdbHostPort);
         MetricsPusher metricsPusher = new MetricsPusher(
-            pushHostPort.getHost(),
-            pushHostPort.getPort(),
+            tsdbHost,
+            tsdbPort,
             new OpenTsdbMetricConverter(serviceName, HostName),
             TSDB_METRICS_PUSH_INTERVAL_IN_MILLISECONDS);
         metricsPusher.start();
