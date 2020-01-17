@@ -215,8 +215,7 @@ public class URPReassignmentOperator extends KafkaOperator {
                 broker.getName(),
                 broker.getPort(),
                 oosBrokerId,
-                leaderId,
-                oosReplica.topicPartition);
+                leaderId);
             if (reason == UnderReplicatedReason.FOLLOWER_FAILURE) {
               downBrokers.add(oosBrokerId);
             } else if (reason == UnderReplicatedReason.LEADER_FAILURE) {
@@ -424,10 +423,9 @@ public class URPReassignmentOperator extends KafkaOperator {
                                                         String brokerHost,
                                                         int kafkaPort,
                                                         int brokerId,
-                                                        int leaderId,
-                                                        TopicPartition tp) {
+                                                        int leaderId) {
     UnderReplicatedReason reason = UnderReplicatedReason.UNKNOWN;
-    if (brokerHost != null && isDeadBroker(kafkaCluster, brokerHost, kafkaPort, brokerId, tp)) {
+    if (brokerHost != null && isDeadBroker(kafkaCluster, brokerHost, kafkaPort, brokerId)) {
       reason = UnderReplicatedReason.FOLLOWER_FAILURE;
     } else if (leaderId < 0) {
       LOG.error("No live leader {}:{}", brokerHost, brokerId);
@@ -436,7 +434,7 @@ public class URPReassignmentOperator extends KafkaOperator {
       KafkaBroker leaderBroker = kafkaCluster.getBroker(leaderId);
       // Leader might be bad as well
       BrokerStats brokerStats = kafkaCluster.getLatestBrokerStats(brokerId);
-      if (leaderBroker != null && isDeadBroker(kafkaCluster, leaderBroker.getName(), kafkaPort, leaderId, tp)) {
+      if (leaderBroker != null && isDeadBroker(kafkaCluster, leaderBroker.getName(), kafkaPort, leaderId)) {
         reason = UnderReplicatedReason.LEADER_FAILURE;
       } else if (isNetworkSaturated(brokerStats)) {
         reason = UnderReplicatedReason.LEADER_NETWORK_SATURATION;
@@ -450,15 +448,14 @@ public class URPReassignmentOperator extends KafkaOperator {
    * a broker is dead or not. This method only returns true when we are sure that the broker
    * is not available.
    */
-  private boolean isDeadBroker(KafkaCluster kafkaCluster, String host, int kafkaPort, int brokerId, TopicPartition tp) {
+  private boolean isDeadBroker(KafkaCluster kafkaCluster, String host, int kafkaPort, int brokerId) {
     if (OperatorUtil.pingKafkaBroker(host, kafkaPort, 5000)) {
       LOG.debug("Broker {} is alive as {}:9092 is reachable", brokerId, host);
-      if (OperatorUtil.canFetchData(host, kafkaPort, tp.topic(), tp.partition())) {
-        LOG.debug("We are able to fetch data from broker {}", brokerId);
+      if (OperatorUtil.canServeApiRequests(host, kafkaPort)) {
+        LOG.debug("We are able to make api calls to broker {}", brokerId);
         return false;
       } else {
-        LOG.warn("We are not able to fetch data from broker {} topic {}, par {}",
-            brokerId, tp.topic(), tp.partition());
+        LOG.warn("We are unable to make api calls to broker {}", brokerId);
         return true;
       }
     }

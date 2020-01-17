@@ -133,8 +133,8 @@ public class BrokerStatsFilter {
     brokerNames.add(brokerName);
 
     KafkaConsumer<byte[], byte[]> kafkaConsumer = KafkaUtils.getKafkaConsumer(brokerStatsZk,
-        "org.apache.kafka.common.serialization.ByteArrayDeserializer",
-        "org.apache.kafka.common.serialization.ByteArrayDeserializer", 1,
+        KafkaUtils.BYTE_ARRAY_DESERIALIZER,
+        KafkaUtils.BYTE_ARRAY_DESERIALIZER, 1,
         SecurityProtocol.PLAINTEXT,
         null);
 
