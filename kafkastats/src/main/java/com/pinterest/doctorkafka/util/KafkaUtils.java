@@ -7,6 +7,8 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
+import org.apache.kafka.common.serialization.ByteArrayDeserializer;
+import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.zookeeper.ZooDefs;
@@ -22,7 +24,8 @@ import java.util.Properties;
 public class KafkaUtils {
 
   private static final Logger LOG = LogManager.getLogger(KafkaUtils.class);
-  public static final String BYTE_ARRAY_DESERIALIZER = "org.apache.kafka.common.serialization.ByteArrayDeserializer";
+  public static final String BYTE_ARRAY_DESERIALIZER = ByteArrayDeserializer.class.getName();
+  public static final String BYTE_ARRAY_SERIALIZER = ByteArraySerializer.class.getName();
   private static final int DEFAULT_MAX_POLL_RECORDS = 500;
 
   // Important: it is necessary to add any new top level Zookeeper path here
