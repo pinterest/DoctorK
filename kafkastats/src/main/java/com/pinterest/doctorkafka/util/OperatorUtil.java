@@ -6,23 +6,17 @@ import com.pinterest.doctorkafka.BrokerStats;
 
 import org.apache.commons.lang3.tuple.MutablePair;
 
-import kafka.api.FetchRequest;
-import kafka.api.FetchRequestBuilder;
-import kafka.api.FetchResponse;
-import kafka.api.Request;
 import kafka.cluster.Broker;
-import kafka.common.TopicAndPartition;
-import kafka.consumer.SimpleConsumer;
-import kafka.message.MessageSet;
 import kafka.utils.ZkUtils;
 import org.I0Itec.zkclient.ZkClient;
 import org.I0Itec.zkclient.ZkConnection;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.specific.SpecificDatumReader;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.DescribeClusterResult;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.network.ListenerName;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
@@ -44,6 +38,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.management.MBeanServerConnection;
 import javax.management.remote.JMXConnector;
@@ -55,11 +50,7 @@ public class OperatorUtil {
   private static final Logger LOG = LogManager.getLogger(OperatorUtil.class);
   public static final String HostName = getHostname();
   private static final DecoderFactory avroDecoderFactory = DecoderFactory.get();
-  private static final String FETCH_CLIENT_NAME = "DoctorKafka";
-  private static final int FETCH_SOCKET_TIMEOUT = 10 * 1000;
-  private static final int FETCH_BUFFER_SIZE = 4 * 1024 * 1024;
-  private static final int FETCH_RETRIES = 3;
-  private static final int FETCH_MAX_WAIT_MS = 1; // this is the same wait as simmpleConsumerShell
+  private static final int API_REQUEST_TIMEOUT_MS = 10000;
   // Reuse the reader to improve performance
   private static final SpecificDatumReader<BrokerStats> brokerStatsReader = new SpecificDatumReader<>(BrokerStats.getClassSchema());
 
@@ -95,7 +86,6 @@ public class OperatorUtil {
     return mbs;
   }
 
-
   public static boolean pingKafkaBroker(String host, int port, int timeout) {
     try (Socket socket = new Socket()) {
       socket.connect(new InetSocketAddress(host, port), timeout);
@@ -109,97 +99,20 @@ public class OperatorUtil {
     }
   }
 
-  public static boolean canFetchData(String host, int port, String topic, int partition) {
-    LOG.info("Fetching data from host {}, topic {}, partition {}", host, topic, partition);
-    SimpleConsumer consumer = new SimpleConsumer(host, port,
-        FETCH_SOCKET_TIMEOUT, kafka.consumer.ConsumerConfig.SocketBufferSize(), FETCH_CLIENT_NAME);
+  public static boolean canServeApiRequests(String host, int port) {
+    Properties props = new Properties();
+    props.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, host + ":" + port);
+    AdminClient adminClient = AdminClient.create(props);
+    DescribeClusterResult result = adminClient.describeCluster();
     try {
-      long earlyOffset = getOffset(consumer, topic, partition,
-          kafka.api.OffsetRequest.EarliestTime());
-      long latestOffset = getOffset(consumer, topic, partition,
-          kafka.api.OffsetRequest.LatestTime());
-      long readOffset = (earlyOffset + latestOffset) / 2;
-      LOG.info("earlyOffset: " + earlyOffset + " latestOffset: " + latestOffset +
-          " readOffset: " + readOffset);
-      for (int i = 0; i < FETCH_RETRIES; i++) {
-        FetchRequest req = new FetchRequestBuilder()
-            .clientId(FETCH_CLIENT_NAME)
-            .replicaId(Request.DebuggingConsumerId()) // this consumerId enable reads from follower
-            .maxWait(FETCH_MAX_WAIT_MS)
-            .minBytes(kafka.consumer.ConsumerConfig.MinFetchBytes())
-            .addFetch(topic, partition, readOffset, FETCH_BUFFER_SIZE)
-            .build();
-        try {
-          FetchResponse response = consumer.fetch(req);
-
-          if (response.hasError()) {
-            String errMsg = "Error fetching Data. ErrorCode: " + response.error(topic, partition);
-            LOG.warn(errMsg);
-          } else {
-            MessageSet msgSet = response.messageSet(topic, partition);
-            if (msgSet.sizeInBytes() <= 0) {
-              if (earlyOffset == latestOffset) {
-                LOG.warn("Passed. No data in partition.  Fetching data from host {}, topic {}, partition {}",
-                    host, topic, partition);
-                return true;
-              } else {
-                LOG.warn("host: " + host + " topic: " + topic + " par: " + partition +
-                    " Not enough bytes: {}", msgSet.sizeInBytes());
-              }
-            } else {
-              LOG.info("Passed. Fetching data from host {}, topic {}, partition {}",
-                  host, topic, partition);
-              return true;
-            }
-          }
-        } catch (Exception ex) {
-          LOG.warn("For host: " + host + " Unexpected exception", ex);
-        }
-        try {
-          Thread.sleep((long) (Math.random() * 3000));
-        } catch (InterruptedException ex) {
-          LOG.warn("Unexpected interruption", ex);
-        }
-      }
-    } catch (IOException e) {
-      LOG.warn("For host: " + host + " Unexpected exception", e);
-    } finally {
-      try {
-        consumer.close();
-      } catch (Exception e) {
-        LOG.error("Unexpected exception in closing consumer", e);
-      }
+      result.clusterId().get(API_REQUEST_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+      return true;
+    } catch (Exception e) {
+      LOG.warn("Metadata fetch from endpoint {} failed.", host + ":" + port, e);
+      return false;
     }
-    LOG.warn("Failed Fetching data from host {}, topic {}, parttion {}", host, topic, partition);
-    return false;
   }
 
-  public static long getOffset(SimpleConsumer consumer, String topic, int partition,
-                               long whichTime) throws IOException {
-    String errMsg = null;
-    Exception lastEx = null;
-    for (int i = 0; i < FETCH_RETRIES; i++) {
-      TopicAndPartition topicAndPartition = new TopicAndPartition(topic, partition);
-      try {
-        long offset = consumer.earliestOrLatestOffset(topicAndPartition, whichTime,
-            Request.DebuggingConsumerId());
-        return offset;
-      } catch (RuntimeException e) {
-        lastEx = e;
-        errMsg = "Failed to getting offset for topic: " + topic + " partition: " + partition
-            + " host: " + consumer.host();
-        LOG.warn(errMsg, e);
-        try {
-          Thread.sleep((long) (Math.random() * 3000));
-        } catch (InterruptedException ex) {
-          LOG.warn("Unexpected interruption", ex);
-        }
-      }
-    }
-    throw new IOException(errMsg, lastEx);
-  }
-
-  private static Map<String, KafkaConsumer> kafkaConsumers = new HashMap();
   private static Map<String, ZkUtils> zkUtilsMap = new HashMap();
 
   public static ZkUtils getZkUtils(String zkUrl) {
@@ -235,11 +148,10 @@ public class OperatorUtil {
     props.put(ProducerConfig.BATCH_SIZE_CONFIG, 1638400);
     props.put(ProducerConfig.BUFFER_MEMORY_CONFIG, 3554432);
     props.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "gzip");
-    props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, KafkaUtils.BYTE_ARRAY_DESERIALIZER);
-    props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.ByteArraySerializer");
+    props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, KafkaUtils.BYTE_ARRAY_SERIALIZER);
+    props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, KafkaUtils.BYTE_ARRAY_SERIALIZER);
     return props;
   }
-
 
   public static Properties createKafkaConsumerProperties(String zkUrl, String consumerGroupName,
       SecurityProtocol securityProtocol, Properties consumerConfigs) {
@@ -257,7 +169,6 @@ public class OperatorUtil {
     return props;
   }
 
-
   public static BrokerStats deserializeBrokerStats(ConsumerRecord<byte[], byte[]> record) {
     try {
       BinaryDecoder binaryDecoder = avroDecoderFactory.binaryDecoder(record.value(), null);
@@ -269,7 +180,6 @@ public class OperatorUtil {
       return null;
     }
   }
-
 
   public static void startOstrichService(String serviceName, String tsdbHostPort, int ostrichPort) {
     String tsdbHost = null;
@@ -342,6 +252,7 @@ public class OperatorUtil {
     MutablePair<Double, Double> result = new MutablePair<>(inRate, outRate);
     return result;
   }
+
   /**
    * Sort the map entries based on entry values in descending order
    */

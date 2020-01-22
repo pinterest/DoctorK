@@ -5,6 +5,7 @@ import com.pinterest.doctorkafka.plugins.errors.PluginConfigurationException;
 import com.pinterest.doctorkafka.plugins.task.Task;
 import com.pinterest.doctorkafka.plugins.task.TaskHandler;
 import com.pinterest.doctorkafka.plugins.task.TaskUtils;
+import com.pinterest.doctorkafka.util.KafkaUtils;
 import com.pinterest.doctorkafka.util.OperatorUtil;
 
 import org.apache.avro.io.BinaryEncoder;
@@ -150,8 +151,8 @@ public class KafkaReportOperationTaskHandler extends TaskHandler {
     props.put(ProducerConfig.BATCH_SIZE_CONFIG, 1638400);
     props.put(ProducerConfig.BUFFER_MEMORY_CONFIG, 33554432);
     props.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "gzip");
-    props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.ByteArraySerializer");
-    props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.ByteArraySerializer");
+    props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, KafkaUtils.BYTE_ARRAY_SERIALIZER);
+    props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, KafkaUtils.BYTE_ARRAY_SERIALIZER);
 
     props.putAll(producerConfig);
     return new KafkaProducer<>(props);

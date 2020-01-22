@@ -16,7 +16,6 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.logging.log4j.LogManager;
@@ -133,8 +132,8 @@ public class BrokerStatsFilter {
     brokerNames.add(brokerName);
 
     KafkaConsumer<byte[], byte[]> kafkaConsumer = KafkaUtils.getKafkaConsumer(brokerStatsZk,
-        "org.apache.kafka.common.serialization.ByteArrayDeserializer",
-        "org.apache.kafka.common.serialization.ByteArrayDeserializer", 1,
+        KafkaUtils.BYTE_ARRAY_DESERIALIZER,
+        KafkaUtils.BYTE_ARRAY_DESERIALIZER, 1,
         SecurityProtocol.PLAINTEXT,
         null);
 
