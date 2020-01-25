@@ -56,7 +56,7 @@ The following is a sample command line for running kafkastats collector:
 ```
 java -server \
     -Dlog4j.configurationFile=file:./log4j2.xml \
-    -cp lib/*:kafkastats-0.3.0-rc.1.jar \
+    -cp lib/*:kafkastats-0.3.0-rc.2.jar \
     com.pinterest.doctorkafka.stats.KafkaStatsMain \
         -broker 127.0.0.1 \
         -jmxport 9999 \
@@ -148,7 +148,7 @@ mvn package -pl drkafka -am
 ```sh
 mvn package
 mkdir ${DOCTORKAFKA_INSTALL_DIR} # directory to place DoctorKafka binaries in.
-tar -zxvf target/doctorkafka-0.3.0-rc.1-bin.tar.gz -C ${DOCTORKAFKA_INSTALL_DIR}
+tar -zxvf target/doctorkafka-0.3.0-rc.2-bin.tar.gz -C ${DOCTORKAFKA_INSTALL_DIR}
 ```
 
 ##### Run DoctorKafka
@@ -156,7 +156,7 @@ tar -zxvf target/doctorkafka-0.3.0-rc.1-bin.tar.gz -C ${DOCTORKAFKA_INSTALL_DIR}
 cd ${DOCTORKAFKA_INSTALL_DIR}
 
 java -server \
-    -cp lib/*:doctorkafka-0.3.0-rc.1.jar \
+    -cp lib/*:doctorkafka-0.3.0-rc.2.jar \
     com.pinterest.doctorkafka.DoctorKafkaMain \
         server PATH_TO_DROPWIZARD_YAML_FILE
 ```
