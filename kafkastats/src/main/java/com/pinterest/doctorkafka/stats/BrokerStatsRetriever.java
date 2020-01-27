@@ -47,7 +47,7 @@ public class BrokerStatsRetriever {
 
   private static final String PROC_NET_DEV = "/proc/net/dev";
   private static final Logger LOG = LogManager.getLogger(BrokerStatsRetriever.class);
-  private static final String VERSION = "0.3.0-rc.1";
+  private static final String VERSION = "0.3.0-rc.2";
   private static String KAFKA_LOG = "kafka.log";
   private static String KAFKA_SERVER = "kafka.server";
   private static String LOG_DIR = "log.dir";
