@@ -62,7 +62,12 @@ public class BrokerReplacementOperator extends KafkaOperator {
       if(!isClusterReplacementCooldownExpired(state)) {
         LOG.info("Cannot replace brokers on {} due to replace frequency limitation", state.getClusterName());
       } else {
-        victim = toBeReplacedBrokers.get(0);
+        for (KafkaBroker broker : toBeReplacedBrokers){
+          if (!broker.isDecommissioned()){
+            victim = broker;
+            break;
+          }
+        }
       }
     }
 
