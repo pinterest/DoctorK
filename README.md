@@ -1,6 +1,6 @@
 #  <img src="docs/doctorkafka_logo.svg" alt="DoctorKafka logo" width="48"> &nbsp;&nbsp; Pinterest DoctorKafka
 
-[![Build Status](https://travis-ci.org/pinterest/doctorkafka.svg)](https://travis-ci.org/pinterest/doctorkafka)
+![Java CI](https://github.com/pinterest/doctorkafka/workflows/Java%20CI/badge.svg)
 
 DoctorKafka is a service for [Kafka] cluster auto healing and workload balancing.  DoctorKafka can automatically detect broker failure and reassign the workload on the failed nodes to other nodes. DoctorKafka can also perform load balancing based on topic partitions's network usage, and makes sure that broker network usage does not exceed the defined settings. DoctorKafka sends out alerts when it is not confident on taking actions.
 
