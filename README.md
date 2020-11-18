@@ -1,6 +1,9 @@
 #  <img src="docs/doctorkafka_logo.svg" alt="DoctorKafka logo" width="48"> &nbsp;&nbsp; Pinterest DoctorKafka
 
-[![Build Status](https://travis-ci.org/pinterest/doctorkafka.svg)](https://travis-ci.org/pinterest/doctorkafka)
+### Open Sourcing Orion
+Based on learning from DoctorKafka we have created and open sourced [Orion](https://github.com/pinterest/orion), a more capable system for management of Kafka and other distributed systems. Orion addresses the [shortcomings](https://github.com/pinterest/orion/blob/master/docs/Motivation.md) of DoctorKafka and also adds new features like topic management, rolling restarts, rolling upgrades, stuck consumer remediation etc. Orion has been stabily managing our entire kafka fleet for >6months.
+
+---
 
 DoctorKafka is a service for [Kafka] cluster auto healing and workload balancing.  DoctorKafka can automatically detect broker failure and reassign the workload on the failed nodes to other nodes. DoctorKafka can also perform load balancing based on topic partitions's network usage, and makes sure that broker network usage does not exceed the defined settings. DoctorKafka sends out alerts when it is not confident on taking actions.
 
