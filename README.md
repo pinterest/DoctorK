@@ -28,7 +28,7 @@ cd doctorkafka
 ##### Build kafka stats collector and deployment it to kafka brokers 
 
 ```sh
-mvn package -pl kafkastats -am
+./mvnw package -pl kafkastats -am
 ```
 
 Kafkastats is a kafka broker stats collector that runs on kafka brokers and reports broker stats
@@ -124,11 +124,11 @@ comments describing the meaning of individual parameters.
 #### Create and install jars
 
 ```
-mvn package -pl drkafka -am 
+./mvnw package -pl drkafka -am
 ```
 
 ```sh
-mvn package
+./mvnw package
 mkdir ${DOCTORKAFKA_INSTALL_DIR} # directory to place DoctorKafka binaries in.
 tar -zxvf target/doctorkafka-0.2.4.9-bin.tar.gz -C ${DOCTORKAFKA_INSTALL_DIR}
 ```
