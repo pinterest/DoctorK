@@ -1,23 +1,23 @@
-## Pinterest DoctorKafka Design
+## Pinterest DoctorK Design
 
 #### High Level Design
 
-DoctorKafka is composed of two parts: 
+DoctorK is composed of two parts: 
 
   * Metrics collector that is deployed to each kafka broker
-  * Central doctorkafka service that analyzes broker status and execute kafka operation commands
+  * Central doctork service that analyzes broker status and execute kafka operation commands
 
-The following diagram shows the high level design. DoctorKafka is composed of two parts: i) the metrics collector that deploys on every kafka broker; 2) the central failure detection, workload balancing, and partition reassignment logic. The metric collectors send metrics to a kafka topic that the central DoctorKafka service read from. DoctorKafka takes actions and also log its action to another topic that can be viewed through web UI. DoctorKafka only takes confident actions, and send out alerts when it is not confident on taking actions. 
+The following diagram shows the high level design. DoctorK is composed of two parts: i) the metrics collector that deploys on every kafka broker; 2) the central failure detection, workload balancing, and partition reassignment logic. The metric collectors send metrics to a kafka topic that the central DoctorK service read from. DoctorK takes actions and also log its action to another topic that can be viewed through web UI. DoctorK only takes confident actions, and send out alerts when it is not confident on taking actions. 
 
-![doctorkafka diagram](doctorkafka_diagram.png)
-<img src="doctorkafka_diagram.png" width="160">
+![doctork diagram](doctork_diagram.png)
+<img src="doctork_diagram.png" width="160">
 
 
 #### Kafka Metrics collection
 
-DoctorKafka needs accurate kafka metrics to make sound decisions. As Kafka workload is mostly network bounded, DoctorKafka only uses topic partition network traffic metric to decide topic partition allocation. Currently kafka only have jmx metrics at topic level. It does not provide jmx metrics at replica level. Due to partition reassignment, etc., the traffic at topic level can vary a lot. Computing the normal network traffic of replicas becomes a challenge. 
+DoctorK needs accurate kafka metrics to make sound decisions. As Kafka workload is mostly network bounded, DoctorK only uses topic partition network traffic metric to decide topic partition allocation. Currently kafka only have jmx metrics at topic level. It does not provide jmx metrics at replica level. Due to partition reassignment, etc., the traffic at topic level can vary a lot. Computing the normal network traffic of replicas becomes a challenge. 
 
-DoctorKafka deploys a metric collection agent on each kafka broker to collect metrics. The metric agent collect the following info for each broker: 
+DoctorK deploys a metric collection agent on each kafka broker to collect metrics. The metric agent collect the following info for each broker: 
    *  Inbound and outbound network traffic for each leader replica
    *  leader replicas on the broker
    *  follower replicas on the broker
@@ -26,7 +26,7 @@ DoctorKafka deploys a metric collection agent on each kafka broker to collect me
 Note that as of kafka 0.10.2, kafka only expose network traffic metrics for leader replicas. As follower replicas only have in-bound traffic, we can infer the follower replica traffic from leader replica traffic. 
 
 
-#### DoctorKafka cluster manager
+#### DoctorK cluster manager
 
 The broker workload traffic usually varies throughout the day. Because of this, we need to read broker stats from 24-48 hours time window to infer the traffic of each replica. As partition reassignment does not reflect the noraml workload traffic, we need to exclude partition reassignment traffic during the metric computation. 
 
