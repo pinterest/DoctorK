@@ -1,0 +1,270 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+# DoctorK 0.3 switches to use YAML format to specify configuration parameters.
+# DoctorK 0.2.x and earlier versions used properties file format.
+# Because of this, configuration update is needed during DoctorK 0.3 upgrade.
+
+###################################################################################
+#                                                                                 #
+#                           DoctorK global settings:                          #
+#    *  Zookeeper url for kafkastats topic                                        #                                                             
+#    *  Host name (localhost or 0.0.0.0) and port # for DoctorK UI            #
+#    *  Ostrich port number for Finagle-Ostrich service framework                 #                                                             
+#    *  TSD host name and port number that DoctorK process sends metrics to   #
+#    *  action_reporter configuration                                             #                                                             
+#    *  Auto-restart interval setting                                             #
+#                                                                                 #
+###################################################################################
+doctork:
+  # zookeeper quorum for storing doctork metadata
+  zkurl: zookeeper001:2181,zookeeper002:2181,zookeeper003:2181/doctork
+  event:
+    handler: com.pinterest.doctork.plugins.context.event.SingleThreadEventHandler
+  ui:
+    host: localhost # Host for binding UI. Defaults to 0.0.0.0 for external host access, switch to localhost for access restriction
+    port: 8080
+  ostrich: # Optional, Finagle-Ostrich service framework 
+    port: 2052 # ostrich port number.
+  tsd: # optional, tsd host and port.
+    host: localhost
+    port: 18621
+  # legacy config for UI to read from the report topic, will be removed in the future
+  # should be set same as doctork.actions.report_operation.config
+  action_report:
+    zkurl: zookeeper001:2181,zookeeper002:2181,zookeeper003:2181/cluster1
+    topic: operator_report
+    consumer_config: |
+      security.protocol=SSL
+      ssl.client.auth=required
+      ssl.enabled.protocols=TLSv1.2,TLSv1.1,TLSv1
+      ssl.endpoint.identification.algorithm=HTTPS
+      ssl.keystore.location=keystore_path
+      ssl.keystore.password=keystore_password
+      ssl.keystore.type=JKS
+      ssl.secure.random.implementation=SHA1PRNG
+      ssl.truststore.location=truststore_path
+      ssl.truststore.password=truststore_password
+      ssl.truststore.type=JKS
+  restart:
+    disabled: false # optional, disable doctork service restart
+    interval_seconds: 86400 # doctork service restart interval
+  evaluation_interval_seconds: 5
+
+###################################################################################
+#                                                                                 #
+#                   Doctorkafka monitor plugins configurations                    #
+#                                                                                 #
+###################################################################################
+#
+################################## Example ########################################
+#
+#  monitors:                                  # A list of the monitor configurations.
+#                                             # Monitors are evaluated in the order they are listed
+#    - name: monitor1                         # Required
+#      class: com.foo.bar.path.to.Monitor1    # Required
+#      config:                                # Optional, depends on plugin
+#        key: value
+#        nested_key:
+#          key2: value2
+#    - name: monitor2
+#      class: com.foo.bar.path.to.Monitor2
+#
+
+monitors:
+  - name: brokerstats_monitor
+    class: com.pinterest.doctork.plugins.monitor.cluster.kafka.BrokerStatsMonitor
+    config: # documentation of the plugins are in plugins' class
+      zkurl: zookeeper001:2181,zookeeper002:2181,zookeeper003:2181/cluster1
+      topic: brokerstats
+      backfill_seconds: 86400
+      consumer_config: |
+        security.protocol=SSL
+        ssl.client.auth=required
+        ssl.enabled.protocols=TLSv1.2,TLSv1.1,TLSv1
+        ssl.endpoint.identification.algorithm=HTTPS
+        ssl.keystore.location=keystore_path
+        ssl.keystore.password=keystore_password
+        ssl.keystore.type=JKS
+        ssl.secure.random.implementation=SHA1PRNG
+        ssl.truststore.location=truststore_path
+        ssl.truststore.password=truststore_password
+        ssl.truststore.type=JKS
+  - name: maintenance_monitor
+    class: com.pinterest.doctork.plugins.monitor.cluster.MaintenanceMonitor
+  - name: dead_broker_monitor
+    class: com.pinterest.doctork.plugins.monitor.cluster.kafka.DeadBrokerMonitor
+    config:
+      no_stats_seconds: 600
+  - name: no_brokerstats_broker_monitor
+    class: com.pinterest.doctork.plugins.monitor.cluster.kafka.NoBrokerstatsBrokerMonitor
+  - name: urp_monitor
+    class: com.pinterest.doctork.plugins.monitor.cluster.kafka.URPMonitor
+
+###################################################################################
+#                                                                                 #
+#                  Doctorkafka operator plugins configurations                    #
+#                                                                                 #
+###################################################################################
+#
+################################## Example ########################################
+#
+#  operators:                                 # A list of the operator configurations.
+#                                             # operators are evaluated in the order they are listed
+#    - name: operator1                        # Required
+#      class: com.foo.bar.path.to.Operator1   # Required
+#      config:                                # Optional, depends on plugin
+#        key: value
+#        nested_key:
+#          key2: value2
+#    - name: monitor2
+#      class: com.foo.bar.path.to.Operator2
+#
+
+operators:
+  - name: broker_replacement_operator
+    class: com.pinterest.doctork.plugins.operator.cluster.kafka.BrokerReplacementOperator
+    config:
+      replacement_cooldown_seconds: 43200
+  - name: no_brokerstats_broker_operator
+    class: com.pinterest.doctork.plugins.operator.cluster.kafka.NoBrokerstatsBrokerOperator
+  - name: urp_reassignment_operator
+    class: com.pinterest.doctork.plugins.operator.cluster.kafka.URPReassignmentOperator
+    config:
+      rack_awareness:
+        enabled: true
+      prolong_urp_alert_seconds: 7200
+      network_bandwidth_max_mb: 200
+
+###################################################################################
+#                                                                                 #
+#                   Doctorkafka action plugins configurations                     #
+#                                                                                 #
+###################################################################################
+#
+################################## Example ########################################
+#
+#  actions:                                   # A list of the action configurations.
+#                                             # Actions do NOT have an evaluation order since they are event-driven
+#    - name: action1                          # Required
+#      class: com.foo.bar.path.to.Action1     # Required
+#      config:                                #
+#        subscribed_events: event1,event2     # Required, a list of events this action is subscribing to
+#        dryrun: true                         # Optional, set to false to actually fire action. Defaults to true
+#        key: value                           # Other configs are optional, depends on plugin
+#        nested_key:
+#          key2: value2
+#    - name: action2
+#      class: com.foo.bar.path.to.Action2
+#      config:
+#        subscribed_events: event3
+#
+
+actions:
+  - name: report_operation_action
+    class: com.pinterest.doctork.plugins.action.KafkaReportOperationAction
+    config:
+      subscribed_events: report_operation
+      topic: operator_report
+      zkurl: <zookeeper connecting string for the cluster that hosts action_report topic>
+      producer_config: |
+        security.protocol=SSL
+        ssl.client.auth=required
+        ssl.enabled.protocols=TLSv1.2,TLSv1.1,TLSv1
+        ssl.endpoint.identification.algorithm=HTTPS
+        ssl.keystore.location=keystore_path
+        ssl.keystore.password=keystore_password
+        ssl.keystore.type=JKS
+        ssl.secure.random.implementation=SHA1PRNG
+        ssl.truststore.location=truststore_path
+        ssl.truststore.password=truststore_password
+        ssl.truststore.type=JKS
+  - name: replace_instance_action
+    class: com.pinterest.doctork.plugins.action.cluster.ScriptReplaceInstanceAction
+    config:
+      subscribed_events: replace_instance
+      script: "replace-script.sh "
+      prolong_replacement_alert_seconds: 1800
+  - name: reassign_partitions_action
+    class: com.pinterest.doctork.plugins.action.cluster.kafka.ZkUtilReassignPartitionAction
+    config:
+      subscribed_events: reassign_partitions
+  - name: send_email_action
+    class: com.pinterest.doctork.plugins.action.SendEmailAction
+    config:
+      subscribed_events: notify_replacement,notify_reassignment,notify_maintenance_mode,notify_decommission
+      emails: foo@email.com,bar@email.com
+  - name: snoozed_send_email_action
+    class: com.pinterest.doctork.plugins.action.SnoozedSendEmailAction
+    config:
+      subscribed_events: notify_prolong_replacement,alert_no_brokerstats_brokers,alert_urp_handling_failure,alert_prolong_urp
+      emails: foo@email.com,bar@email.com
+      snooze_seconds: 1200
+
+################################################################################
+#                                                                              #
+#                    Settings for managed kafka clusters.                      #
+#                                                                              #
+################################################################################
+
+kafkaclusters:
+  - name: cluster1
+    zkurl: zookeeper001:2181,zookeeper002:2181,zookeeper003:2181/cluster1
+    monitors:
+      - name: brokerstats_monitor
+        config:
+          network:
+            inbound_limit_mb: 35
+            outbound_limit_mb: 80
+      - name: urp_monitor
+        config:
+          prolong_alert_seconds: 3600
+    operators:
+      - name: urp_reassignment_operator
+        config:
+          network_bandwidth_max_mb: 200
+    actions:
+      - name: reporter_opertion_action
+        config:
+          dryrun: false
+      - name: replace_instance_action
+        config:
+          dryrun: false
+      - name: reassign_partitions_action
+        config:
+          dryrun: false
+      - name: send_email_action
+        config:
+          dryrun: false
+      - name: snoozed_send_email_action
+        config:
+          dryrun: false
+  - name: cluster2
+    zkurl: zookeeper001:2181,zookeeper002:2181,zookeeper003:2181/cluster2
+    monitors:
+      - name: brokerstats_monitor
+        config:
+          network:
+            inbound_limit_mb: 35
+            outbound_limit_mb: 80
+      - name: maintenance_monitor
+        enabled: false # disable the plugin for this cluster
+    operators:
+      - name: urp_reassignment_operator
+        config:
+          rack_awareness:
+            enabled: false
+          network_bandwidth_max_mb: 150

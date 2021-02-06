@@ -1,0 +1,1 @@
+java -Dlog4j.configurationFile=file:doctork/config/log4j2.xml -cp doctork/target/*:doctork/target/lib/* com.pinterest.doctork.tools.ConfigurationValidator "$@"
