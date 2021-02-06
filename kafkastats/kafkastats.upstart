@@ -20,7 +20,7 @@ script
     -XX:ErrorFile=$LOG_DIR/jvm_error.log \
     -cp $CLASSPATH"
     exec $DAEMON $DAEMON_OPTS -Dlog4j.configuration=${LOG_PROPERTIES} \
-                 com.pinterest.doctorkafka.stats.KafkaStatsMain \
+                 com.pinterest.doctork.stats.KafkaStatsMain \
                  -jmxport 9999  -topic brokerstats  \
                  -zookeeper zookeeper01:2181 \
                  -tsdhostport localhost:18126 -ostrichport 2051 \

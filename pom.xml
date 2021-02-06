@@ -3,10 +3,10 @@
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-	<name>doctorkafka-parent</name>
+	<name>doctork-parent</name>
 	<groupId>com.github.pinterest</groupId>
-	<artifactId>doctorkafka-parent</artifactId>
-	<version>0.2.4.9</version>
+	<artifactId>doctork-parent</artifactId>
+	<version>0.2.4.10</version>
 	<packaging>pom</packaging>
 	<url>https://github.com/pinterest/doctorkafka</url>
 
@@ -18,7 +18,7 @@
 		<kafka.version>1.1.0</kafka.version>
 	</properties>
 
-	<description>parent pom for doctorkafka and kafkastats</description>
+	<description>parent pom for doctork and kafkastats</description>
 	<licenses>
 		<license>
 			<name>Apache License, Version 2.0</name>
@@ -55,7 +55,7 @@
 
 	<modules>
 		<module>kafkastats</module>
-		<module>drkafka</module>
+		<module>doctork</module>
 	</modules>
 
 	<dependencyManagement>

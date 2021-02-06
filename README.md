@@ -1,11 +1,11 @@
-#  <img src="docs/doctorkafka_logo.svg" alt="DoctorKafka logo" width="48"> &nbsp;&nbsp; Pinterest DoctorKafka
+#  <img src="docs/doctork_logo.svg" alt="DoctorK logo" width="48"> &nbsp;&nbsp; Pinterest DoctorK
 
 ### Open Sourcing Orion
-Based on learning from DoctorKafka we have created and open sourced [Orion](https://github.com/pinterest/orion), a more capable system for management of Kafka and other distributed systems. Orion addresses the [shortcomings](https://github.com/pinterest/orion/blob/master/docs/Motivation.md) of DoctorKafka and also adds new features like topic management, rolling restarts, rolling upgrades, stuck consumer remediation etc. Orion has been stabily managing our entire kafka fleet for >6months.
+Based on learning from DoctorK we have created and open sourced [Orion](https://github.com/pinterest/orion), a more capable system for management of Kafka and other distributed systems. Orion addresses the [shortcomings](https://github.com/pinterest/orion/blob/master/docs/Motivation.md) of DoctorK and also adds new features like topic management, rolling restarts, rolling upgrades, stuck consumer remediation etc. Orion has been stabily managing our entire kafka fleet for >6months.
 
 ---
 
-DoctorKafka is a service for [Kafka] cluster auto healing and workload balancing.  DoctorKafka can automatically detect broker failure and reassign the workload on the failed nodes to other nodes. DoctorKafka can also perform load balancing based on topic partitions's network usage, and makes sure that broker network usage does not exceed the defined settings. DoctorKafka sends out alerts when it is not confident on taking actions.
+DoctorK is a service for [Kafka] cluster auto healing and workload balancing.  DoctorK can automatically detect broker failure and reassign the workload on the failed nodes to other nodes. DoctorK can also perform load balancing based on topic partitions's network usage, and makes sure that broker network usage does not exceed the defined settings. DoctorK sends out alerts when it is not confident on taking actions.
 
 #### Features   
 
@@ -19,10 +19,10 @@ Design details are available in [docs/DESIGN.md](docs/DESIGN.md).
 
 ## Setup Guide
 
-##### Get DoctorKafka code
+##### Get DoctorK code
 ```sh
-git clone [git-repo-url] doctorkafka
-cd doctorkafka
+git clone [git-repo-url] doctork
+cd doctork
 ```
 
 ##### Build kafka stats collector and deployment it to kafka brokers 
@@ -56,8 +56,8 @@ The following is a sample command line for running kafkastats collector:
 ```
 java -server \
     -Dlog4j.configurationFile=file:./log4j2.xml \
-    -cp lib/*:kafkastats-0.2.4.9.jar \
-    com.pinterest.doctorkafka.stats.KafkaStatsMain \
+    -cp lib/*:kafkastats-0.2.4.10.jar \
+    com.pinterest.doctork.stats.KafkaStatsMain \
         -broker 127.0.0.1 \
         -jmxport 9999 \
         -topic brokerstats \
@@ -100,7 +100,7 @@ The following is a sample upstart scripts for automatically restarting kafkastat
        -XX:ErrorFile=$LOG_DIR/jvm_error.log \
        -cp $CLASSPATH"
        exec $DAEMON $DAEMON_OPTS -Dlog4j.configuration=${LOG_PROPERTIES} \
-                    com.pinterest.doctorkafka.stats.KafkaStatsMain \
+                    com.pinterest.doctork.stats.KafkaStatsMain \
                     -broker 127.0.0.1 \
                     -jmxport 9999 \
                     -topic brokerstats \
@@ -115,39 +115,39 @@ The following is a sample upstart scripts for automatically restarting kafkastat
 ```
 
 
-##### Customize doctorkafka configuration parameters
+##### Customize doctork configuration parameters
 
-Edit `drkafka/config/*.properties` files to specify parameters describing the environment. Those files contain
+Edit `doctork/config/*.properties` files to specify parameters describing the environment. Those files contain
 comments describing the meaning of individual parameters.
 
 
 #### Create and install jars
 
 ```
-mvn package -pl drkafka -am 
+mvn package -pl doctork -am 
 ```
 
 ```sh
 mvn package
-mkdir ${DOCTORKAFKA_INSTALL_DIR} # directory to place DoctorKafka binaries in.
-tar -zxvf target/doctorkafka-0.2.4.9-bin.tar.gz -C ${DOCTORKAFKA_INSTALL_DIR}
+mkdir ${DOCTORK_INSTALL_DIR} # directory to place DoctorK binaries in.
+tar -zxvf target/doctork-0.2.4.10-bin.tar.gz -C ${DOCTORK_INSTALL_DIR}
 ```
 
-##### Run DoctorKafka
+##### Run DoctorK
 ```sh
-cd ${DOCTORKAFKA_INSTALL_DIR}
+cd ${DOCTORK_INSTALL_DIR}
 
 java -server \
-    -cp lib/*:doctorkafka-0.2.4.9.jar \
-    com.pinterest.doctorkafka.DoctorKafkaMain \
+    -cp lib/*:doctork-0.2.4.10.jar \
+    com.pinterest.doctork.DoctorKMain \
         server dropwizard_yaml_file
 ```
 
 The above `dropwizard_yaml_file` is the path to a standard [DropWizard configuration file ](https://www.dropwizard.io/1.0.0/docs/manual/configuration.html)
-that only requires the following line pointing to your `doctorkafka.properties` path.
+that only requires the following line pointing to your `doctork.properties` path.
 
 ```
-config:  $doctorkafka_config_properties_file_path
+config:  $doctork_config_properties_file_path
 ```
 
 ##### Customize configuration parameters
@@ -157,36 +157,36 @@ Those files contain comments describing the meaning of individual parameters.
 
 
 ## Tools
-DoctorKafka comes with a number of tools implementing interactions with the environment.
+DoctorK comes with a number of tools implementing interactions with the environment.
 
 ##### Cluster Load Balancer
 
 ```bash
-cd ${DOCTORKAFKA_INSTALL_DIR}
+cd ${DOCTORK_INSTALL_DIR}
 java -server \
-    -Dlog4j.configurationFile=file:drkafka/config/log4j2.xml \
-    -cp drkafka/target/lib/*:drkafka/target/doctorkafka-0.2.4.9.jar \
-    com.pinterest.doctorkafka.tools.ClusterLoadBalancer \
+    -Dlog4j.configurationFile=file:doctork/config/log4j2.xml \
+    -cp doctork/target/lib/*:doctork/target/doctork-0.2.4.10.jar \
+    com.pinterest.doctork.tools.ClusterLoadBalancer \
         -brokerstatstopic  brokerstats \
         -brokerstatszk zookeeper001:2181/cluster1 \
         -clusterzk zookeeper001:2181,zookeeper002:2181,zookeeper003:2181/cluster2 \
-        -config ./drkafka/config/doctorkafka.properties \
+        -config ./doctork/config/doctork.properties \
         -seconds 3600
 ```
 Cluster load balancer balances the workload among brokers to make sure the broker network
 usage does not exceed the threshold.
 
 
-## DoctorKafka UI 
+## DoctorK UI 
 
-DoctorKafka uses [dropwizard-core module](https://www.dropwizard.io/1.3.5/docs/manual/core.html) and [serving assets](https://www.dropwizard.io/1.3.5/docs/manual/core.html#serving-assets) to provide a web UI. The following is the screenshot from a demo:
+DoctorK uses [dropwizard-core module](https://www.dropwizard.io/1.3.5/docs/manual/core.html) and [serving assets](https://www.dropwizard.io/1.3.5/docs/manual/core.html#serving-assets) to provide a web UI. The following is the screenshot from a demo:
 
-![doctorkafka UI](docs/doctorkafka_ui.png)
-<img src="docs/doctorkafka_ui.png" width="160">
+![doctork UI](docs/doctork_ui.png)
+<img src="docs/doctork_ui.png" width="160">
 
-## DoctorKafka APIs
+## DoctorK APIs
 
-The following APIs are available for DoctorKafka:
+The following APIs are available for DoctorK:
 
     - List Cluster
     - Maintenance Mode
@@ -210,7 +210,7 @@ Detailed description of APIs can be found [docs/APIs.md](docs/APIs.md)
 
 ## License
 
-DoctorKafka is distributed under [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0.html).
+DoctorK is distributed under [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0.html).
 
 [Kafka]:http://kafka.apache.org/
 [Ostrich]: https://github.com/twitter/ostrich
