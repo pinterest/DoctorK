@@ -1,0 +1,11 @@
+package com.pinterest.doctork.util;
+
+public enum UnderReplicatedReason {
+  FOLLOWER_FAILURE,
+  LEADER_FAILURE,
+  NO_LEADER_FAILURE,
+  DEGRADED_HARDWARE,
+  FOLLOWER_NETWORK_SATURATION,
+  LEADER_NETWORK_SATURATION,
+  UNKNOWN
+}

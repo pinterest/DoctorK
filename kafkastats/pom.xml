@@ -4,15 +4,15 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
         <groupId>com.github.pinterest</groupId>
-        <artifactId>doctorkafka-parent</artifactId>
-        <version>0.3.0-rc.2</version>
+        <artifactId>doctork-parent</artifactId>
+        <version>0.3.0-rc.3</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>kafkastats</artifactId>
     <name>kafka stats collector</name>
-    <description>Collectoring the kafka stats for DoctorKafka</description>
+    <description>Collectoring the kafka stats for DoctorK</description>
 
     <properties>
     </properties>

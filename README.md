@@ -1,10 +1,10 @@
-#  <img src="docs/doctorkafka_logo.svg" alt="DoctorKafka logo" width="48px"> &nbsp;&nbsp; Pinterest DoctorKafka
+#  <img src="docs/doctork_logo.svg" alt="DoctorK logo" width="48px"> &nbsp;&nbsp; Pinterest DoctorK
 
-***ATTENTION: `master` branch now points to DoctorKafka v3 (0.3.x). The legacy version (0.2.x) can be found under the `0.2.x` branch. 0.3.x uses a YAML configuration that is INCOMPATIBLE with 0.2.x versions.***
+***ATTENTION: `master` branch now points to DoctorK v3 (0.3.x). The legacy version (0.2.x) can be found under the `0.2.x` branch. 0.3.x uses a YAML configuration that is INCOMPATIBLE with 0.2.x versions.***
 
-DoctorKafka is a service for [Kafka] cluster auto-healing and workload balancing.  DoctorKafka can automatically detect broker failure and reassign the workload on the failed nodes to other nodes. DoctorKafka can also perform load balancing based on topic partitions's network usage, and makes sure that broker network usage does not exceed the defined settings. DoctorKafka sends out alerts when it is not confident on taking actions.
+DoctorK is a service for [Kafka] cluster auto-healing and workload balancing.  DoctorK can automatically detect broker failure and reassign the workload on the failed nodes to other nodes. DoctorK can also perform load balancing based on topic partitions's network usage, and makes sure that broker network usage does not exceed the defined settings. DoctorK sends out alerts when it is not confident on taking actions.
 
-DoctorKafka 0.3 introduces a plugin framework to allow users to easily extend DoctorKafka's Kafka cluster status collection and implementing customized actions. DoctorKafka's existing functionality is preserved through default plugins.
+DoctorK 0.3 introduces a plugin framework to allow users to easily extend DoctorK's Kafka cluster status collection and implementing customized actions. DoctorK's existing functionality is preserved through default plugins.
 
 #### Features
 
@@ -20,10 +20,10 @@ Design details are available in [docs/DESIGN.md](docs/DESIGN.md).
 
 ## Setup Guide
 
-##### Get DoctorKafka code
+##### Get DoctorK code
 ```sh
-git clone https://github.com/pinterest/doctorkafka doctorkafka
-cd doctorkafka
+git clone https://github.com/pinterest/doctorkafka doctork
+cd doctork
 ```
 
 ##### Build KafkaStats metric agent and deploy it to kafka brokers 
@@ -56,8 +56,8 @@ The following is a sample command line for running kafkastats collector:
 ```
 java -server \
     -Dlog4j.configurationFile=file:./log4j2.xml \
-    -cp lib/*:kafkastats-0.3.0-rc.2.jar \
-    com.pinterest.doctorkafka.stats.KafkaStatsMain \
+    -cp lib/*:kafkastats-0.3.0-rc.3.jar \
+    com.pinterest.doctork.stats.KafkaStatsMain \
         -broker 127.0.0.1 \
         -jmxport 9999 \
         -topic brokerstats \
@@ -100,7 +100,7 @@ The following is a sample upstart scripts for automatically restarting kafkastat
        -XX:ErrorFile=$LOG_DIR/jvm_error.log \
        -cp $CLASSPATH"
        exec $DAEMON $DAEMON_OPTS -Dlog4j.configuration=${LOG_PROPERTIES} \
-                    com.pinterest.doctorkafka.stats.KafkaStatsMain \
+                    com.pinterest.doctork.stats.KafkaStatsMain \
                     -broker 127.0.0.1 \
                     -jmxport 9999 \
                     -topic brokerstats \
@@ -117,67 +117,67 @@ The following is a sample upstart scripts for automatically restarting kafkastat
 
 ##### Set up configurations
 
-Edit `drkafka/config/doctorkafka.config.yaml` file to specify parameters describing your environment.
-Some configuration descriptions could be documented in the plugins under `drkafka/src/main/java/com/pinterest/doctorkafka/plugins`
+Edit `doctork/config/doctork.config.yaml` file to specify parameters describing your environment.
+Some configuration descriptions could be documented in the plugins under `doctork/src/main/java/com/pinterest/doctork/plugins`
 
 Default plugins provided:
-- Monitors: (under `drkafka/src/main/java/com/pinterest/doctorkafka/plugins/monitor/`)
+- Monitors: (under `doctork/src/main/java/com/pinterest/doctork/plugins/monitor/`)
   1. MaintenanceMonitor
   2. DeadBrokerMonitor
   3. NoBrokerstatsBrokerMonitor
   4. URPMonitor
-- Operators: (under `drkafka/src/main/java/com/pinterest/doctorkafka/plugins/operator/`)
+- Operators: (under `doctork/src/main/java/com/pinterest/doctork/plugins/operator/`)
   1. BrokerReplacementOperator
   2. NoBrokerstatsBrokerOperator
   3. URPReassignmentOperator
-- Actions: (under `drkafka/src/main/java/com/pinterest/doctorkafka/action/`)
+- Actions: (under `doctork/src/main/java/com/pinterest/doctork/action/`)
   1. ZkUtilReassignPartitionAction
   2. ScriptReplaceInstanceAction
   3. KafkaReportOperationAction
   4. SendEmailAction
   5. SnoozedSendEmailAction
 
-Detailed configurations for DoctorKafka, clusters, plugins can be found in the `drkafka/config/doctorkafka.config.yaml`
+Detailed configurations for DoctorK, clusters, plugins can be found in the `doctork/config/doctork.config.yaml`
 
 #### Create and install jars
 
 ```
-mvn package -pl drkafka -am 
+mvn package -pl doctork -am 
 ```
 
 ```sh
 mvn package
-mkdir ${DOCTORKAFKA_INSTALL_DIR} # directory to place DoctorKafka binaries in.
-tar -zxvf target/doctorkafka-0.3.0-rc.2-bin.tar.gz -C ${DOCTORKAFKA_INSTALL_DIR}
+mkdir ${DOCTORK_INSTALL_DIR} # directory to place DoctorK binaries in.
+tar -zxvf target/doctork-0.3.0-rc.3-bin.tar.gz -C ${DOCTORK_INSTALL_DIR}
 ```
 
-##### Run DoctorKafka
+##### Run DoctorK
 ```sh
-cd ${DOCTORKAFKA_INSTALL_DIR}
+cd ${DOCTORK_INSTALL_DIR}
 
 java -server \
-    -cp lib/*:doctorkafka-0.3.0-rc.2.jar \
-    com.pinterest.doctorkafka.DoctorKafkaMain \
+    -cp lib/*:doctork-0.3.0-rc.3.jar \
+    com.pinterest.doctork.DoctorKMain \
         server PATH_TO_DROPWIZARD_YAML_FILE
 ```
 
 The above `PATH_TO_DROPWIZARD_YAML_FILE` is the path to a standard [DropWizard configuration file ](https://www.dropwizard.io/1.0.0/docs/manual/configuration.html)
-that simply points to your doctorkafka configuration file. Generally, the file `drkafka/config/doctorkafka.app.yaml` can be used directly without modification.
+that simply points to your doctork configuration file. Generally, the file `doctork/config/doctork.app.yaml` can be used directly without modification.
 
 ```yaml
-# in drkafka/config/doctorkafka.app.yaml
-config:  doctorkafka.config.yaml # Your doctorkafka config yaml file
+# in doctork/config/doctork.app.yaml
+config:  doctork.config.yaml # Your doctork config yaml file
 ```
 
-## DoctorKafka UI 
+## DoctorK UI 
 
-DoctorKafka uses [dropwizard-core module](https://www.dropwizard.io/1.3.5/docs/manual/core.html) and [serving assets](https://www.dropwizard.io/1.3.5/docs/manual/core.html#serving-assets) to provide a web UI. The following is the screenshot from a demo:
+DoctorK uses [dropwizard-core module](https://www.dropwizard.io/1.3.5/docs/manual/core.html) and [serving assets](https://www.dropwizard.io/1.3.5/docs/manual/core.html#serving-assets) to provide a web UI. The following is the screenshot from a demo:
 
-<img src="docs/doctorkafka_ui.png">
+<img src="docs/doctork_ui.png">
 
-## DoctorKafka APIs
+## DoctorK APIs
 
-The following APIs are available for DoctorKafka:
+The following APIs are available for DoctorK:
 
     - List Cluster
     - Maintenance Mode
@@ -201,7 +201,7 @@ Detailed description of APIs can be found in [docs/API.md](docs/API.md)
 
 ## License
 
-DoctorKafka is distributed under [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0.html).
+DoctorK is distributed under [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0.html).
 
 [Kafka]:http://kafka.apache.org/
 [Ostrich]: https://github.com/twitter/ostrich
